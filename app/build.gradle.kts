@@ -56,6 +56,9 @@ android {
         compose = true
         buildConfig = true
     }
+    lint {
+        disable += "InvalidFragmentVersionForActivityResult"
+    }
 }
 
 kotlin {
@@ -75,4 +78,5 @@ dependencies {
     implementation(libs.health.connect)
     implementation(libs.play.services.fitness)
     implementation(libs.coroutines.play.services)
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
 }
