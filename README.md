@@ -15,6 +15,20 @@ networking or database libraries.
 If both step sources have a number, the app sends the larger one (they count the same walking).
 Only daily totals leave the phone. App names, location and everything else stay on the device.
 
+## Works offline (local database)
+
+The app keeps its own copy of every day in Android's built-in **SQLite** (`LocalDb.kt`, no extra
+libraries). It works with no internet and when the website is down:
+
+- Every time the app opens (and on each background run) it reads the last 10 days from the phone and
+  saves them. Days beyond what the phone remembers stay saved, for up to 400 days.
+- The home screen and week chart are drawn from this database, never from the network.
+- The same table is the **sync outbox**: a day stays "waiting" until the website confirms it. Sync sends
+  all waiting days, oldest first, in batches of 15 days (the website accepts up to 31 days back).
+- If the website is down, the app says how many days are waiting and WorkManager retries with backoff.
+- A missing reading never overwrites a saved one, and a day that changes while being sent stays waiting.
+- Uninstalling the app deletes this database. Days already synced stay on the website.
+
 ## How it syncs
 
 `POST {website}/api/v1/activity/` with `Authorization: Bearer <sync key>`, sending yesterday and today:
@@ -117,7 +131,9 @@ app/src/main/java/com/bas1minute/sync/
   ui/HomeScreen.kt     hero, week chart, sync, connections
   StepsReader.kt       Health Connect + Recording API
   ScreenTimeReader.kt  usage events added up per day
-  Sync.kt              builds the payload, handles server replies
+  LocalDb.kt           SQLite: saved days + sync outbox
+  Recorder.kt          copies the phone's recent days into the database
+  Sync.kt              sends waiting days, handles server replies
   SyncClient.kt        one HTTPS POST (HttpURLConnection)
   SyncWorker.kt        background sync every ~3 hours
   PrivacyActivity.kt   "what we read and send" (also opened by Health Connect)

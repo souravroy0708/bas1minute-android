@@ -35,7 +35,10 @@ class ScreenTimeReader(private val context: Context) {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    /** Minutes for the given day, or null when usage access isn't granted. */
+    /**
+     * Minutes for the given day. Null when usage access isn't granted, or when Android has no usage
+     * data for that day at all (it trims old history), so a saved number is never replaced by 0.
+     */
     fun minutesFor(date: LocalDate): Int? {
         if (!hasAccess()) return null
         val zone = ZoneId.systemDefault()
@@ -49,9 +52,11 @@ class ScreenTimeReader(private val context: Context) {
         val event = UsageEvents.Event()
         val openSince = HashMap<String, Long>()
         var totalMs = 0L
+        var seenAny = false
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
+            seenAny = true
             val pkg = event.packageName ?: continue
             if (pkg in ignored) continue
             val key = pkg + "/" + (event.className ?: "")
@@ -60,6 +65,7 @@ class ScreenTimeReader(private val context: Context) {
                 PAUSED, STOPPED -> openSince.remove(key)?.let { totalMs += event.timeStamp - it }
             }
         }
+        if (!seenAny) return null
         // Apps still on screen right now
         openSince.values.forEach { totalMs += end - it }
         val minutes = (totalMs / 60_000L).toInt()

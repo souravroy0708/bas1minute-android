@@ -18,25 +18,34 @@ data class Snapshot(
     val todaySource: String? = null,
     val week: List<DayValue> = emptyList(),
     val loaded: Boolean = false,
+    val pendingDays: Int = 0,
+    val savedDays: Int = 0,
 ) {
     val today: DayValue? get() = week.lastOrNull()
     val stepsReady: Boolean get() = hcGranted || (activityGranted && recordingAvailable)
 }
 
+/**
+ * Reads the phone into the local database, then builds the screen from the database.
+ * No network involved, so this works offline and when the website is down.
+ */
 suspend fun loadSnapshot(context: Context): Snapshot {
     val steps = StepsReader(context)
     val screen = ScreenTimeReader(context)
     if (steps.activityPermissionGranted() && !Prefs(context).recordingSubscribed) steps.subscribeRecording()
 
+    Recorder.captureRecent(context)
+
+    val db = LocalDb.get(context)
     val today = LocalDate.now()
-    val days = (6 downTo 0).map { today.minusDays(it.toLong()) }
-    var todaySource: String? = null
-    val week = days.map { day ->
-        val s = steps.readDay(day)
-        if (day == today) todaySource = s?.source
-        val minutes = withContext(Dispatchers.Default) { screen.minutesFor(day) }
-        DayValue(day, s?.count, minutes)
+    val saved = withContext(Dispatchers.IO) { db.days(today.minusDays(6), today) }.associateBy { it.date }
+    val week = (6 downTo 0).map { today.minusDays(it.toLong()) }.map { day ->
+        val row = saved[day]
+        DayValue(day, row?.steps, row?.screenMinutes)
     }
+    val todaySource = saved[today]?.stepsSource
+    val pending = withContext(Dispatchers.IO) { db.pendingCount() }
+    val savedCount = withContext(Dispatchers.IO) { db.savedDayCount() }
     return Snapshot(
         hcStatus = steps.healthConnectStatus(),
         hcGranted = steps.healthConnectGranted(),
@@ -46,5 +55,7 @@ suspend fun loadSnapshot(context: Context): Snapshot {
         todaySource = todaySource,
         week = week,
         loaded = true,
+        pendingDays = pending,
+        savedDays = savedCount,
     )
 }

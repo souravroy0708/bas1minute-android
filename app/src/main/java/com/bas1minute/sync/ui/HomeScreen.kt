@@ -108,7 +108,7 @@ fun HomeScreen(snapshot: Snapshot, state: HomeState, actions: HomeActions) {
                         )
                         Text("Aaj ka target", color = Color.White, style = MaterialTheme.typography.headlineMedium)
                     }
-                    SyncChip(state)
+                    SyncChip(state, snapshot.pendingDays)
                 }
                 Spacer(Modifier.height(18.dp))
 
@@ -218,6 +218,7 @@ fun HomeScreen(snapshot: Snapshot, state: HomeState, actions: HomeActions) {
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
+                    OfflineNote(pending = snapshot.pendingDays, saved = snapshot.savedDays)
                     HorizontalDivider(color = Paper)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -296,10 +297,11 @@ fun HomeScreen(snapshot: Snapshot, state: HomeState, actions: HomeActions) {
 }
 
 @Composable
-private fun SyncChip(state: HomeState) {
-    val ok = state.lastSyncOk && state.lastSyncAt > 0
+private fun SyncChip(state: HomeState, pendingDays: Int) {
+    val ok = state.lastSyncOk && state.lastSyncAt > 0 && pendingDays == 0
     val label = when {
         state.syncing -> "Syncing…"
+        pendingDays > 0 && state.lastSyncAt > 0 && !state.lastSyncOk -> "$pendingDays day${if (pendingDays == 1) "" else "s"} to send"
         ok -> "Synced " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.lastSyncAt))
         state.lastSyncAt > 0 -> "Sync failed"
         else -> "Not synced"
@@ -314,6 +316,27 @@ private fun SyncChip(state: HomeState) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(if (ok) Mint else Haldi))
         Spacer(Modifier.width(6.dp))
         Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun OfflineNote(pending: Int, saved: Int) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Paper)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(if (pending == 0) Mint else Haldi))
+        Spacer(Modifier.width(10.dp))
+        Text(
+            if (pending == 0) "All $saved saved day${if (saved == 1) "" else "s"} are on the website. The app works offline too."
+            else "$pending day${if (pending == 1) "" else "s"} saved on this phone, waiting to sync. Nothing is lost if you’re offline.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Muted,
+        )
     }
 }
 
