@@ -1,0 +1,138 @@
+# Bas 1 Minute Sync (Android)
+
+A tiny native Android app with one job: read **daily steps** and **daily screen time** on the phone and
+send the totals to the Bas 1 Minute website. Kotlin + Jetpack Compose, one screen, no third-party
+networking or database libraries.
+
+## What it reads
+
+| Data | Where from | Permission |
+| --- | --- | --- |
+| Steps (main) | **Health Connect**: Google Fit, Samsung Health, watches, and the phone itself on Android 14+ | Health Connect "Steps" (+ "read in background" where available) |
+| Steps (backup) | **Recording API** in Google Play services: counts with the phone's step sensor, keeps 10 days | Physical activity |
+| Screen time | Android **usage statistics**, added up on the phone (same idea as Digital Wellbeing) | Usage access (Settings) |
+
+If both step sources have a number, the app sends the larger one (they count the same walking).
+Only daily totals leave the phone. App names, location and everything else stay on the device.
+
+## How it syncs
+
+`POST {website}/api/v1/activity/` with `Authorization: Bearer <sync key>`, sending yesterday and today:
+
+```json
+{"days": [
+  {"date": "2026-10-25", "steps": 5240, "source": "health_connect"},
+  {"date": "2026-10-25", "screen_minutes": 192, "source": "usage_stats"}
+]}
+```
+
+- **Sync now** button, plus WorkManager every ~3 hours when online (Android picks the exact time).
+- Sending yesterday each time means a late-night walk still lands on the right day.
+- Needs the website update that accepts the `phone_sensor` source (v5 of the Django project).
+
+## Build it
+
+**Option A: Android Studio (recommended)**
+1. Install Android Studio (latest stable). Open this folder.
+2. Let it sync Gradle. If it suggests updating the Android Gradle Plugin or libraries, accept.
+3. Plug in your phone with USB debugging on, press **Run**. Or **Build > Build App Bundle(s) / APK(s) > Build APK(s)**.
+
+**Option B: GitHub builds it for you (no Android Studio)**
+1. Push this folder to its own GitHub repository.
+2. Open the **Actions** tab. The *Build APK* workflow runs on every push to `main`.
+3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
+   (allow "install unknown apps" for your file manager).
+
+## Pilot testing by sharing the APK
+
+### One-time setup (10 minutes)
+1. **Create your signing key** on your laptop (keep the passwords somewhere safe):
+   ```bash
+   keytool -genkeypair -v -keystore bas1minute-release.jks -alias bas1minute \
+     -keyalg RSA -keysize 2048 -validity 10000
+   base64 -w0 bas1minute-release.jks > keystore.b64
+   ```
+2. **Back up `bas1minute-release.jks`** (Google Drive, password manager). If you lose it, testers must
+   uninstall and reinstall. Never commit it to Git.
+3. **Create a private GitHub repo** and push this folder:
+   ```bash
+   git init && git add . && git commit -m "Bas 1 Minute Sync"
+   git branch -M main
+   git remote add origin git@github.com:YOUR-USERNAME/bas1minute-android.git
+   git push -u origin main
+   ```
+4. In the repo: **Settings > Secrets and variables > Actions > New repository secret**. Add four:
+   | Name | Value |
+   | --- | --- |
+   | `B1M_KEYSTORE_BASE64` | the whole contents of `keystore.b64` |
+   | `B1M_KEYSTORE_PASSWORD` | the keystore password you chose |
+   | `B1M_KEY_ALIAS` | `bas1minute` |
+   | `B1M_KEY_PASSWORD` | the key password (same as keystore password if you pressed Enter) |
+5. **Actions > Build pilot APK > Run workflow** (or push any change).
+
+### Every release
+1. Push to `main`. When the build is green, open the run and download the `Bas1Minute-v0.1.N` artifact.
+2. Unzip it and send `Bas1Minute-v0.1.N.apk` in your testers' WhatsApp group (as a document).
+3. Testers tap it and choose **Update**. Their settings and sync key stay.
+
+Each build gets a higher version (`0.1.N`), and the same key signs every build, so updates install in place.
+
+**Later, for the Play Store:** when setting up Play App Signing, choose to use this same key. Then pilot
+users can move to the Play Store version without uninstalling.
+
+## First run on the phone
+
+1. Website: **Profile > Connect your phone > Create sync key**. Copy it.
+2. App: paste the key, **Save**.
+3. **Allow steps from Health Connect** (and the phone backup if offered).
+4. **Open usage access settings**, find Bas 1 Minute, switch it on, come back.
+5. **Sync now**. Your website dashboard should show "From Health Connect" or "From phone step sensor".
+
+**Testing against your laptop:** debug builds allow `http://`. Run Django with
+`python manage.py runserver 0.0.0.0:8000`, add your laptop's Wi-Fi IP to `ALLOWED_HOSTS`, then in the
+app tap **Change website address** and enter `http://192.168.x.x:8000`.
+
+## Design
+
+Same look as the website: indigo and haldi, Anek Latin headlines and Mukta body text (bundled in
+`res/font`, SIL Open Font License).
+
+- **Onboarding (first launch):** dark welcome screen with the 7K + 4 ring, then three short steps with a
+  progress bar: link account, allow steps, allow screen time. Each step can be skipped.
+- **Home:** dark hero with the date, a sync status chip and a two-ring dial (steps outside, screen time
+  inside; turns coral when over the limit), plus "Steps left" and "Screen time" tiles. Below, white cards:
+  a nudge when you're close to the goal or over your screen limit, a 7-day chart (Steps / Screen) read
+  straight from the phone, Sync (button + auto toggle), and Connections (fix any missing permission
+  with one tap). **Pull down anywhere to sync.**
+
+## Project layout
+
+```
+app/src/main/java/com/bas1minute/sync/
+  MainActivity.kt      state, permissions, onboarding vs home
+  Snapshot.kt          reads today + the last 7 days from the phone
+  ui/Theme.kt          colours, fonts, type scale
+  ui/Components.kt     ring, week bars, cards, status rows, buttons
+  ui/OnboardingScreen.kt  welcome + 3 setup steps
+  ui/HomeScreen.kt     hero, week chart, sync, connections
+  StepsReader.kt       Health Connect + Recording API
+  ScreenTimeReader.kt  usage events added up per day
+  Sync.kt              builds the payload, handles server replies
+  SyncClient.kt        one HTTPS POST (HttpURLConnection)
+  SyncWorker.kt        background sync every ~3 hours
+  PrivacyActivity.kt   "what we read and send" (also opened by Health Connect)
+  Prefs.kt             sync key, website address, last result
+```
+
+## Before the Play Store
+
+- **Health Connect declaration** in Play Console: explain you read Steps to show the user's daily goal.
+- **Usage access**: Play's policy allows it for core features; state clearly that only totals are sent.
+- **Release signing**: create an upload key in Android Studio (*Build > Generate Signed Bundle*). Never commit it.
+- **Battery savers** on Xiaomi, Oppo, Vivo, Realme can delay background sync. Opening the app always syncs fresh numbers when you tap Sync now.
+
+## Not verified yet
+
+This project was written without compiling (no Android SDK in the environment it was written in).
+The first Gradle sync may ask for small version bumps; if a build error mentions a specific API, paste it
+and it can be fixed quickly.

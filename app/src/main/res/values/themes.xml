@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Bas1Minute" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#0F1235</item>
+        <item name="android:navigationBarColor">#F4F5FA</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>
