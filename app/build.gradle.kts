@@ -52,6 +52,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    lint {
+        // Keep release checks on, but always write a readable report (uploaded by GitHub Actions on failure).
+        htmlReport = true
+        xmlReport = false
+    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -71,6 +76,7 @@ dependencies {
     implementation(libs.compose.material.icons)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.activity.compose)
+    implementation(libs.fragment.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.work.runtime.ktx)
     implementation(libs.health.connect)

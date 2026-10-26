@@ -11,6 +11,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for files removed in newer versions
+        run: |
+          stale=""
+          for f in app/src/main/java/com/bas1minute/sync/ui/HomeScreen.kt \
+                   app/src/main/java/com/bas1minute/sync/ui/OnboardingScreen.kt; do
+            [ -f "$f" ] && stale="$stale $f"
+          done
+          if [ -n "$stale" ]; then
+            echo "::error::These files were removed in a newer version but are still in the repo:$stale"
+            echo "Delete them:  git rm$stale && git commit -m 'Remove old screens' && git push"
+            echo "Next time, update with ./update-from-zip.sh so removed files are deleted automatically."
+            exit 1
+          fi
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -38,7 +52,7 @@ jobs:
           B1M_KEY_PASSWORD: ${{ secrets.B1M_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleRelease --console=plain
           mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Bas1Minute-v0.1.${{ github.run_number }}.apk"
 
       - name: Upload APK
@@ -47,3 +61,13 @@ jobs:
           name: Bas1Minute-v0.1.${{ github.run_number }}
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
+
+      - name: Upload build reports (only when the build fails)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            app/build/reports/
+            app/build/intermediates/lint_vital_intermediate_text_report/
+          retention-days: 7

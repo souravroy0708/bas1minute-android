@@ -93,6 +93,16 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## Updating from a new zip
+
+Always update with the script, so files removed in a newer version are deleted too (otherwise the build
+fails with "Redeclaration" errors):
+
+```bash
+./update-from-zip.sh ~/Downloads/bas1minute-android.zip
+git commit -m "Update Android app" && git push
+```
+
 ## Pilot testing by sharing the APK
 
 ### One-time setup (10 minutes)
