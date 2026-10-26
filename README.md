@@ -1,4 +1,25 @@
-# Bas 1 Minute Sync (Android)
+# Bas 1 Minute (Android)
+
+**v0.2: the full Bas 1 Minute app.** Everything on the website's member area is in the app, and it works
+offline. Log in with your mobile number (same account as the website); no sync key needed any more.
+
+| Tab | What it does |
+| --- | --- |
+| **Today** | 7K + 4 ring (steps + screen time), steps left, bursts (+ "I did one"), calm, private mood check-in with Tele-MANAS support, cheers from your circles, 7-day chart, sync status |
+| **Log** | Any of the last 7 days: bursts, calm minutes, and steps or screen time if the phone can’t read them |
+| **Circles** | Your circles, start one, join by code; leaderboard, team goal, Shabash! / Chalo!, invite on WhatsApp or share, screen-time sharing, owner tools (rename, new link, remove, delete), leave |
+| **Calm** | Guided 1-minute breathing (in 4, out 6). Counts a calm minute |
+| **Profile** | Name, city, goals; phone permissions; auto sync; links to Our idea, How we’re different, Free for everyone, Privacy; log out; delete account |
+
+**Offline:** screens show the last saved data. Logging, bursts, mood, calm and cheers made offline are
+queued on the phone (SQLite `outbox`) and sent in order on the next sync. Creating/joining circles and
+changing goals need the internet and say so.
+
+**Needs website v6** (adds the `/api/v1/` endpoints). Run `python manage.py migrate` after deploying it.
+
+---
+
+## Original sync notes
 
 A tiny native Android app with one job: read **daily steps** and **daily screen time** on the phone and
 send the totals to the Bas 1 Minute website. Kotlin + Jetpack Compose, one screen, no third-party
@@ -123,21 +144,26 @@ Same look as the website: indigo and haldi, Anek Latin headlines and Mukta body 
 
 ```
 app/src/main/java/com/bas1minute/sync/
-  MainActivity.kt      state, permissions, onboarding vs home
-  Snapshot.kt          reads today + the last 7 days from the phone
-  ui/Theme.kt          colours, fonts, type scale
-  ui/Components.kt     ring, week bars, cards, status rows, buttons
-  ui/OnboardingScreen.kt  welcome + 3 setup steps
-  ui/HomeScreen.kt     hero, week chart, sync, connections
+  MainActivity.kt      permissions, links, sharing; routes login → permissions → tabs
+  AppController.kt     what every screen shows; actions; offline fallbacks
+  api/Api.kt           HTTPS JSON client (no libraries)
+  api/Models.kt        parsing for today, circles, leaderboard
+  api/Repo.kt          caching, offline queue, all account/circle actions
+  Snapshot.kt          phone readings → local database → screens
+  ui/AuthScreens.kt    welcome, log in, create account
+  ui/PermissionsScreen.kt  steps + screen-time permission steps
+  ui/MainShell.kt      bottom navigation
+  ui/TodayTab.kt, LogTab.kt, CirclesTab.kt, CalmTab.kt, ProfileTab.kt
+  ui/Theme.kt, ui/Components.kt  design system
   StepsReader.kt       Health Connect + Recording API
   ScreenTimeReader.kt  usage events added up per day
-  LocalDb.kt           SQLite: saved days + sync outbox
+  LocalDb.kt           SQLite: saved days, action outbox, screen cache
   Recorder.kt          copies the phone's recent days into the database
   Sync.kt              sends waiting days, handles server replies
   SyncClient.kt        one HTTPS POST (HttpURLConnection)
   SyncWorker.kt        background sync every ~3 hours
   PrivacyActivity.kt   "what we read and send" (also opened by Health Connect)
-  Prefs.kt             sync key, website address, last result
+  Prefs.kt             login token, profile, goals, website address, last result
 ```
 
 ## Before the Play Store

@@ -12,90 +12,65 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
+import com.bas1minute.sync.ui.AuthScreen
 import com.bas1minute.sync.ui.Bas1MinuteTheme
-import com.bas1minute.sync.ui.HomeActions
-import com.bas1minute.sync.ui.HomeScreen
-import com.bas1minute.sync.ui.HomeState
+import com.bas1minute.sync.ui.MainShell
 import com.bas1minute.sync.ui.OnboardingActions
-import com.bas1minute.sync.ui.OnboardingScreen
+import com.bas1minute.sync.ui.PermissionsScreen
+import com.bas1minute.sync.ui.PhoneActions
 import kotlinx.coroutines.launch
 
+/** Login → phone permissions (once) → the five tabs. Everything shown works offline from saved data. */
 class MainActivity : ComponentActivity() {
 
-    private lateinit var prefs: Prefs
-    private var snapshot by mutableStateOf(Snapshot())
-    private var home by mutableStateOf(HomeState())
-    private var onboarded by mutableStateOf(false)
+    private lateinit var app: AppController
 
     private val healthConnectPermissions =
-        registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { reload() }
+        registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { app.refresh() }
 
     private val activityPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             lifecycleScope.launch {
                 if (granted) StepsReader(this@MainActivity).subscribeRecording()
-                reload()
+                app.refresh()
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
-        prefs = Prefs(this)
-        // People who set up the first version skip onboarding.
-        if (prefs.isConfigured && !prefs.onboardingDone) prefs.onboardingDone = true
-        onboarded = prefs.onboardingDone
-        if (prefs.autoSync) SyncWorker.schedule(this)
-        refreshHomeState()
+        app = AppController(applicationContext, lifecycleScope)
+        if (app.prefs.autoSync) SyncWorker.schedule(this)
+
+        val phone = PhoneActions(
+            onAskHealthConnect = { healthConnectPermissions.launch(StepsReader.HC_PERMISSIONS) },
+            onInstallHealthConnect = { openHealthConnectInStore() },
+            onAskActivity = { askActivityPermission() },
+            onOpenUsageAccess = { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
+            onOpenUrl = { openUrl(it) },
+            onOpenPrivacy = { startActivity(Intent(this, PrivacyActivity::class.java)) },
+        )
 
         setContent {
             Bas1MinuteTheme {
-                if (!onboarded) {
-                    OnboardingScreen(
-                        snapshot = snapshot,
-                        savedKey = prefs.syncKey,
+                when {
+                    !app.loggedIn -> AuthScreen(app, onOpenUrl = { openUrl(it) })
+                    !app.permissionsDone -> PermissionsScreen(
+                        snapshot = app.phone,
                         actions = OnboardingActions(
-                            onSaveKey = { prefs.syncKey = it; refreshHomeState() },
-                            onOpenWebsiteConnect = { openUrl("${prefs.serverUrl}/app/connect/") },
-                            onAskHealthConnect = { healthConnectPermissions.launch(StepsReader.HC_PERMISSIONS) },
-                            onInstallHealthConnect = { openHealthConnectInStore() },
-                            onAskActivity = { askActivityPermission() },
-                            onOpenUsageAccess = { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
-                            onFinish = {
-                                prefs.onboardingDone = true
-                                onboarded = true
-                                syncNow()
-                            },
+                            onAskHealthConnect = phone.onAskHealthConnect,
+                            onInstallHealthConnect = phone.onInstallHealthConnect,
+                            onAskActivity = phone.onAskActivity,
+                            onOpenUsageAccess = phone.onOpenUsageAccess,
+                            onFinish = { app.finishPermissions() },
                         ),
                     )
-                } else {
-                    HomeScreen(
-                        snapshot = snapshot,
-                        state = home,
-                        actions = HomeActions(
-                            onSync = { syncNow() },
-                            onToggleAuto = { on ->
-                                prefs.autoSync = on
-                                if (on) SyncWorker.schedule(this) else SyncWorker.cancel(this)
-                                refreshHomeState()
-                            },
-                            onAskHealthConnect = { healthConnectPermissions.launch(StepsReader.HC_PERMISSIONS) },
-                            onInstallHealthConnect = { openHealthConnectInStore() },
-                            onAskActivity = { askActivityPermission() },
-                            onOpenUsageAccess = { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
-                            onOpenDashboard = { openUrl("${prefs.serverUrl}/app/") },
-                            onOpenPrivacy = { startActivity(Intent(this, PrivacyActivity::class.java)) },
-                            onChangeKey = { prefs.syncKey = it; refreshHomeState(); syncNow() },
-                        ),
-                    )
+                    else -> MainShell(app, phone, onShare = { share(it) }, onCall = { call(it) })
                 }
             }
         }
@@ -103,53 +78,29 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        reload()
-    }
-
-    private fun reload() {
-        lifecycleScope.launch {
-            snapshot = loadSnapshot(this@MainActivity)
-            refreshHomeState()
-        }
-    }
-
-    private fun syncNow() {
-        if (home.syncing) return
-        home = home.copy(syncing = true)
-        lifecycleScope.launch {
-            Sync.run(this@MainActivity)
-            snapshot = loadSnapshot(this@MainActivity)
-            refreshHomeState()
-        }
-    }
-
-    private fun refreshHomeState() {
-        home = HomeState(
-            stepGoal = prefs.stepGoal,
-            screenLimit = prefs.screenLimitMinutes,
-            syncing = false,
-            lastSyncAt = prefs.lastSyncAt,
-            lastSyncMessage = prefs.lastSyncMessage,
-            lastSyncOk = prefs.lastSyncOk,
-            autoSync = prefs.autoSync,
-            syncKeyPrefix = prefs.syncKey.take(12).takeIf { prefs.isConfigured } ?: "",
-        )
+        app.refresh()
     }
 
     private fun askActivityPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             activityPermission.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         } else {
-            lifecycleScope.launch { StepsReader(this@MainActivity).subscribeRecording(); reload() }
+            lifecycleScope.launch { StepsReader(this@MainActivity).subscribeRecording(); app.refresh() }
         }
     }
 
     private fun openUrl(url: String) {
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        } catch (e: Exception) {
-            // No browser installed; nothing else to do.
-        }
+        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (e: Exception) { app.message = "No app can open that link." }
+    }
+
+    private fun share(text: String) {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        startActivity(Intent.createChooser(send, "Share invite"))
+    }
+
+    /** Opens the dialer with the number filled in; the person taps call themselves. */
+    private fun call(number: String) {
+        try { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))) } catch (e: Exception) { app.message = "Call $number from your phone app." }
     }
 
     private fun openHealthConnectInStore() {

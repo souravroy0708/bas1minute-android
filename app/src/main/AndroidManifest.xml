@@ -16,6 +16,13 @@
     <!-- Lets the app check whether Health Connect is installed (Android 13 and older) -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
         <!-- To skip the home-screen app when adding up screen time -->
         <intent>
             <action android:name="android.intent.action.MAIN" />

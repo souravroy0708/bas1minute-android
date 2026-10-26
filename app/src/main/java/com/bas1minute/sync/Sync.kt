@@ -26,7 +26,10 @@ object Sync {
 
         Recorder.captureRecent(context)
 
-        if (!prefs.isConfigured) return remember(prefs, Outcome(false, "Saved on your phone. Add your sync key to send it to the website."))
+        if (!prefs.isConfigured) return remember(prefs, Outcome(false, "Saved on your phone. Log in to send it to the website."))
+
+        // Actions taken offline (logged days, mood, calm, cheers) go first, in the order they happened.
+        com.bas1minute.sync.api.Repo(context).flushOutbox()
 
         val today = LocalDate.now()
         val oldest = today.minusDays(MAX_AGE_DAYS)
@@ -66,7 +69,7 @@ object Sync {
                     sentDays += batch.size
                     if (batch.size < DAYS_PER_REQUEST) break
                 }
-                401 -> return remember(prefs, Outcome(false, "Sync key not accepted. Make a new one on the website: Profile, then Connect your phone."))
+                401 -> return remember(prefs, Outcome(false, "Please log in again."))
                 400 -> return remember(prefs, Outcome(false, "The website didn’t understand the data. Update the app."))
                 else -> return remember(prefs, offline(sentDays, db, server = reply.code))
             }

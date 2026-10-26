@@ -47,6 +47,32 @@ class Prefs(context: Context) {
         get() = p.getInt("screen_limit", 180)
         set(v) = p.edit().putInt("screen_limit", v).apply()
 
+    /** Login token from the app API (also accepted by the sync endpoint). Stored where syncKey was. */
+    var token: String
+        get() = syncKey
+        set(v) { syncKey = v }
+
+    var name: String
+        get() = p.getString("name", "") ?: ""
+        set(v) = p.edit().putString("name", v).apply()
+
+    var firstName: String
+        get() = p.getString("first_name", "") ?: ""
+        set(v) = p.edit().putString("first_name", v).apply()
+
+    var mobile: String
+        get() = p.getString("mobile", "") ?: ""
+        set(v) = p.edit().putString("mobile", v).apply()
+
+    var burstGoal: Int
+        get() = p.getInt("burst_goal", 4)
+        set(v) = p.edit().putInt("burst_goal", v).apply()
+
+    fun clearSession() {
+        p.edit().remove("key").remove("name").remove("first_name").remove("mobile")
+            .remove("last_at").remove("last_msg").remove("last_ok").apply()
+    }
+
     val isConfigured: Boolean
         get() = syncKey.startsWith("b1m_") && serverUrl.startsWith("http")
 }

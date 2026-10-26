@@ -47,7 +47,9 @@ class PrivacyActivity : ComponentActivity() {
                     Text("What this app reads and sends", fontSize = 26.sp, fontWeight = FontWeight.Black, color = Ink)
                     Block("Steps", "Your daily step total, read from Health Connect or counted by Google Play services on this phone.")
                     Block("Screen time", "The total minutes apps were on screen each day. We add it up on the phone. App names and what you did in apps never leave your phone.")
-                    Block("What we send", "One line per day: the date, total steps and total screen minutes. Sent to your Bas 1 Minute account only, over a secure connection, using your sync key.")
+                    Block("What you add yourself", "Bursts, calm minutes, your mood check-in, goals and circles. Mood is only ever visible to you; it’s never shown to your circles.")
+                    Block("What we send", "Daily totals (steps, screen minutes, bursts, calm minutes) and your mood, to your own Bas 1 Minute account only, over a secure connection. Your circles see steps, bursts and calm; screen time only if you switch it on for that circle.")
+                    Block("Offline", "Everything is saved on this phone first and sent when you’re online. Logging out removes your account data from this phone.")
                     Block("What we never read", "Location, contacts, messages, photos, or any other health data.")
                     Block("Your control", "Turn off any access in Android Settings or Health Connect at any time. Delete your account and all data from the website’s Profile page.")
                     Button(

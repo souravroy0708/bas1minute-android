@@ -21,7 +21,7 @@ data class DayRow(
  * Rows stay "dirty" until a sync succeeds, which makes this table the sync outbox too.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 1) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 2) {
 
     companion object {
         private const val KEEP_DAYS = 400L
@@ -47,10 +47,60 @@ class LocalDb private constructor(context: Context) :
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX days_dirty ON days(dirty)")
+        createV2(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Future schema changes go here, one `if (oldVersion < N)` block per version. Never drop user data.
+        // One block per version. Never drop user data.
+        if (oldVersion < 2) createV2(db)
+    }
+
+    /** v2: actions taken offline (outbox) and the last answer for each screen (cache). */
+    private fun createV2(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, body TEXT NOT NULL, created_at INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, body TEXT NOT NULL, fetched_at INTEGER NOT NULL)")
+    }
+
+    // ----- outbox: API writes made while offline, replayed in order -----
+
+    data class QueuedCall(val id: Long, val path: String, val body: String)
+
+    fun enqueue(path: String, body: String) {
+        writableDatabase.insert("outbox", null, ContentValues().apply {
+            put("path", path); put("body", body); put("created_at", System.currentTimeMillis())
+        })
+    }
+
+    fun queued(): List<QueuedCall> =
+        readableDatabase.rawQuery("SELECT id, path, body FROM outbox ORDER BY id", null).use { c ->
+            val out = ArrayList<QueuedCall>()
+            while (c.moveToNext()) out += QueuedCall(c.getLong(0), c.getString(1), c.getString(2))
+            out
+        }
+
+    fun queuedCount(): Int =
+        readableDatabase.rawQuery("SELECT COUNT(*) FROM outbox", null).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+
+    fun dequeue(id: Long) {
+        writableDatabase.delete("outbox", "id = ?", arrayOf(id.toString()))
+    }
+
+    // ----- cache: last good response per screen, shown when offline -----
+
+    fun putCache(key: String, body: String) {
+        writableDatabase.insertWithOnConflict("cache", null, ContentValues().apply {
+            put("key", key); put("body", body); put("fetched_at", System.currentTimeMillis())
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun getCache(key: String): String? =
+        readableDatabase.rawQuery("SELECT body FROM cache WHERE key = ?", arrayOf(key)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+
+    /** On log out: forget account data. Phone-recorded days stay (they belong to this phone). */
+    fun clearAccountData() {
+        writableDatabase.delete("outbox", null, null)
+        writableDatabase.delete("cache", null, null)
+        writableDatabase.execSQL("UPDATE days SET dirty = 1")
     }
 
     /**
