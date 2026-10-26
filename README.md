@@ -118,6 +118,17 @@ whether Samsung Health is installed and whether any of its steps from the last 7
 Connect (`SamsungHealth.kt`, using Health Connect's data origins). If not, a "Connect Samsung Health" card
 explains the steps and opens Samsung Health (Today, dismissible for a week; Profile; setup).
 
+## Sharing the app for free (GitHub Releases)
+
+Every signed build on `main` publishes a GitHub Release automatically. Friends download from:
+
+```
+https://github.com/YOUR-USERNAME/bas1minute-android/releases/latest/download/Bas1Minute.apk
+```
+
+That link always gives the newest version. Release downloads need a **public** repository (your signing
+key stays private in Secrets). Put the same link in the website's `ANDROID_APK_URL` for the `/download/` page.
+
 ## Updating from a new zip
 
 Always update with the script, so files removed in a newer version are deleted too (otherwise the build

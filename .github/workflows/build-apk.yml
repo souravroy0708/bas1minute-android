@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Needed to publish GitHub Releases
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -53,14 +57,35 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --console=plain
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Bas1Minute-v0.1.${{ github.run_number }}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Bas1Minute-v0.3.${{ github.run_number }}.apk"
+          # Fixed name too, so this link always gives the newest version:
+          # https://github.com/<you>/<repo>/releases/latest/download/Bas1Minute.apk
+          cp "app/build/outputs/apk/release/Bas1Minute-v0.3.${{ github.run_number }}.apk" app/build/outputs/apk/release/Bas1Minute.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Bas1Minute-v0.1.${{ github.run_number }}
+          name: Bas1Minute-v0.3.${{ github.run_number }}
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
+
+      - name: Publish GitHub Release (signed builds on main only)
+        if: success() && env.B1M_KEYSTORE_PATH != '' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.3.${{ github.run_number }}
+          name: Bas 1 Minute 0.3.${{ github.run_number }}
+          make_latest: true
+          files: |
+            app/build/outputs/apk/release/Bas1Minute.apk
+            app/build/outputs/apk/release/Bas1Minute-v0.3.${{ github.run_number }}.apk
+          body: |
+            **Install:** download `Bas1Minute.apk` on your Android phone and open it. If asked, allow installing
+            from your browser or Files app. Updating? Just install over the old version; your data stays.
+
+            **"App was denied access" for Usage access?** Android protects this for apps not from the Play Store:
+            Settings → Apps → Bas 1 Minute → ⋮ (or the bottom of the page) → Allow restricted settings, then
+            switch Usage access on again. The app's Profile → Phone-specific help shows the steps for your phone.
 
       - name: Upload build reports (only when the build fails)
         if: failure()

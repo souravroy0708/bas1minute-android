@@ -16,6 +16,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
 import com.bas1minute.sync.ui.AuthScreen
 import com.bas1minute.sync.ui.Bas1MinuteTheme
+import com.bas1minute.sync.ui.HelpActions
 import com.bas1minute.sync.ui.MainShell
 import com.bas1minute.sync.ui.OnboardingActions
 import com.bas1minute.sync.ui.PermissionsScreen
