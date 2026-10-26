@@ -73,6 +73,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("track_weight", false)
         set(v) = p.edit().putBoolean("track_weight", v).apply()
 
+    /** When the person tapped "Not now" on the Samsung Health card (shown again after a week). */
+    var samsungDismissedAt: Long
+        get() = p.getLong("samsung_dismissed", 0L)
+        set(v) = p.edit().putLong("samsung_dismissed", v).apply()
+
     fun clearSession() {
         p.edit().remove("key").remove("name").remove("first_name").remove("mobile")
             .remove("last_at").remove("last_msg").remove("last_ok").apply()

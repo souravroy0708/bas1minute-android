@@ -47,6 +47,12 @@ import com.bas1minute.sync.api.Res
 import java.text.NumberFormat
 import java.util.Locale
 
+/** Invite message: joins happen inside the app with the code, never on a web page. */
+fun inviteText(from: String, circle: String, code: String): String =
+    (if (from.isNotBlank()) "$from invited you" else "You’re invited") +
+        " to “$circle” on Bas 1 Minute. Roz 7,000 steps aur 4 one-minute bursts, saath mein.\n\n" +
+        "Open the Bas 1 Minute app → Circles → Join with code: $code"
+
 fun kindColor(kind: String): Color = when (kind) {
     "family" -> Haldi
     "friends", "college" -> Violet
@@ -55,11 +61,11 @@ fun kindColor(kind: String): Color = when (kind) {
 }
 
 @Composable
-fun CirclesTab(app: AppController, onShare: (String) -> Unit, onOpenUrl: (String) -> Unit) {
+fun CirclesTab(app: AppController, onShare: (String) -> Unit, onShareWhatsApp: (String) -> Unit) {
     LaunchedEffect(Unit) { app.refreshCircles() }
     if (app.openCircleId != null) {
         BackHandler { app.closeCircle() }
-        CircleScreen(app, onShare, onOpenUrl)
+        CircleScreen(app, onShare, onShareWhatsApp)
     } else {
         CircleList(app)
     }
@@ -195,7 +201,7 @@ private fun TeamBar(pct: Int, onDark: Boolean) {
 }
 
 @Composable
-private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onOpenUrl: (String) -> Unit) {
+private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareWhatsApp: (String) -> Unit) {
     val d = app.circle
     Column(Modifier.fillMaxSize().background(Paper).statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -243,10 +249,11 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onOpenUr
             if (d.full) {
                 Text("This circle is full (20 members).", color = Muted, style = MaterialTheme.typography.bodyMedium)
             } else {
-                Text("Anyone with this link can join. Share it only with people you want in the circle.", style = MaterialTheme.typography.bodyMedium, color = Muted)
-                Text("Code: ${d.inviteCode}", style = MaterialTheme.typography.titleMedium)
-                BigButton("Invite on WhatsApp", dark = false) { onOpenUrl(d.whatsappUrl) }
-                GhostButton("Share invite link") { onShare("Join “${d.name}” on Bas 1 Minute: ${d.inviteUrl}") }
+                Text("Anyone with this code can join. Share it only with people you want in the circle.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                Text(d.inviteCode, style = MaterialTheme.typography.displayMedium, color = Ink)
+                val invite = inviteText(app.prefs.firstName, d.name, d.inviteCode)
+                BigButton("Invite on WhatsApp", dark = false) { onShareWhatsApp(invite) }
+                GhostButton("Share invite") { onShare(invite) }
             }
         }
 
@@ -320,7 +327,7 @@ private fun OwnerPanel(app: AppController, d: CircleDetail) {
     var confirmDelete by remember { mutableStateOf(false) }
     var removing by remember { mutableStateOf<BoardRow?>(null) }
     AppCard(title = "Manage circle") {
-        StatusRow("Name", d.name, ok = true, action = "Rename") { renaming = true }
+        StatusRow("Name and type", "${d.name} · ${d.kindLabel}", ok = true, action = "Edit") { renaming = true }
         StatusRow("Invite link", "Make a new one if the old link spread too far", ok = true, action = "New link") {
             app.launch { app.handle(app.repo.manageCircle(d.id, "invite"), "New invite link made. The old one no longer works.") { app.openCircle(d.id) } }
         }
@@ -329,13 +336,28 @@ private fun OwnerPanel(app: AppController, d: CircleDetail) {
     }
     if (renaming) {
         var name by remember { mutableStateOf(d.name) }
+        var kind by remember { mutableStateOf(d.kind) }
+        val kinds = app.circles?.kinds?.takeIf { it.isNotEmpty() }
+            ?: listOf("family" to "Family", "friends" to "Friends", "college" to "College friends", "office" to "Office", "other" to "Other")
         AlertDialog(
             onDismissRequest = { renaming = false },
-            title = { Text("Rename circle") },
-            text = { AppField("Name", name, { name = it.take(60) }, null) },
+            title = { Text("Edit circle") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppField("Name", name, { name = it.take(60) }, null)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        kinds.forEach { (value, label) ->
+                            val on = kind == value
+                            Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else Ink,
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else Paper)
+                                    .clickable { kind = value }.padding(horizontal = 12.dp, vertical = 8.dp))
+                        }
+                    }
+                }
+            },
             confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = {
                 renaming = false
-                app.launch { app.handle(app.repo.manageCircle(d.id, "rename", org.json.JSONObject().put("name", name)), "Circle renamed.") { app.openCircle(d.id) } }
+                app.launch { app.handle(app.repo.manageCircle(d.id, "rename", org.json.JSONObject().put("name", name).put("kind", kind)), "Circle updated.") { app.openCircle(d.id) } }
             }) { Text("Save") } },
             dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel", color = Muted) } },
         )

@@ -36,7 +36,7 @@ class Repo(context: Context) {
             .put("consent", consent).put("device", device())))
 
     private suspend fun session(r: ApiReply): Res<Me> = when {
-        r.code == null -> Res.Fail("Couldn’t reach the website. Check your internet and try again.")
+        r.code == null -> Res.Fail("Couldn’t reach Bas 1 Minute. Check your internet and try again.")
         r.ok -> {
             val me = Me.from(r.json!!.getJSONObject("me"))
             prefs.token = r.json.optString("token")
@@ -175,6 +175,15 @@ class Repo(context: Context) {
     }
 
     fun waitingActions(): Int = db.queuedCount()
+
+    /** Download up to 90 days from the server into this phone (restore). Null if offline. */
+    suspend fun pullHistory(days: Int = 90): Int? {
+        val r = api.get("history/?days=$days")
+        if (!r.ok || r.json == null) return null
+        val arr = r.json.optJSONArray("days") ?: return 0
+        val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+        return withContext(Dispatchers.IO) { db.mergeFromServer(list) }
+    }
 
     private fun device(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
 }

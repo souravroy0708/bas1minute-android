@@ -19,6 +19,11 @@
     <!-- Lets the app check whether Health Connect is installed (Android 13 and older) -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- Circle invites go straight to WhatsApp -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <!-- To check whether Samsung Health is installed and open it -->
+        <package android:name="com.sec.android.app.shealth" />
         <intent>
             <action android:name="android.intent.action.DIAL" />
         </intent>

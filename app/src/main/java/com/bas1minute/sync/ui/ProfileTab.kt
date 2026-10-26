@@ -41,12 +41,12 @@ import com.bas1minute.sync.api.Res
 import org.json.JSONObject
 
 data class PhoneActions(
+    val onOpenSamsungHealth: () -> Unit,
     val onAskHealthConnect: () -> Unit,
     val onInstallHealthConnect: () -> Unit,
     val onAskActivity: () -> Unit,
     val onOpenUsageAccess: () -> Unit,
-    val onOpenUrl: (String) -> Unit,
-    val onOpenPrivacy: () -> Unit,
+    val onShareWhatsApp: (String) -> Unit,
 )
 
 @Composable
@@ -61,7 +61,6 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
     var confirmLogout by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     val snap = app.phone
-    val site = prefs.serverUrl
 
     Column(
         Modifier.fillMaxSize().background(Paper).statusBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -97,6 +96,19 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
+        // Two-way sync with the server
+        AppCard(title = "Sync with server") {
+            val waiting = snap.pendingDays + app.waiting
+            Text(
+                "Backs up everything to your Bas 1 Minute account and brings your last 90 days to this phone, " +
+                    "so nothing is lost if you change phones.",
+                style = MaterialTheme.typography.bodyMedium, color = Muted,
+            )
+            BigButton(if (app.home.syncing) "Syncing…" else "Sync with server", enabled = !app.home.syncing) { app.fullSync() }
+            OfflineNote(waiting, snap.savedDays)
+            app.fullSyncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (waiting == 0) MintDark else Muted) }
+        }
+
         // Phone connections
         AppCard(title = "This phone") {
             when (snap.hcStatus) {
@@ -106,6 +118,13 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                     ok = false, action = "Get it", onAction = actions.onInstallHealthConnect)
                 else -> {}
             }
+            if (snap.samsungInstalled) StatusRow(
+                "Samsung Health",
+                when (snap.samsungSharing) { true -> "Sharing with Health Connect"; false -> "Installed, but not sharing yet"; else -> "Allow Health Connect first" },
+                ok = snap.samsungSharing == true,
+                action = if (snap.samsungSharing == true) null else if (snap.hcGranted) "Set up" else "Allow",
+                onAction = if (snap.hcGranted) actions.onOpenSamsungHealth else actions.onAskHealthConnect,
+            )
             if (snap.recordingAvailable) StatusRow("Phone step sensor", if (snap.activityGranted) "Backup counting is on" else "Off",
                 ok = snap.activityGranted, action = if (snap.activityGranted) null else "Allow", onAction = actions.onAskActivity)
             StatusRow("Screen time and social media", if (snap.usageAccess) "Usage access on" else "Usage access off",
@@ -128,6 +147,14 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 style = MaterialTheme.typography.bodySmall, color = Muted)
         }
 
+        if (snap.samsungInstalled && snap.samsungSharing != true) {
+            SamsungHealthCard(
+                hcGranted = snap.hcGranted,
+                onAllowHealthConnect = actions.onAskHealthConnect,
+                onOpenSamsungHealth = actions.onOpenSamsungHealth,
+            )
+        }
+
         // Weight is opt-in
         AppCard(title = "Weight") {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -140,14 +167,12 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
-        // About (the website's story pages)
+        // About (native pages, no web links)
         AppCard(title = "About Bas 1 Minute") {
-            LinkRow("Our idea", "Why 7,000 steps and four one-minute bursts") { actions.onOpenUrl("$site/our-idea/") }
-            LinkRow("How we’re different", "What other apps do, and the gap we fill") { actions.onOpenUrl("$site/how-were-different/") }
-            LinkRow("Free for everyone", "Why the core stays free") { actions.onOpenUrl("$site/free-for-everyone/") }
-            LinkRow("What this app reads and sends", "Steps and screen-time totals only") { actions.onOpenPrivacy() }
-            LinkRow("Privacy notice", "Your data and your choices") { actions.onOpenUrl("$site/privacy/") }
-            LinkRow("Open the website", site.removePrefix("https://")) { actions.onOpenUrl("$site/app/") }
+            LinkRow("Our idea", "Why 7,000 steps and four one-minute bursts") { app.aboutPage = "idea" }
+            LinkRow("How we’re different", "What other apps do, and the gap we fill") { app.aboutPage = "different" }
+            LinkRow("Free for everyone", "Why the core stays free") { app.aboutPage = "free" }
+            LinkRow("Privacy", "What the app reads and sends, and your choices") { app.aboutPage = "privacy" }
         }
 
         GhostButton("Log out") { confirmLogout = true }

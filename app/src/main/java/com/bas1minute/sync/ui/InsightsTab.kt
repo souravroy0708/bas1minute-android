@@ -95,7 +95,7 @@ fun InsightsTab(app: AppController) {
                                 style = MaterialTheme.typography.bodySmall, color = Muted)
                         }
                     }
-                    BigButton("Do a 1-minute burst now", dark = false) { app.tab = Tab.Today; app.addBurst() }
+                    BigButton("Do a 1-minute burst now", dark = false) { app.tab = Tab.Today; app.burstOpen = true }
                 }
             }
 

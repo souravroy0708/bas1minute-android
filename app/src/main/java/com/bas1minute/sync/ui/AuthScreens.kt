@@ -46,12 +46,18 @@ import kotlinx.coroutines.launch
 
 /** Welcome → Log in / Create account. Uses the same mobile-number accounts as the website. */
 @Composable
-fun AuthScreen(app: AppController, onOpenUrl: (String) -> Unit) {
+fun AuthScreen(app: AppController) {
     var mode by rememberSaveable { mutableStateOf("welcome") }
+    var privacy by rememberSaveable { mutableStateOf(false) }
+    if (privacy) {
+        androidx.activity.compose.BackHandler { privacy = false }
+        AboutScreen("privacy", onBack = { privacy = false })
+        return
+    }
     when (mode) {
         "welcome" -> Welcome(onLogin = { mode = "login" }, onSignup = { mode = "signup" })
         else -> AuthForm(app, signup = mode == "signup", onSwitch = { mode = if (mode == "signup") "login" else "signup" },
-            onBack = { mode = "welcome" }, onOpenUrl = onOpenUrl)
+            onBack = { mode = "welcome" }, onPrivacy = { privacy = true })
     }
 }
 
@@ -94,7 +100,7 @@ private fun Welcome(onLogin: () -> Unit, onSignup: () -> Unit) {
 }
 
 @Composable
-private fun AuthForm(app: AppController, signup: Boolean, onSwitch: () -> Unit, onBack: () -> Unit, onOpenUrl: (String) -> Unit) {
+private fun AuthForm(app: AppController, signup: Boolean, onSwitch: () -> Unit, onBack: () -> Unit, onPrivacy: () -> Unit) {
     val scope = rememberCoroutineScope()
     var name by rememberSaveable { mutableStateOf("") }
     var mobile by rememberSaveable { mutableStateOf("") }
@@ -120,7 +126,7 @@ private fun AuthForm(app: AppController, signup: Boolean, onSwitch: () -> Unit, 
         TextButton(onClick = onBack) { Text("← Back", color = Muted, style = MaterialTheme.typography.labelLarge) }
         Text(if (signup) "Create your account" else "Welcome back", style = MaterialTheme.typography.headlineLarge)
         Text(
-            if (signup) "Use your mobile number. It’s the same account as the website." else "Log in with your mobile number and password.",
+            if (signup) "Free. Just your mobile number and a password." else "Log in with your mobile number and password.",
             style = MaterialTheme.typography.bodyLarge, color = Muted,
         )
         if (error != null) {
@@ -139,7 +145,7 @@ private fun AuthForm(app: AppController, signup: Boolean, onSwitch: () -> Unit, 
                 Checkbox(checked = consent, onCheckedChange = { consent = it }, colors = CheckboxDefaults.colors(checkedColor = Ink))
                 Column(Modifier.padding(top = 12.dp)) {
                     Text("Store my steps, screen time and activity so I can see my dashboard.", style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = { onOpenUrl("${app.prefs.serverUrl}/privacy/") }) { Text("Read the privacy notice", color = Blue) }
+                    TextButton(onClick = onPrivacy) { Text("Read the privacy notice", color = Blue) }
                     fields["consent"]?.let { Text(it, color = Danger, style = MaterialTheme.typography.bodySmall) }
                 }
             }
@@ -167,10 +173,10 @@ private fun AuthForm(app: AppController, signup: Boolean, onSwitch: () -> Unit, 
                 style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         TextButton(onClick = { showServer = !showServer }) {
-            Text(if (showServer) "Hide website address" else "Testing? Change website address", color = Muted, style = MaterialTheme.typography.labelMedium)
+            Text(if (showServer) "Hide server address" else "Testing? Change server address", color = Muted, style = MaterialTheme.typography.labelMedium)
         }
         if (showServer) {
-            AppField("Website address", server, { server = it }, null, keyboard = KeyboardType.Uri)
+            AppField("Server address", server, { server = it }, null, keyboard = KeyboardType.Uri)
             GhostButton("Use this address") { app.prefs.serverUrl = server; showServer = false }
         }
     }

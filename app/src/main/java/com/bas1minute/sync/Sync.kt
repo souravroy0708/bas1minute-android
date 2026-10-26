@@ -26,7 +26,7 @@ object Sync {
 
         Recorder.captureRecent(context)
 
-        if (!prefs.isConfigured) return remember(prefs, Outcome(false, "Saved on your phone. Log in to send it to the website."))
+        if (!prefs.isConfigured) return remember(prefs, Outcome(false, "Saved on your phone. Log in to back it up."))
 
         // Actions taken offline (logged days, mood, calm, cheers) go first, in the order they happened.
         com.bas1minute.sync.api.Repo(context).flushOutbox()
@@ -61,14 +61,14 @@ object Sync {
                     if (batch.size < DAYS_PER_REQUEST) break
                 }
                 401 -> return remember(prefs, Outcome(false, "Please log in again."))
-                400 -> return remember(prefs, Outcome(false, "The website didn’t understand the data. Update the app."))
+                400 -> return remember(prefs, Outcome(false, "The server didn’t understand the data. Update the app."))
                 else -> return remember(prefs, offline(sentDays, db, server = reply.code))
             }
         }
 
         val message = when {
             sentDays == 0 -> "Up to date."
-            skipped > 0 -> "Synced $sentDays day${if (sentDays == 1) "" else "s"}. $skipped item${if (skipped == 1) " was" else "s were"} skipped by the website."
+            skipped > 0 -> "Synced $sentDays day${if (sentDays == 1) "" else "s"}. $skipped item${if (skipped == 1) " was" else "s were"} skipped by the server."
             else -> "Synced $sentDays day${if (sentDays == 1) "" else "s"}."
         }
         return remember(prefs, Outcome(true, message))
@@ -101,7 +101,7 @@ object Sync {
 
     private suspend fun offline(sentDays: Int, db: LocalDb, server: Int? = null): Outcome {
         val waiting = withContext(Dispatchers.IO) { db.pendingCount() }
-        val reason = if (server != null) "The website is having trouble ($server)." else "Couldn’t reach the website."
+        val reason = if (server != null) "Bas 1 Minute servers are having trouble ($server)." else "Couldn’t reach Bas 1 Minute."
         val done = if (sentDays > 0) " Sent $sentDays day${if (sentDays == 1) "" else "s"} first." else ""
         return Outcome(false, "$reason$done $waiting day${if (waiting == 1) "" else "s"} saved on your phone, will send later.", retry = true)
     }

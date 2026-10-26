@@ -55,7 +55,8 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                         selected = app.tab == item.tab,
                         onClick = {
                             if (item.tab == Tab.Circles && app.tab == Tab.Circles) app.closeCircle()
-                            if (item.tab == Tab.Today) app.logOpen = false
+                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false }
+                            if (item.tab == Tab.Profile) app.aboutPage = null
                             app.tab = item.tab
                         },
                         icon = { Icon(item.icon, contentDescription = null) },
@@ -74,14 +75,24 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (app.tab) {
-                Tab.Today -> if (app.logOpen) {
-                    androidx.activity.compose.BackHandler { app.logOpen = false }
-                    LogTab(app, onClose = { app.logOpen = false })
-                } else TodayTab(app, onCall)
+                Tab.Today -> when {
+                    app.burstOpen -> {
+                        androidx.activity.compose.BackHandler { app.burstOpen = false }
+                        BurstScreen(app, onClose = { app.burstOpen = false })
+                    }
+                    app.logOpen -> {
+                        androidx.activity.compose.BackHandler { app.logOpen = false }
+                        LogTab(app, onClose = { app.logOpen = false })
+                    }
+                    else -> TodayTab(app, onCall, actions)
+                }
                 Tab.Insights -> InsightsTab(app)
-                Tab.Circles -> CirclesTab(app, onShare, actions.onOpenUrl)
+                Tab.Circles -> CirclesTab(app, onShare, actions.onShareWhatsApp)
                 Tab.Calm -> CalmTab(app, onCall)
-                Tab.Profile -> ProfileTab(app, actions)
+                Tab.Profile -> app.aboutPage?.let { page ->
+                    androidx.activity.compose.BackHandler { app.aboutPage = null }
+                    AboutScreen(page, onBack = { app.aboutPage = null })
+                } ?: ProfileTab(app, actions)
             }
         }
     }

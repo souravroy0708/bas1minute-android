@@ -47,6 +47,7 @@ import androidx.health.connect.client.HealthConnectClient
 import com.bas1minute.sync.Snapshot
 
 data class OnboardingActions(
+    val onOpenSamsungHealth: () -> Unit,
     val onAskHealthConnect: () -> Unit,
     val onInstallHealthConnect: () -> Unit,
     val onAskActivity: () -> Unit,
@@ -117,6 +118,13 @@ private fun StepsPage(snapshot: Snapshot, actions: OnboardingActions, onNext: ()
                 ok = snapshot.activityGranted, action = if (snapshot.activityGranted) null else "Allow", onAction = actions.onAskActivity,
             )
         }
+    }
+    if (snapshot.samsungNeedsSetup) {
+        SamsungHealthCard(
+            hcGranted = snapshot.hcGranted,
+            onAllowHealthConnect = actions.onAskHealthConnect,
+            onOpenSamsungHealth = actions.onOpenSamsungHealth,
+        )
     }
     BigButton(if (snapshot.stepsReady) "Continue" else "Continue without steps", onClick = onNext)
 }

@@ -169,6 +169,50 @@ class LocalDb private constructor(context: Context) :
         }
     }
 
+    /**
+     * Restore from the server (new phone, reinstall). Fills only what this phone doesn't have yet,
+     * and never marks rows dirty, so restored days aren't sent straight back.
+     */
+    @Synchronized
+    fun mergeFromServer(days: List<org.json.JSONObject>): Int {
+        var filled = 0
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            for (j in days) {
+                val date = LocalDate.parse(j.optString("date"))
+                val old = day(date)
+                val src = j.optJSONObject("sources")
+                val v = ContentValues()
+                fun intOf(k: String): Int? = if (!j.has(k) || j.isNull(k)) null else j.optInt(k)
+                fun strOf(k: String): String? = if (!j.has(k) || j.isNull(k)) null else j.optString(k).takeIf { it.isNotBlank() }
+                fun srcOf(k: String): String = src?.optString(k)?.takeIf { it.isNotBlank() } ?: "manual"
+                if (old?.steps == null) intOf("steps")?.let { v.put("steps", it.toLong()); v.put("steps_source", strOf("steps_source") ?: "manual") }
+                if (old?.screenMinutes == null) intOf("screen_minutes")?.let { v.put("screen_minutes", it) }
+                if (old?.socialMinutes == null) intOf("social_minutes")?.let { v.put("social_minutes", it) }
+                if (old?.sleepMinutes == null) intOf("sleep_minutes")?.let { v.put("sleep_minutes", it); v.put("sleep_source", srcOf("sleep_minutes")) }
+                if (old?.firstUse == null) strOf("first_use_at")?.let { v.put("first_use", it) }
+                if (old?.lastUse == null) strOf("last_use_at")?.let { v.put("last_use", it) }
+                if (old?.waterMl == null) intOf("water_ml")?.let { v.put("water_ml", it); v.put("water_source", srcOf("water_ml")) }
+                if (old?.weightKg == null && j.has("weight_kg") && !j.isNull("weight_kg")) {
+                    v.put("weight_kg", j.optDouble("weight_kg")); v.put("weight_source", srcOf("weight_kg"))
+                }
+                if (v.size() == 0) continue
+                filled++
+                if (old == null) {
+                    v.put("date", date.toString()); v.put("updated_at", System.currentTimeMillis()); v.put("dirty", 0)
+                    db.insert("days", null, v)
+                } else {
+                    db.update("days", v, "date = ?", arrayOf(date.toString()))
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        return filled
+    }
+
     fun days(from: LocalDate, to: LocalDate): List<DayRow> =
         readableDatabase.rawQuery("SELECT $COLS FROM days WHERE date BETWEEN ? AND ? ORDER BY date", arrayOf(from.toString(), to.toString()))
             .use { c -> generateSequence<DayRow> { if (c.moveToNext()) row(c) else null }.toList() }

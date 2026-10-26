@@ -48,21 +48,22 @@ class MainActivity : ComponentActivity() {
         if (app.prefs.autoSync) SyncWorker.schedule(this)
 
         val phone = PhoneActions(
+            onOpenSamsungHealth = { if (!SamsungHealth.open(this)) app.message = "Couldn’t open Samsung Health. Open it from your home screen." },
             onAskHealthConnect = { healthConnectPermissions.launch(StepsReader.HC_PERMISSIONS) },
             onInstallHealthConnect = { openHealthConnectInStore() },
             onAskActivity = { askActivityPermission() },
             onOpenUsageAccess = { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
-            onOpenUrl = { openUrl(it) },
-            onOpenPrivacy = { startActivity(Intent(this, PrivacyActivity::class.java)) },
+            onShareWhatsApp = { shareWhatsApp(it) },
         )
 
         setContent {
             Bas1MinuteTheme {
                 when {
-                    !app.loggedIn -> AuthScreen(app, onOpenUrl = { openUrl(it) })
+                    !app.loggedIn -> AuthScreen(app)
                     !app.permissionsDone -> PermissionsScreen(
                         snapshot = app.phone,
                         actions = OnboardingActions(
+                            onOpenSamsungHealth = phone.onOpenSamsungHealth,
                             onAskHealthConnect = phone.onAskHealthConnect,
                             onInstallHealthConnect = phone.onInstallHealthConnect,
                             onAskActivity = phone.onAskActivity,
@@ -89,8 +90,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun openUrl(url: String) {
-        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (e: Exception) { app.message = "No app can open that link." }
+    /** Only used for Google Play (installing Health Connect). The app never opens the Bas 1 Minute website. */
+    private fun openStore(url: String) {
+        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (e: Exception) { app.message = "Open the Play Store and search for Health Connect." }
+    }
+
+    /** Straight into WhatsApp (or WhatsApp Business); falls back to the share sheet. */
+    private fun shareWhatsApp(text: String) {
+        for (pkg in listOf("com.whatsapp", "com.whatsapp.w4b")) {
+            try {
+                startActivity(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text).setPackage(pkg))
+                return
+            } catch (e: Exception) { /* not installed, try the next */ }
+        }
+        share(text)
     }
 
     private fun share(text: String) {
@@ -108,7 +121,7 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, market).setPackage("com.android.vending"))
         } catch (e: Exception) {
-            openUrl("https://play.google.com/store/apps/details?id=${StepsReader.HC_PACKAGE}")
+            openStore("https://play.google.com/store/apps/details?id=${StepsReader.HC_PACKAGE}")
         }
     }
 }

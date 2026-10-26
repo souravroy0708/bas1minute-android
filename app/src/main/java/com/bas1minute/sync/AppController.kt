@@ -27,6 +27,12 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var openCircleId by mutableStateOf<Int?>(null)
     /** "Log a day" opens on top of Today. */
     var logOpen by mutableStateOf(false)
+    /** Native About / Privacy page open on top of Profile: "idea", "different", "free" or "privacy". */
+    var aboutPage by mutableStateOf<String?>(null)
+    /** Guided 1-minute burst timer open on top of Today. */
+    var burstOpen by mutableStateOf(false)
+    /** Last full two-way sync result, for the Profile card. */
+    var fullSyncMessage by mutableStateOf<String?>(null)
 
     var phone by mutableStateOf(Snapshot())
     var today by mutableStateOf<TodayData?>(repo.cachedToday())
@@ -94,6 +100,29 @@ class AppController(private val ctx: android.content.Context, private val scope:
         refreshCircles()
     }
 
+    /**
+     * "Sync with server": send everything waiting (days + offline actions), then download the last
+     * 90 days so this phone matches the server (new phone, reinstall).
+     */
+    fun fullSync() {
+        if (syncing) return
+        syncing = true
+        home = homeState()
+        launch {
+            val up = Sync.run(ctx)
+            val restored = repo.pullHistory(90)
+            val waitingNow = repo.waitingActions() + LocalDb.get(ctx).pendingCount()
+            fullSyncMessage = when {
+                restored == null -> up.message + " Couldn’t download your history right now."
+                waitingNow > 0 -> "${up.message} $waitingNow item${if (waitingNow == 1) "" else "s"} still waiting."
+                else -> "All synced. Your data is safe on the server" + if (restored > 0) ", and $restored day${if (restored == 1) "" else "s"} were restored to this phone." else "."
+            }
+            message = fullSyncMessage
+            syncing = false
+            refresh()
+        }
+    }
+
     fun sync() {
         if (syncing) return
         syncing = true
@@ -121,7 +150,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
         loggedIn = true
         permissionsDone = prefs.onboardingDone
         refresh()
-        sync()
+        fullSync()  // restores history when logging in on a new phone
     }
 
     fun finishPermissions() {
@@ -132,7 +161,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
 
     fun logout() = launch {
         repo.logout()
-        today = null; circles = null; circle = null; openCircleId = null
+        today = null; circles = null; circle = null; openCircleId = null; burstOpen = false; logOpen = false; aboutPage = null
         loggedIn = false
         tab = Tab.Today
     }

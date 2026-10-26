@@ -57,9 +57,11 @@ data class HomeState(
 
 private val MOODS = listOf(1 to "Very low", 2 to "Low", 3 to "Okay", 4 to "Good", 5 to "Great")
 
+private const val WEEK_MS = 7L * 24 * 60 * 60 * 1000
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodayTab(app: AppController, onCall: (String) -> Unit) {
+fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneActions) {
     val numbers = remember { NumberFormat.getIntegerInstance(Locale("en", "IN")) }
     val state = app.home
     val server = app.today
@@ -136,6 +138,15 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit) {
             ) {
                 if (app.offline) OfflineBanner(app.waiting)
 
+                if (app.phone.samsungNeedsSetup && System.currentTimeMillis() - app.prefs.samsungDismissedAt > WEEK_MS) {
+                    SamsungHealthCard(
+                        hcGranted = app.phone.hcGranted,
+                        onAllowHealthConnect = phoneActions.onAskHealthConnect,
+                        onOpenSamsungHealth = phoneActions.onOpenSamsungHealth,
+                        onDismiss = { app.prefs.samsungDismissedAt = System.currentTimeMillis(); app.home = app.homeState() },
+                    )
+                }
+
                 server?.cheers?.takeIf { it.isNotEmpty() }?.let { cheers ->
                     Column(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Haldi).padding(16.dp),
@@ -159,8 +170,9 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit) {
                     ActionTile(
                         title = "Bursts", value = "$bursts / $burstGoal",
                         hint = if (bursts >= burstGoal) "All done today" else "One minute, out of breath",
-                        dots = burstGoal to bursts, button = "+ I did one", modifier = Modifier.weight(1f),
-                        onClick = { app.addBurst() },
+                        dots = burstGoal to bursts, button = "Start 1 min", modifier = Modifier.weight(1f),
+                        onClick = { app.burstOpen = true },
+                        secondary = "+ I already did one" to { app.addBurst() },
                     )
                     ActionTile(
                         title = "Calm", value = "$calm min",
@@ -269,7 +281,7 @@ private fun QuickTile(label: String, value: String, action: String, modifier: Mo
 @Composable
 private fun ActionTile(
     title: String, value: String, hint: String, dots: Pair<Int, Int>?, button: String,
-    modifier: Modifier = Modifier, onClick: () -> Unit,
+    modifier: Modifier = Modifier, onClick: () -> Unit, secondary: Pair<String, () -> Unit>? = null,
 ) {
     Column(
         modifier.clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp),
@@ -286,6 +298,10 @@ private fun ActionTile(
         }
         Text(hint, style = MaterialTheme.typography.bodySmall, color = Muted)
         SmallPill(button, onClick)
+        secondary?.let { (label, action) ->
+            Text(label, style = MaterialTheme.typography.labelMedium, color = Blue,
+                modifier = Modifier.clickable(onClick = action).padding(vertical = 4.dp))
+        }
     }
 }
 
@@ -327,7 +343,7 @@ fun OfflineNote(pending: Int, saved: Int) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(if (pending == 0) Mint else Haldi))
         Spacer(Modifier.width(10.dp))
         Text(
-            if (pending == 0) "Everything is on the website. $saved day${if (saved == 1) "" else "s"} saved on this phone too."
+            if (pending == 0) "Everything is backed up. $saved day${if (saved == 1) "" else "s"} also saved on this phone."
             else "$pending item${if (pending == 1) "" else "s"} saved on this phone, waiting to sync. Nothing is lost offline.",
             style = MaterialTheme.typography.bodySmall, color = Muted,
         )

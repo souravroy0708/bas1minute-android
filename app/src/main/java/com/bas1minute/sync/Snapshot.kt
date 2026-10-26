@@ -22,7 +22,12 @@ data class Snapshot(
     val savedDays: Int = 0,
     val insights: Insights? = null,
     val extras: HealthExtras.Granted = HealthExtras.Granted(false, false, false),
+    val samsungInstalled: Boolean = false,
+    /** true sharing, false installed but not sharing, null can't tell */
+    val samsungSharing: Boolean? = null,
 ) {
+    /** Show the "Connect Samsung Health" help: installed, and not confirmed sharing. */
+    val samsungNeedsSetup: Boolean get() = samsungInstalled && samsungSharing != true
     val today: DayValue? get() = week.lastOrNull()
     val stepsReady: Boolean get() = hcGranted || (activityGranted && recordingAvailable)
 }
@@ -50,9 +55,12 @@ suspend fun loadSnapshot(context: Context): Snapshot {
     val savedCount = withContext(Dispatchers.IO) { db.savedDayCount() }
     val insights = withContext(Dispatchers.IO) { InsightMath.build(db, today) }
     val extras = HealthExtras(context).granted()
+    val hcGranted = steps.healthConnectGranted()
+    val samsungInstalled = SamsungHealth.installed(context)
+    val samsungSharing = SamsungHealth.sharing(context, hcGranted)
     return Snapshot(
         hcStatus = steps.healthConnectStatus(),
-        hcGranted = steps.healthConnectGranted(),
+        hcGranted = hcGranted,
         activityGranted = steps.activityPermissionGranted(),
         recordingAvailable = steps.recordingApiAvailable(),
         usageAccess = screen.hasAccess(),
@@ -63,5 +71,7 @@ suspend fun loadSnapshot(context: Context): Snapshot {
         savedDays = savedCount,
         insights = insights,
         extras = extras,
+        samsungInstalled = samsungInstalled,
+        samsungSharing = samsungSharing,
     )
 }

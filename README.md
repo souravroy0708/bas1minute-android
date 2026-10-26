@@ -93,6 +93,31 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## Feature parity
+
+See `FEATURES.md`: every website member feature has an in-app home. **Profile → Sync with server** uploads
+everything waiting (phone days and offline actions) and downloads the last 90 days, so a new phone or a
+reinstall gets your history back. Logging in on a new phone does this automatically.
+
+## Native only
+
+The app never opens the Bas 1 Minute website. It talks to the server only through `/api/v1/`.
+Our idea, How we're different, Free for everyone and Privacy are built-in screens (`ui/AboutScreens.kt`);
+`PrivacyActivity` (also opened by Health Connect) shows the same privacy text. Circle invites share a
+**code** ("Open the app → Circles → Join with code"), sent straight to WhatsApp. The only outside link is
+Google Play, to install Health Connect. Set your support email in `app/build.gradle.kts` (`SUPPORT_EMAIL`).
+
+For the Play Store you still need a public privacy policy URL; the website's `/privacy/` page can serve
+that without the app linking to it.
+
+## Samsung Health
+
+Samsung Health data (steps, sleep, weight, water, incl. Galaxy Watch) arrives through **Health Connect**,
+no Samsung partnership needed. Samsung Health only shares once the user switches it on, so the app checks
+whether Samsung Health is installed and whether any of its steps from the last 7 days are in Health
+Connect (`SamsungHealth.kt`, using Health Connect's data origins). If not, a "Connect Samsung Health" card
+explains the steps and opens Samsung Health (Today, dismissible for a week; Profile; setup).
+
 ## Updating from a new zip
 
 Always update with the script, so files removed in a newer version are deleted too (otherwise the build
