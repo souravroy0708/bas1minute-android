@@ -25,6 +25,8 @@ data class Snapshot(
     val samsungInstalled: Boolean = false,
     /** true sharing, false installed but not sharing, null can't tell */
     val samsungSharing: Boolean? = null,
+    /** Installed outside the Play Store on Android 13+: usage access needs "Allow restricted settings" first. */
+    val restrictedSettings: Boolean = false,
 ) {
     /** Show the "Connect Samsung Health" help: installed, and not confirmed sharing. */
     val samsungNeedsSetup: Boolean get() = samsungInstalled && samsungSharing != true
@@ -73,5 +75,6 @@ suspend fun loadSnapshot(context: Context): Snapshot {
         extras = extras,
         samsungInstalled = samsungInstalled,
         samsungSharing = samsungSharing,
+        restrictedSettings = InstallSource.restrictedSettingsLikely(context),
     )
 }

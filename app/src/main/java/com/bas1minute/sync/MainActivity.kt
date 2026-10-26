@@ -47,7 +47,16 @@ class MainActivity : ComponentActivity() {
         app = AppController(applicationContext, lifecycleScope)
         if (app.prefs.autoSync) SyncWorker.schedule(this)
 
+        val help = HelpActions(
+            onSearch = { query -> searchGoogle(query) },
+            onCopy = { text -> copyText(text) },
+        )
         val phone = PhoneActions(
+            help = help,
+            onOpenBatterySettings = { openBatterySettings() },
+            onOpenAppInfo = {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+            },
             onOpenSamsungHealth = { if (!SamsungHealth.open(this)) app.message = "Couldn’t open Samsung Health. Open it from your home screen." },
             onAskHealthConnect = { healthConnectPermissions.launch(StepsReader.HC_PERMISSIONS) },
             onInstallHealthConnect = { openHealthConnectInStore() },
@@ -63,6 +72,8 @@ class MainActivity : ComponentActivity() {
                     !app.permissionsDone -> PermissionsScreen(
                         snapshot = app.phone,
                         actions = OnboardingActions(
+                            help = help,
+                            onOpenAppInfo = phone.onOpenAppInfo,
                             onOpenSamsungHealth = phone.onOpenSamsungHealth,
                             onAskHealthConnect = phone.onAskHealthConnect,
                             onInstallHealthConnect = phone.onInstallHealthConnect,
@@ -93,6 +104,30 @@ class MainActivity : ComponentActivity() {
     /** Only used for Google Play (installing Health Connect). The app never opens the Bas 1 Minute website. */
     private fun openStore(url: String) {
         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (e: Exception) { app.message = "Open the Play Store and search for Health Connect." }
+    }
+
+    /** Phone-specific help: a Google search for this exact phone (Google app or browser). */
+    private fun searchGoogle(query: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_WEB_SEARCH).putExtra(android.app.SearchManager.QUERY, query))
+        } catch (e: Exception) {
+            openStore("https://www.google.com/search?q=" + Uri.encode(query))
+        }
+    }
+
+    private fun copyText(text: String) {
+        val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Bas 1 Minute help", text))
+        app.message = "Question copied. Paste it into Google, Gemini or ChatGPT."
+    }
+
+    /** Battery options live in App info on most phones; the optimisation list is the fallback. */
+    private fun openBatterySettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        } catch (e: Exception) {
+            try { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) } catch (e2: Exception) { app.message = "Open Settings → Battery." }
+        }
     }
 
     /** Straight into WhatsApp (or WhatsApp Business); falls back to the share sheet. */

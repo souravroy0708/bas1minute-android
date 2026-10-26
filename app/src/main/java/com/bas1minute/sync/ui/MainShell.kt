@@ -91,7 +91,8 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                 Tab.Calm -> CalmTab(app, onCall)
                 Tab.Profile -> app.aboutPage?.let { page ->
                     androidx.activity.compose.BackHandler { app.aboutPage = null }
-                    AboutScreen(page, onBack = { app.aboutPage = null })
+                    if (page == "help") PhoneHelpScreen(app, actions, onBack = { app.aboutPage = null })
+                    else AboutScreen(page, onBack = { app.aboutPage = null })
                 } ?: ProfileTab(app, actions)
             }
         }

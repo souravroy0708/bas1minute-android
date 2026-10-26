@@ -165,6 +165,26 @@ Each build gets a higher version (`0.1.N`), and the same key signs every build, 
 **Later, for the Play Store:** when setting up Play App Signing, choose to use this same key. Then pilot
 users can move to the Play Store version without uninstalling.
 
+## Usage access on sideloaded installs (Android 13+)
+
+Android blocks Usage access for apps installed from an APK (WhatsApp, Files): "App was denied access…
+restricted setting". Testers allow it once:
+
+1. Try to switch on usage access for Bas 1 Minute (the denial is expected; it unlocks the next step).
+2. Settings → Apps → Bas 1 Minute → ⋮ → **Allow restricted settings** → confirm with PIN or fingerprint.
+   (Some Samsung One UI versions show it at the bottom of App info.)
+3. Switch on usage access again. It works.
+
+The app detects a sideloaded install (`InstallSource.kt`) and shows these steps with buttons, during setup
+and in Profile. Installs from the Play Store don't need this.
+
+**Phone-specific help** (`PhoneHelp.kt`, Profile → About → Phone-specific help): detects brand, model,
+Android version and software (One UI, OxygenOS, HyperOS, ColorOS, realme UI, Funtouch OS…), shows the usual
+menu path for that brand for usage access and battery, and offers **Search Google for my phone** (e.g.
+"OnePlus CPH2581 Android 15 OxygenOS allow restricted settings usage access") and **Copy question** (a full
+description of the phone and error to paste into Google, Gemini or ChatGPT). Menu paths are "usually"
+guidance; the search covers whatever a phone update changed.
+
 ## First run on the phone
 
 1. Website: **Profile > Connect your phone > Create sync key**. Copy it.

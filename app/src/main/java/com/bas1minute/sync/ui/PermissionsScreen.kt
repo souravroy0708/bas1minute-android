@@ -47,6 +47,8 @@ import androidx.health.connect.client.HealthConnectClient
 import com.bas1minute.sync.Snapshot
 
 data class OnboardingActions(
+    val help: HelpActions,
+    val onOpenAppInfo: () -> Unit,
     val onOpenSamsungHealth: () -> Unit,
     val onAskHealthConnect: () -> Unit,
     val onInstallHealthConnect: () -> Unit,
@@ -143,6 +145,9 @@ private fun ScreenPage(snapshot: Snapshot, actions: OnboardingActions) {
             "Usage access", if (snapshot.usageAccess) "Turned on" else "Find Bas 1 Minute and switch on “Permit usage access”",
             ok = snapshot.usageAccess, action = if (snapshot.usageAccess) null else "Open", onAction = actions.onOpenUsageAccess,
         )
+    }
+    if (!snapshot.usageAccess && snapshot.restrictedSettings) {
+        UsageAccessHelp(onOpenUsageAccess = actions.onOpenUsageAccess, onOpenAppInfo = actions.onOpenAppInfo, helpActions = actions.help)
     }
     BigButton(if (snapshot.usageAccess) "Finish setup" else "Finish without screen time", onClick = actions.onFinish)
 }

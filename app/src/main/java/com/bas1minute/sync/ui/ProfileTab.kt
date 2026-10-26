@@ -41,6 +41,9 @@ import com.bas1minute.sync.api.Res
 import org.json.JSONObject
 
 data class PhoneActions(
+    val help: HelpActions,
+    val onOpenBatterySettings: () -> Unit,
+    val onOpenAppInfo: () -> Unit,
     val onOpenSamsungHealth: () -> Unit,
     val onAskHealthConnect: () -> Unit,
     val onInstallHealthConnect: () -> Unit,
@@ -129,6 +132,9 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 ok = snap.activityGranted, action = if (snap.activityGranted) null else "Allow", onAction = actions.onAskActivity)
             StatusRow("Screen time and social media", if (snap.usageAccess) "Usage access on" else "Usage access off",
                 ok = snap.usageAccess, action = if (snap.usageAccess) null else "Open", onAction = actions.onOpenUsageAccess)
+            if (!snap.usageAccess && snap.restrictedSettings) {
+                UsageAccessHelp(onOpenUsageAccess = actions.onOpenUsageAccess, onOpenAppInfo = actions.onOpenAppInfo, helpActions = actions.help)
+            }
             if (snap.hcStatus == HealthConnectClient.SDK_AVAILABLE) {
                 val e = snap.extras
                 val on = listOfNotNull("sleep".takeIf { e.sleep }, "water".takeIf { e.water }, "weight".takeIf { e.weight })
@@ -173,6 +179,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             LinkRow("How we’re different", "What other apps do, and the gap we fill") { app.aboutPage = "different" }
             LinkRow("Free for everyone", "Why the core stays free") { app.aboutPage = "free" }
             LinkRow("Privacy", "What the app reads and sends, and your choices") { app.aboutPage = "privacy" }
+            LinkRow("Phone-specific help", "Settings for your ${com.bas1minute.sync.PhoneHelp.device().brand}: usage access, battery") { app.aboutPage = "help" }
         }
 
         GhostButton("Log out") { confirmLogout = true }

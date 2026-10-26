@@ -19,6 +19,10 @@
     <!-- Lets the app check whether Health Connect is installed (Android 13 and older) -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- "Search Google for my phone" in phone-specific help -->
+        <intent>
+            <action android:name="android.intent.action.WEB_SEARCH" />
+        </intent>
         <!-- Circle invites go straight to WhatsApp -->
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
