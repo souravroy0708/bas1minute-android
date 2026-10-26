@@ -18,7 +18,7 @@ object Sync {
 
     /** The website accepts days up to 31 days old, and up to 31 items per request. */
     private const val MAX_AGE_DAYS = 30L
-    private const val DAYS_PER_REQUEST = 15  // each day can be 2 items (steps + screen)
+    private const val DAYS_PER_REQUEST = 7   // each day can be up to 4 items; the website takes 31 per request
 
     suspend fun run(context: Context): Outcome {
         val prefs = Prefs(context)
@@ -43,16 +43,7 @@ object Sync {
             if (batch.isEmpty()) break
 
             val items = JSONArray()
-            for (row in batch) {
-                if (row.steps != null) {
-                    items.put(JSONObject().put("date", row.date.toString()).put("steps", row.steps)
-                        .put("source", row.stepsSource ?: "health_connect"))
-                }
-                if (row.screenMinutes != null) {
-                    items.put(JSONObject().put("date", row.date.toString()).put("screen_minutes", row.screenMinutes)
-                        .put("source", "usage_stats"))
-                }
-            }
+            for (row in batch) items(row).forEach { items.put(it) }
 
             val reply = try {
                 SyncClient.post(prefs.serverUrl, prefs.syncKey, JSONObject().put("days", items))
@@ -81,6 +72,31 @@ object Sync {
             else -> "Synced $sentDays day${if (sentDays == 1) "" else "s"}."
         }
         return remember(prefs, Outcome(true, message))
+    }
+
+    /** Only phone-measured values go here; typed ones travel through the action outbox. */
+    private fun items(row: DayRow): List<JSONObject> {
+        val date = row.date.toString()
+        val out = ArrayList<JSONObject>()
+        if (row.steps != null) out += JSONObject().put("date", date).put("steps", row.steps).put("source", row.stepsSource ?: "health_connect")
+        if (row.screenMinutes != null || row.socialMinutes != null || row.firstUse != null) {
+            val u = JSONObject().put("date", date).put("source", "usage_stats")
+            row.screenMinutes?.let { u.put("screen_minutes", it) }
+            row.socialMinutes?.let { u.put("social_minutes", it) }
+            row.firstUse?.let { u.put("first_use_at", it) }
+            row.lastUse?.let { u.put("last_use_at", it) }
+            out += u
+        }
+        if (row.sleepMinutes != null && (row.sleepSource == "health_connect" || row.sleepSource == "phone_estimate")) {
+            out += JSONObject().put("date", date).put("sleep_minutes", row.sleepMinutes).put("source", row.sleepSource)
+        }
+        if ((row.waterMl != null && row.waterSource == "health_connect") || (row.weightKg != null && row.weightSource == "health_connect")) {
+            val h = JSONObject().put("date", date).put("source", "health_connect")
+            if (row.waterSource == "health_connect") row.waterMl?.let { h.put("water_ml", it) }
+            if (row.weightSource == "health_connect") row.weightKg?.let { h.put("weight_kg", Math.round(it * 10) / 10.0) }
+            out += h
+        }
+        return out
     }
 
     private suspend fun offline(sentDays: Int, db: LocalDb, server: Int? = null): Outcome {

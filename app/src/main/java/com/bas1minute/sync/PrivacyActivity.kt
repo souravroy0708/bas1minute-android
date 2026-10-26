@@ -46,8 +46,9 @@ class PrivacyActivity : ComponentActivity() {
                 ) {
                     Text("What this app reads and sends", fontSize = 26.sp, fontWeight = FontWeight.Black, color = Ink)
                     Block("Steps", "Your daily step total, read from Health Connect or counted by Google Play services on this phone.")
-                    Block("Screen time", "The total minutes apps were on screen each day. We add it up on the phone. App names and what you did in apps never leave your phone.")
-                    Block("What you add yourself", "Bursts, calm minutes, your mood check-in, goals and circles. Mood is only ever visible to you; it’s never shown to your circles.")
+                    Block("Screen time and social media", "Total minutes on screen and in social media apps each day, plus when you last used the phone at night and first used it in the morning. Worked out on the phone. App names and what you did in apps never leave your phone.")
+                    Block("Sleep, water and weight", "Read from Health Connect only if you allow each one (a watch, scale or other app saves them there), or typed by you. If you don’t allow sleep, the app estimates it from your longest overnight break from the phone. Weight is off unless you switch it on.")
+                    Block("What you add yourself", "Bursts, calm minutes, water, sleep, weight, your mood check-in, goals and circles. Mood, sleep, water, weight and social media time are only ever visible to you, never to your circles.")
                     Block("What we send", "Daily totals (steps, screen minutes, bursts, calm minutes) and your mood, to your own Bas 1 Minute account only, over a secure connection. Your circles see steps, bursts and calm; screen time only if you switch it on for that circle.")
                     Block("Offline", "Everything is saved on this phone first and sent when you’re online. Logging out removes your account data from this phone.")
                     Block("What we never read", "Location, contacts, messages, photos, or any other health data.")

@@ -108,8 +108,14 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
             if (snap.recordingAvailable) StatusRow("Phone step sensor", if (snap.activityGranted) "Backup counting is on" else "Off",
                 ok = snap.activityGranted, action = if (snap.activityGranted) null else "Allow", onAction = actions.onAskActivity)
-            StatusRow("Screen time", if (snap.usageAccess) "Usage access on" else "Usage access off",
+            StatusRow("Screen time and social media", if (snap.usageAccess) "Usage access on" else "Usage access off",
                 ok = snap.usageAccess, action = if (snap.usageAccess) null else "Open", onAction = actions.onOpenUsageAccess)
+            if (snap.hcStatus == HealthConnectClient.SDK_AVAILABLE) {
+                val e = snap.extras
+                val on = listOfNotNull("sleep".takeIf { e.sleep }, "water".takeIf { e.water }, "weight".takeIf { e.weight })
+                StatusRow("Sleep, water and weight", if (on.isEmpty()) "Optional: read from your watch, scale or apps" else "Reading " + on.joinToString(", "),
+                    ok = on.size == 3, action = if (on.size == 3) null else "Allow", onAction = actions.onAskHealthConnect)
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Sync automatically", style = MaterialTheme.typography.titleMedium)
@@ -120,6 +126,18 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
             Text("${snap.savedDays} days saved on this phone. Everything works offline and syncs later.",
                 style = MaterialTheme.typography.bodySmall, color = Muted)
+        }
+
+        // Weight is opt-in
+        AppCard(title = "Weight") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Track my weight", style = MaterialTheme.typography.titleMedium)
+                    Text("Optional and private. Never shared with circles.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = prefs.trackWeight, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on -> prefs.trackWeight = on; app.home = app.homeState() })
+            }
         }
 
         // About (the website's story pages)

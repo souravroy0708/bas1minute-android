@@ -110,12 +110,22 @@ class Repo(context: Context) {
 
     // ---------- actions that work offline (queued) ----------
 
-    suspend fun logDay(date: LocalDate, steps: Int?, bursts: Int?, screenMinutes: Int?, mindful: Int?): Res<JSONObject> {
+    suspend fun logDay(
+        date: LocalDate, steps: Int?, bursts: Int?, screenMinutes: Int?, mindful: Int?,
+        waterMl: Int? = null, weightKg: Double? = null, sleepMinutes: Int? = null,
+    ): Res<JSONObject> {
         val body = JSONObject().put("date", date.toString())
         steps?.let { body.put("steps", it) }
         bursts?.let { body.put("bursts", it) }
         screenMinutes?.let { body.put("screen_minutes", it) }
         mindful?.let { body.put("mindful_minutes", it) }
+        waterMl?.let { body.put("water_ml", it) }
+        weightKg?.let { body.put("weight_kg", Math.round(it * 10) / 10.0) }
+        sleepMinutes?.let { body.put("sleep_minutes", it) }
+        // Show typed values straight away, even offline
+        if (waterMl != null || weightKg != null || sleepMinutes != null) {
+            withContext(Dispatchers.IO) { db.saveTyped(date, waterMl, weightKg, sleepMinutes) }
+        }
         return write("day/", body, queueable = true)
     }
 

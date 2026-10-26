@@ -19,7 +19,7 @@ android {
         minSdk = 26          // Health Connect needs Android 8.0+
         targetSdk = 36
         versionCode = buildNumber
-        versionName = "0.2.$buildNumber"
+        versionName = "0.3.$buildNumber"
         // Your live site. Members can change it in the app (for local testing).
         buildConfigField("String", "DEFAULT_SERVER", "\"https://bas1minute.pythonanywhere.com\"")
     }
@@ -56,9 +56,6 @@ android {
         compose = true
         buildConfig = true
     }
-    lint {
-        disable += "InvalidFragmentVersionForActivityResult"
-    }
 }
 
 kotlin {
@@ -79,5 +76,4 @@ dependencies {
     implementation(libs.health.connect)
     implementation(libs.play.services.fitness)
     implementation(libs.coroutines.play.services)
-    implementation("androidx.fragment:fragment-ktx:1.8.6")
 }

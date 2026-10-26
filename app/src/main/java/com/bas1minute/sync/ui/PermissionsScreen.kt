@@ -96,7 +96,7 @@ private fun StepsPage(snapshot: Snapshot, actions: OnboardingActions, onNext: ()
     Badge("👟", Color(0xFFE9ECFF))
     Text("Count your steps", style = MaterialTheme.typography.headlineLarge)
     Text(
-        "We read steps from Health Connect, where Google Fit, Samsung Health and most watches save them. If nothing is there, your phone can count them itself.",
+        "We read steps from Health Connect, where Google Fit, Samsung Health and most watches save them. On the same screen you can also allow sleep, water and weight (optional). If nothing is there, your phone counts steps itself.",
         style = MaterialTheme.typography.bodyLarge,
         color = Muted,
     )
@@ -126,7 +126,7 @@ private fun ScreenPage(snapshot: Snapshot, actions: OnboardingActions) {
     Badge("📱", Color(0xFFFFE7DF))
     Text("See your screen time", style = MaterialTheme.typography.headlineLarge)
     Text(
-        "The same daily total Digital Wellbeing shows you. We add it up on your phone and send only the total, never which apps you used.",
+        "Your daily screen time, time on social media apps, and when you last and first used your phone around sleep. Worked out on your phone; only totals and those two times are sent, never which apps you used.",
         style = MaterialTheme.typography.bodyLarge,
         color = Muted,
     )

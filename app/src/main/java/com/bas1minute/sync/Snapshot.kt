@@ -6,7 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
-data class DayValue(val date: LocalDate, val steps: Long?, val screenMinutes: Int?)
+data class DayValue(val date: LocalDate, val steps: Long?, val screenMinutes: Int?, val row: DayRow? = null)
 
 /** Everything the screens show, read from the phone in one go. */
 data class Snapshot(
@@ -20,6 +20,8 @@ data class Snapshot(
     val loaded: Boolean = false,
     val pendingDays: Int = 0,
     val savedDays: Int = 0,
+    val insights: Insights? = null,
+    val extras: HealthExtras.Granted = HealthExtras.Granted(false, false, false),
 ) {
     val today: DayValue? get() = week.lastOrNull()
     val stepsReady: Boolean get() = hcGranted || (activityGranted && recordingAvailable)
@@ -41,11 +43,13 @@ suspend fun loadSnapshot(context: Context): Snapshot {
     val saved = withContext(Dispatchers.IO) { db.days(today.minusDays(6), today) }.associateBy { it.date }
     val week = (6 downTo 0).map { today.minusDays(it.toLong()) }.map { day ->
         val row = saved[day]
-        DayValue(day, row?.steps, row?.screenMinutes)
+        DayValue(day, row?.steps, row?.screenMinutes, row)
     }
     val todaySource = saved[today]?.stepsSource
     val pending = withContext(Dispatchers.IO) { db.pendingCount() }
     val savedCount = withContext(Dispatchers.IO) { db.savedDayCount() }
+    val insights = withContext(Dispatchers.IO) { InsightMath.build(db, today) }
+    val extras = HealthExtras(context).granted()
     return Snapshot(
         hcStatus = steps.healthConnectStatus(),
         hcGranted = steps.healthConnectGranted(),
@@ -57,5 +61,7 @@ suspend fun loadSnapshot(context: Context): Snapshot {
         loaded = true,
         pendingDays = pending,
         savedDays = savedCount,
+        insights = insights,
+        extras = extras,
     )
 }

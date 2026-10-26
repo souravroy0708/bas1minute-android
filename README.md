@@ -1,12 +1,27 @@
 # Bas 1 Minute (Android)
 
+**v0.3 adds:** social media time with a 1 / 3 / 10-year forecast (Insights tab), first phone use after
+waking and last use before sleep, sleep (Health Connect, or estimated from the longest overnight break from
+the phone), water (Health Connect or "+1 glass"), and optional private weight. Collected automatically
+wherever the phone can measure it; see the table below.
+
+| Metric | Automatic source | Fallback |
+| --- | --- | --- |
+| Social media time | Usage events: known social apps + Android's "social" category (messaging not counted) | — |
+| Last use at night / first use in the morning | Longest gap in phone use, 6 pm–1 pm, at least 3 hours | — |
+| Sleep | Health Connect sleep sessions (watch, Samsung Health, Fit) | That overnight gap, labelled "estimated" |
+| Water | Health Connect hydration (water apps) | "+1 glass" (250 ml) or Log a day |
+| Weight (off by default) | Health Connect weight (smart scale) | Log a day |
+
+Only daily totals and the two times are synced. The per-app breakdown stays on the phone (`app_usage` table).
+
 **v0.2: the full Bas 1 Minute app.** Everything on the website's member area is in the app, and it works
 offline. Log in with your mobile number (same account as the website); no sync key needed any more.
 
 | Tab | What it does |
 | --- | --- |
-| **Today** | 7K + 4 ring (steps + screen time), steps left, bursts (+ "I did one"), calm, private mood check-in with Tele-MANAS support, cheers from your circles, 7-day chart, sync status |
-| **Log** | Any of the last 7 days: bursts, calm minutes, and steps or screen time if the phone can’t read them |
+| **Today** (+ Log a day) | 7K + 4 ring (steps + screen time), steps left, bursts (+ "I did one"), calm, private mood check-in with Tele-MANAS support, cheers from your circles, 7-day chart, sync status |
+| **Insights** | Social media today and 7-day average, 1 / 3 / 10-year forecast with equivalents, top social apps (phone only), phone & sleep habits, water, weight (if on) |
 | **Circles** | Your circles, start one, join by code; leaderboard, team goal, Shabash! / Chalo!, invite on WhatsApp or share, screen-time sharing, owner tools (rename, new link, remove, delete), leave |
 | **Calm** | Guided 1-minute breathing (in 4, out 6). Counts a calm minute |
 | **Profile** | Name, city, goals; phone permissions; auto sync; links to Our idea, How we’re different, Free for everyone, Privacy; log out; delete account |
@@ -15,7 +30,7 @@ offline. Log in with your mobile number (same account as the website); no sync k
 queued on the phone (SQLite `outbox`) and sent in order on the next sync. Creating/joining circles and
 changing goals need the internet and say so.
 
-**Needs website v6** (adds the `/api/v1/` endpoints). Run `python manage.py migrate` after deploying it.
+**Needs website v7** (adds the `/api/v1/` endpoints). Run `python manage.py migrate` after deploying it.
 
 ---
 

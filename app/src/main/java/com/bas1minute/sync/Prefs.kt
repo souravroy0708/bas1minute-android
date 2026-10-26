@@ -68,6 +68,11 @@ class Prefs(context: Context) {
         get() = p.getInt("burst_goal", 4)
         set(v) = p.edit().putInt("burst_goal", v).apply()
 
+    /** Weight is off until the person switches it on (private, never shared). */
+    var trackWeight: Boolean
+        get() = p.getBoolean("track_weight", false)
+        set(v) = p.edit().putBoolean("track_weight", v).apply()
+
     fun clearSession() {
         p.edit().remove("key").remove("name").remove("first_name").remove("mobile")
             .remove("last_at").remove("last_msg").remove("last_ok").apply()

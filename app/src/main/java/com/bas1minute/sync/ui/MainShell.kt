@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
@@ -30,13 +30,13 @@ private data class TabItem(val tab: Tab, val label: String, val icon: ImageVecto
 
 private val TABS = listOf(
     TabItem(Tab.Today, "Today", Icons.Filled.Home),
-    TabItem(Tab.Log, "Log", Icons.Filled.Add),
+    TabItem(Tab.Insights, "Insights", Icons.Filled.Info),
     TabItem(Tab.Circles, "Circles", Icons.Filled.Face),
     TabItem(Tab.Calm, "Calm", Icons.Filled.Favorite),
     TabItem(Tab.Profile, "Profile", Icons.Filled.Person),
 )
 
-/** The five tabs, same as the website's app: Today, Log, Circles, Calm, Profile. */
+/** Five tabs: Today (with Log a day), Insights, Circles, Calm, Profile. */
 @Composable
 fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Unit, onCall: (String) -> Unit) {
     val snackbar = remember { SnackbarHostState() }
@@ -55,6 +55,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                         selected = app.tab == item.tab,
                         onClick = {
                             if (item.tab == Tab.Circles && app.tab == Tab.Circles) app.closeCircle()
+                            if (item.tab == Tab.Today) app.logOpen = false
                             app.tab = item.tab
                         },
                         icon = { Icon(item.icon, contentDescription = null) },
@@ -73,8 +74,11 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (app.tab) {
-                Tab.Today -> TodayTab(app, onCall)
-                Tab.Log -> LogTab(app)
+                Tab.Today -> if (app.logOpen) {
+                    androidx.activity.compose.BackHandler { app.logOpen = false }
+                    LogTab(app, onClose = { app.logOpen = false })
+                } else TodayTab(app, onCall)
+                Tab.Insights -> InsightsTab(app)
                 Tab.Circles -> CirclesTab(app, onShare, actions.onOpenUrl)
                 Tab.Calm -> CalmTab(app, onCall)
                 Tab.Profile -> ProfileTab(app, actions)

@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.time.LocalDate
 
-enum class Tab { Today, Log, Circles, Calm, Profile }
+enum class Tab { Today, Insights, Circles, Calm, Profile }
 
 /** Holds what the screens show. Reads phone data and the website; falls back to saved copies offline. */
 class AppController(private val ctx: android.content.Context, private val scope: CoroutineScope) {
@@ -25,6 +25,8 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var permissionsDone by mutableStateOf(prefs.onboardingDone)
     var tab by mutableStateOf(Tab.Today)
     var openCircleId by mutableStateOf<Int?>(null)
+    /** "Log a day" opens on top of Today. */
+    var logOpen by mutableStateOf(false)
 
     var phone by mutableStateOf(Snapshot())
     var today by mutableStateOf<TodayData?>(repo.cachedToday())
@@ -152,6 +154,12 @@ class AppController(private val ctx: android.content.Context, private val scope:
     fun addBurst() = launch {
         val current = today?.today?.bursts ?: 0
         handle(repo.logDay(LocalDate.now(), null, current + 1, null, null), "Burst added. Shabash!") { refresh() }
+    }
+
+    /** One glass = 250 ml. Water is a running total for today, so replaying offline is safe. */
+    fun addWater(ml: Int = 250) = launch {
+        val current = phone.today?.row?.waterMl ?: today?.today?.water ?: 0
+        handle(repo.logDay(LocalDate.now(), null, null, null, null, waterMl = (current + ml).coerceAtMost(10_000)), "+$ml ml") { refresh() }
     }
 
     fun setMood(value: Int) = launch { handle(repo.mood(value), null) { refresh() } }

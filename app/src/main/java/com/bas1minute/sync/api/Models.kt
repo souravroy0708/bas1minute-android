@@ -26,11 +26,17 @@ data class Me(
 data class ServerDay(
     val date: LocalDate, val steps: Int?, val stepsSource: String, val screen: Int?,
     val bursts: Int, val mindful: Int, val mood: Int?,
+    val social: Int? = null, val sleep: Int? = null, val water: Int? = null, val weight: Double? = null,
+    val firstUse: String? = null, val lastUse: String? = null,
 ) {
     companion object {
         fun from(j: JSONObject) = ServerDay(
             LocalDate.parse(j.optString("date")), j.intOrNull("steps"), j.optString("steps_source"),
             j.intOrNull("screen_minutes"), j.optInt("bursts"), j.optInt("mindful_minutes"), j.intOrNull("mood"),
+            j.intOrNull("social_minutes"), j.intOrNull("sleep_minutes"), j.intOrNull("water_ml"),
+            if (!j.has("weight_kg") || j.isNull("weight_kg")) null else j.optDouble("weight_kg"),
+            j.optString("first_use_at").takeIf { it.isNotBlank() && it != "null" },
+            j.optString("last_use_at").takeIf { it.isNotBlank() && it != "null" },
         )
     }
 }

@@ -39,7 +39,7 @@ import java.util.Locale
 
 /** Type numbers by hand for any of the last 7 days. Phone-synced numbers are never replaced. */
 @Composable
-fun LogTab(app: AppController) {
+fun LogTab(app: AppController, onClose: () -> Unit) {
     val today = LocalDate.now()
     val days = (0..6).map { today.minusDays(it.toLong()) }
     var day by remember { mutableStateOf(today) }
@@ -49,6 +49,14 @@ fun LogTab(app: AppController) {
     var calm by remember(day) { mutableStateOf(serverDay?.mindful?.takeIf { it > 0 }?.toString() ?: "") }
     var hours by remember(day) { mutableStateOf(serverDay?.screen?.let { (it / 60).toString() } ?: "") }
     var mins by remember(day) { mutableStateOf(serverDay?.screen?.let { (it % 60).toString() } ?: "") }
+    val local = app.phone.week.firstOrNull { it.date == day }?.row
+    var sleepH by remember(day) { mutableStateOf((local?.sleepMinutes ?: serverDay?.sleep)?.let { (it / 60).toString() } ?: "") }
+    var sleepM by remember(day) { mutableStateOf((local?.sleepMinutes ?: serverDay?.sleep)?.let { (it % 60).toString() } ?: "") }
+    var water by remember(day) { mutableStateOf((local?.waterMl ?: serverDay?.water)?.toString() ?: "") }
+    var weight by remember(day) { mutableStateOf((local?.weightKg ?: serverDay?.weight)?.let { "%.1f".format(it) } ?: "") }
+    val sleepFromPhone = local?.sleepSource == "health_connect" || local?.sleepSource == "phone_estimate"
+    val waterFromPhone = local?.waterSource == "health_connect"
+    val weightFromPhone = local?.weightSource == "health_connect"
     var error by remember { mutableStateOf<String?>(null) }
     val phoneSynced = serverDay?.stepsSource == "health_connect" || serverDay?.stepsSource == "phone_sensor"
 
@@ -64,7 +72,8 @@ fun LogTab(app: AppController) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Log a day", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(top = 8.dp))
+        androidx.compose.material3.TextButton(onClick = onClose) { Text("← Today", color = Muted, style = MaterialTheme.typography.labelLarge) }
+        Text("Log a day", style = MaterialTheme.typography.headlineLarge)
         Text("Add bursts and calm, or numbers from another app. Takes 30 seconds.", style = MaterialTheme.typography.bodyLarge, color = Muted)
 
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -108,16 +117,56 @@ fun LogTab(app: AppController) {
             }
         }
 
+        AppCard(title = "Sleep") {
+            if (sleepFromPhone) {
+                Text("Measured automatically (${if (local?.sleepSource == "health_connect") "Health Connect" else "estimated from your phone"}): ${local?.sleepMinutes?.let { hm(it) }}.",
+                    style = MaterialTheme.typography.bodyMedium, color = MintDark)
+            } else {
+                Text("Hours slept the night before this day.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppField("Hours", sleepH, { sleepH = it.filter(Char::isDigit).take(2) }, null, keyboard = KeyboardType.Number, modifier = Modifier.weight(1f))
+                    AppField("Minutes", sleepM, { sleepM = it.filter(Char::isDigit).take(2) }, null, keyboard = KeyboardType.Number, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
+        AppCard(title = "Water") {
+            if (waterFromPhone) {
+                Text("From Health Connect: ${local?.waterMl} ml.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
+            } else {
+                Text("Total for the day. One glass is about 250 ml.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                AppField("Water (ml)", water, { water = it.filter(Char::isDigit).take(5) }, null, placeholder = "1500", keyboard = KeyboardType.Number)
+            }
+        }
+
+        if (app.prefs.trackWeight) {
+            AppCard(title = "Weight", trailing = { Text("Only you see this", color = Muted, style = MaterialTheme.typography.bodySmall) }) {
+                if (weightFromPhone) {
+                    Text("From your scale via Health Connect: ${"%.1f".format(local?.weightKg ?: 0.0)} kg.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
+                } else {
+                    AppField("Weight (kg)", weight, { weight = it.filter { ch -> ch.isDigit() || ch == '.' }.take(5) }, null,
+                        placeholder = "68.5", keyboard = KeyboardType.Decimal)
+                }
+            }
+        }
+
         error?.let { Text(it, color = Danger, style = MaterialTheme.typography.bodyMedium) }
         BigButton("Save") {
             val screenTotal = if (hours.isBlank() && mins.isBlank()) null else (hours.toIntOrNull() ?: 0) * 60 + (mins.toIntOrNull() ?: 0)
             if (screenTotal != null && screenTotal > 24 * 60) { error = "Screen time can’t be more than 24 hours."; return@BigButton }
+            val sleepTotal = if (sleepFromPhone || (sleepH.isBlank() && sleepM.isBlank())) null else (sleepH.toIntOrNull() ?: 0) * 60 + (sleepM.toIntOrNull() ?: 0)
+            if (sleepTotal != null && sleepTotal > 18 * 60) { error = "Sleep can’t be more than 18 hours."; return@BigButton }
+            val waterMl = if (waterFromPhone) null else water.toIntOrNull()
+            if (waterMl != null && waterMl > 10_000) { error = "Water looks too high. Enter millilitres, for example 1500."; return@BigButton }
+            val kg = if (!app.prefs.trackWeight || weightFromPhone) null else weight.toDoubleOrNull()
+            if (kg != null && kg !in 20.0..300.0) { error = "Enter weight in kg, between 20 and 300."; return@BigButton }
             error = null
             app.launch {
                 app.handle(
-                    app.repo.logDay(day, if (phoneSynced) null else steps.toIntOrNull(), bursts, screenTotal, calm.toIntOrNull()),
+                    app.repo.logDay(day, if (phoneSynced) null else steps.toIntOrNull(), bursts, screenTotal, calm.toIntOrNull(),
+                        waterMl = waterMl, weightKg = kg, sleepMinutes = sleepTotal),
                     "Saved. Nice work.",
-                ) { app.refresh() }
+                ) { app.refresh(); onClose() }
             }
         }
     }

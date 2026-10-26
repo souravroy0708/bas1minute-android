@@ -36,7 +36,8 @@ class StepsReader(private val context: Context) {
         // A plain string so older Health Connect versions simply don't grant it.
         const val READ_IN_BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
         val READ_STEPS: String = HealthPermission.getReadPermission(StepsRecord::class)
-        val HC_PERMISSIONS: Set<String> = setOf(READ_STEPS, READ_IN_BACKGROUND)
+        // Optional extras: allowed one by one on Health Connect's screen
+        val HC_PERMISSIONS: Set<String> = setOf(READ_STEPS, READ_IN_BACKGROUND) + HealthExtras.PERMISSIONS
     }
 
     fun healthConnectStatus(): Int = HealthConnectClient.getSdkStatus(context)

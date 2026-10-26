@@ -170,6 +170,19 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit) {
                     )
                 }
 
+                // Water, sleep, social media (quick look; details in Insights)
+                val row = app.phone.today?.row
+                val ins = app.phone.insights
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    QuickTile("Water", (row?.waterMl ?: server?.today?.water)?.let { if (it >= 1000) "%.1f L".format(it / 1000.0) else "$it ml" } ?: "0 ml",
+                        "+ 1 glass", Modifier.weight(1f)) { app.addWater() }
+                    QuickTile("Sleep", row?.sleepMinutes?.let { hm(it) } ?: "—",
+                        if (row?.sleepSource == "phone_estimate") "estimate" else "last night", Modifier.weight(1f)) { app.tab = Tab.Insights }
+                    QuickTile("Social", (row?.socialMinutes ?: ins?.socialToday)?.let { hm(it) } ?: "—",
+                        "see forecast", Modifier.weight(1f), alert = (row?.socialMinutes ?: 0) >= 120) { app.tab = Tab.Insights }
+                }
+                GhostButton("Log a day") { app.logOpen = true }
+
                 // Mood (private)
                 AppCard(title = "How are you feeling?", trailing = { Text("Only you see this", color = Muted, style = MaterialTheme.typography.bodySmall) }) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
@@ -238,6 +251,18 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun QuickTile(label: String, value: String, action: String, modifier: Modifier = Modifier, alert: Boolean = false, onClick: () -> Unit) {
+    Column(
+        modifier.clip(RoundedCornerShape(20.dp)).background(if (alert) Color(0xFFFFE7DF) else Color.White).clickable(onClick = onClick).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = Muted)
+        Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1)
+        Text(action, style = MaterialTheme.typography.bodySmall, color = if (alert) Color(0xFF8A2A0F) else Blue)
     }
 }
 
