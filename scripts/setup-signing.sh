@@ -21,18 +21,39 @@ DNAME="${B1M_DNAME:-CN=Bas1Minute, OU=Mobile, O=Bas1Minute, L=Hyderabad, ST=Tela
 say()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
 fail() { printf '\n\033[31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
+# Work out "owner/repo" from the git remote (override with B1M_REPO=owner/repo if needed)
+resolve_repo() {
+  local url
+  REPO="${B1M_REPO:-}"
+  if [ -z "$REPO" ]; then
+    url="$(git remote get-url origin 2>/dev/null || true)"
+    REPO="$(printf '%s' "$url" | sed -E 's#^(https?://([^@/]+@)?github\.com/|git@github\.com:|ssh://git@github\.com/)##; s#\.git$##; s#/$##')"
+  fi
+  case "$REPO" in
+    */*) ;;
+    *) fail "Could not find the GitHub repo from 'git remote'. Run:  git remote -v
+       Or set it yourself:  B1M_REPO=souravroy0708/bas1minute-android $0" ;;
+  esac
+}
+
 # ---- 1. Check tools -------------------------------------------------------------------------
 for tool in keytool gh base64 openssl; do
   command -v "$tool" >/dev/null 2>&1 || fail "'$tool' is not installed. Try: sudo apt install default-jdk-headless gh openssl"
 done
 
+# ---- GitHub CLI must be recent enough (Ubuntu's apt version is too old) -------------------------
+MIN_GH="2.20.0"
+GH_VER="$(gh --version | head -1 | awk '{print $3}')"
+if [ "$(printf '%s\n' "$MIN_GH" "$GH_VER" | sort -V | head -1)" != "$MIN_GH" ]; then
+  fail "GitHub CLI $GH_VER is too old (need $MIN_GH or newer). Run:  ./scripts/install-gh.sh"
+fi
+
 # ---- 2. GitHub login (browser opens only if you are not logged in yet) ----------------------
 if ! gh auth status >/dev/null 2>&1; then
   say "Logging in to GitHub (follow the prompts)..."
-  gh auth login --hostname github.com --git-protocol https --web --scopes repo,workflow
+  gh auth login --hostname github.com --web --scopes repo,workflow
 fi
-REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)" \
-  || fail "Run this inside your bas1minute-android git repo (it needs the GitHub remote)."
+resolve_repo
 say "Repository: $REPO"
 
 # ---- 3. Create the key (or reuse the one from an earlier run) -------------------------------
