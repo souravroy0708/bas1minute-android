@@ -23,7 +23,7 @@ android {
         // Your live site. Members can change it in the app (for local testing).
         buildConfigField("String", "DEFAULT_SERVER", "\"https://bas1minute.pythonanywhere.com\"")
         // Shown on the in-app privacy screen. Change to your real support address.
-        buildConfigField("String", "SUPPORT_EMAIL", "\"hello@example.com\"")
+        buildConfigField("String", "SUPPORT_EMAIL", "\"tosourav6@gmail.com\"")
     }
 
     signingConfigs {

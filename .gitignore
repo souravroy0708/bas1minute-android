@@ -9,3 +9,7 @@ captures/
 .cxx/
 *.keystore
 *.jks
+
+dist/
+*.b64
+secrets.env

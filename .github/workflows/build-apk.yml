@@ -1,4 +1,4 @@
-name: Build pilot APK
+name: Build APK and Play bundle
 
 on:
   push:
@@ -61,6 +61,30 @@ jobs:
           # Fixed name too, so this link always gives the newest version:
           # https://github.com/<you>/<repo>/releases/latest/download/Bas1Minute.apk
           cp "app/build/outputs/apk/release/Bas1Minute-v0.3.${{ github.run_number }}.apk" app/build/outputs/apk/release/Bas1Minute.apk
+
+      # Google Play needs an .aab (App Bundle), not an .apk. Only built when your real signing key is
+      # configured, because Play rejects bundles signed with the throwaway debug key.
+      - name: Build signed release bundle (.aab) for Google Play
+        if: env.B1M_KEYSTORE_PATH != ''
+        env:
+          B1M_KEYSTORE_PASSWORD: ${{ secrets.B1M_KEYSTORE_PASSWORD }}
+          B1M_KEY_ALIAS: ${{ secrets.B1M_KEY_ALIAS }}
+          B1M_KEY_PASSWORD: ${{ secrets.B1M_KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease --console=plain
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/Bas1Minute-v0.3.${{ github.run_number }}.aab"
+
+      - name: Warn when no Play bundle was built
+        if: env.B1M_KEYSTORE_PATH == ''
+        run: echo "::warning::No .aab built. Add the B1M_KEYSTORE_* secrets to get a Google Play bundle."
+
+      - name: Upload Play bundle (.aab)
+        if: env.B1M_KEYSTORE_PATH != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bas1Minute-play-bundle-v0.3.${{ github.run_number }}
+          path: app/build/outputs/bundle/release/*.aab
+          retention-days: 30
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
