@@ -101,7 +101,7 @@ private fun CircleList(app: AppController) {
             GhostButton("Join with code", modifier = Modifier.weight(1f)) { joining = true }
         }
         AppCard(title = "How points work") {
-            Text("Each day you can earn up to 3 points: your step goal, your burst goal, and at least a minute of calm. Goals are personal, so Papa’s 4,000 steps can beat your 7,000 if that’s his goal. Weeks reset every Monday.",
+            Text("One point for every day you reach your own step goal. Goals are personal, so Papa’s 4,000 steps can beat your 7,000 if that’s his goal. Only members who share their steps get points; others show as Private. Weeks reset every Monday.",
                 style = MaterialTheme.typography.bodyMedium, color = Muted)
         }
     }
@@ -290,18 +290,20 @@ private fun BoardLine(row: BoardRow, onCheer: (String) -> Unit) {
                 Text(row.name + (if (row.isMe) " (you)" else "") + (if (row.isOwner) "  ·  Owner" else ""), style = MaterialTheme.typography.titleMedium)
                 val extras = buildList {
                     add("${numbers.format(row.stepsToday)} steps")
-                    add("${row.burstsToday} burst${if (row.burstsToday == 1) "" else "s"}")
-                    if (row.calmToday) add("calm done")
                     row.screenToday?.let { add("${hm(it)} screen") }
                 }
-                Text("Today: " + extras.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = Muted)
-                Box(Modifier.fillMaxWidth().padding(top = 4.dp).height(6.dp).clip(RoundedCornerShape(50)).background(Paper)) {
-                    Box(Modifier.fillMaxWidth(row.todayPct.coerceIn(0, 100) / 100f).height(6.dp).clip(RoundedCornerShape(50)).background(Blue))
+                if (row.shares) {
+                    Text("Today: " + extras.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = Muted)
+                    Box(Modifier.fillMaxWidth().padding(top = 4.dp).height(6.dp).clip(RoundedCornerShape(50)).background(Paper)) {
+                        Box(Modifier.fillMaxWidth(row.todayPct.coerceIn(0, 100) / 100f).height(6.dp).clip(RoundedCornerShape(50)).background(Blue))
+                    }
+                } else {
+                    Text("🔒 Private: keeps everything on their phone", style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
             }
             Spacer(Modifier.width(10.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${row.points}", style = MaterialTheme.typography.headlineMedium)
+                Text(if (row.shares) "${row.points}" else "—", style = MaterialTheme.typography.headlineMedium)
                 Text("pts", style = MaterialTheme.typography.bodySmall, color = Muted)
             }
         }

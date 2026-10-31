@@ -72,9 +72,10 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
     // Home "screen time" = social, messaging and browser apps (see ScreenTimeReader.SOCIAL)
     val screen = phoneToday?.row?.socialMinutes ?: server?.today?.social
     val km = if (stepsKnown == null) null else com.bas1minute.sync.Distance.km(steps, app.prefs.stepLengthCm)
-    val bursts = server?.today?.bursts ?: 0
-    val calm = server?.today?.mindful ?: 0
-    val mood = server?.today?.mood
+    // Bursts, calm and mood live on this phone only
+    val bursts = phoneToday?.row?.bursts ?: 0
+    val calm = phoneToday?.row?.calmMinutes ?: 0
+    val mood = phoneToday?.row?.mood
     val burstGoal = app.prefs.burstGoal
     val stepsLeft = (state.stepGoal - steps).coerceAtLeast(0)
     val screenOver = screen != null && screen > state.screenLimit
@@ -198,7 +199,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                 val row = app.phone.today?.row
                 val ins = app.phone.insights
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickTile("Water", (row?.waterMl ?: server?.today?.water)?.let { if (it >= 1000) "%.1f L".format(it / 1000.0) else "$it ml" } ?: "0 ml",
+                    QuickTile("Water", row?.waterMl?.let { if (it >= 1000) "%.1f L".format(it / 1000.0) else "$it ml" } ?: "0 ml",
                         "+ 1 glass", Modifier.weight(1f)) { app.addWater() }
                     QuickTile("Sleep", row?.sleepMinutes?.let { hm(it) } ?: "—",
                         if (row?.sleepSource == "phone_estimate") "estimate" else "last night", Modifier.weight(1f)) { app.tab = Tab.Insights }

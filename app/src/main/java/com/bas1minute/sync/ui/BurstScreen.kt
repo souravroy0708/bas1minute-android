@@ -117,7 +117,7 @@ fun BurstScreen(app: AppController, onClose: () -> Unit) {
 
         when {
             done -> {
-                val bursts = (app.today?.today?.bursts ?: 1)
+                val bursts = (app.phone.today?.row?.bursts ?: 1)
                 Text("Today: $bursts of ${app.prefs.burstGoal} bursts.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
                 BigButton("Another burst", modifier = Modifier.fillMaxWidth()) { done = false; elapsed = 0f; running = true }
                 GhostButton("Back to today", onClick = onClose)

@@ -97,6 +97,39 @@ class Prefs(context: Context) {
         get() = p.getStringSet("tips_found", emptySet())?.toSet() ?: emptySet()
         set(v) = p.edit().putStringSet("tips_found", v).apply()
 
+    // ---- Privacy-first setup (v4) ----
+
+    /** Name and PIN chosen on first launch. */
+    var setupDone: Boolean
+        get() = p.getBoolean("setup_done", false)
+        set(v) = p.edit().putBoolean("setup_done", v).apply()
+
+    /** SHA-256 of the PIN with a per-phone salt. A convenience lock, not security (it can be reset). */
+    var pinHash: String
+        get() = p.getString("pin_hash", "") ?: ""
+        set(v) = p.edit().putString("pin_hash", v).apply()
+
+    private val salt: String
+        get() = p.getString("pin_salt", null) ?: java.util.UUID.randomUUID().toString().also { p.edit().putString("pin_salt", it).apply() }
+
+    fun hashPin(pin: String): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest((salt + pin).toByteArray()).joinToString("") { "%02x".format(it) }
+
+    fun checkPin(pin: String) = pinHash.isNotBlank() && hashPin(pin) == pinHash
+
+    /** Ask for the PIN when the app opens. Off by default. */
+    var appLock: Boolean
+        get() = p.getBoolean("app_lock", false)
+        set(v) = p.edit().putBoolean("app_lock", v).apply()
+
+    /** Off by default: when on, only daily steps and screen time are sent (circles and backup). */
+    var shareActivity: Boolean
+        get() = p.getBoolean("share_activity", false)
+        set(v) = p.edit().putBoolean("share_activity", v).apply()
+
+    /** Wipe all settings (Delete everything). */
+    fun wipeAll() { p.edit().clear().apply() }
+
     fun clearSession() {
         p.edit().remove("key").remove("name").remove("first_name").remove("mobile")
             .remove("last_at").remove("last_msg").remove("last_ok").apply()

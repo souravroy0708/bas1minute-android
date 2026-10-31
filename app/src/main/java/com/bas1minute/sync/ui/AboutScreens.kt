@@ -177,30 +177,37 @@ fun FreeContent() {
 /** Also shown by PrivacyActivity (Health Connect’s “privacy policy” link). */
 @Composable
 fun PrivacyContent() {
-    Title("Privacy", "What Bas 1 Minute reads, what it sends, and your choices.")
-    AppCard(title = "What the app reads on your phone") {
+    Title("Your data stays with you", "No phone number, email or password. Just your name. We don’t sell your data.")
+    AppCard(title = "Stored only on this phone") {
         Points(listOf(
-            "Steps" to "From Health Connect (Google Fit, Samsung Health, watches) or the phone’s step sensor.",
-            "Screen time" to "Daily total time in social, messaging and browser apps (for example Instagram, YouTube, WhatsApp, Chrome), worked out on the phone, plus when you last used the phone at night and first used it in the morning. App names never leave the phone.",
-            "Sleep, water, weight" to "From Health Connect only if you allow each one, or typed by you. Sleep can be estimated from your phone-free night. Weight is off unless you switch it on.",
+            "Everything you see in the app" to "Steps, distance, screen time, sleep, water, weight, mood, bursts, calm and your 21 days are saved in this phone’s own storage.",
+            "App names" to "Screen time is worked out on the phone. Which apps you used never leaves it.",
+            "Your PIN" to "Saved on the phone in scrambled form. It’s a simple lock, not account security.",
         ))
     }
-    AppCard(title = "What leaves your phone") {
+    AppCard(title = "Only if you choose to share") {
         Points(listOf(
-            "Daily totals only" to "Sent securely to your Bas 1 Minute account. Never app names, location, contacts, messages or photos.",
-            "Your circles see" to "Steps, bursts and calm minutes. Screen time only if you switch it on for that circle.",
-            "Only you see" to "Mood, sleep, water, weight and social media time.",
+            "Off by default" to "Profile → Your data → Share my steps and screen time.",
+            "Exactly two numbers" to "Your daily steps and daily screen time. Nothing else, ever.",
+            "Why share" to "Your circles can rank you, and you get a backup if you change phones.",
+            "Stop anytime" to "Turn it off, and delete what you shared, in one tap.",
+        ))
+    }
+    AppCard(title = "Circles") {
+        Points(listOf(
+            "Your name only" to "Circles need a name so friends know who you are. No other details are stored.",
+            "Private members" to "If you don’t share, you can still join and see members who do. You show as Private.",
+            "Cheers" to "Shabash and Chalo messages are stored so the other person can see them.",
         ))
     }
     AppCard(title = "Your choices") {
         Points(listOf(
+            "Delete everything" to "Profile → Delete everything removes your data from this phone and your circle account from the server.",
             "Turn access off" to "In Android Settings or Health Connect, any time.",
-            "Log out" to "Removes your account data from this phone.",
-            "Delete everything" to "Profile → Delete my account removes your account and every day of data, permanently.",
         ))
     }
     AppCard(title = "Contact") {
-        Text("Questions or requests about your data: ${BuildConfig.SUPPORT_EMAIL}", style = MaterialTheme.typography.bodyMedium)
+        Text("Questions about your data: ${BuildConfig.SUPPORT_EMAIL}", style = MaterialTheme.typography.bodyMedium)
         Text("Bas 1 Minute supports everyday activity and isn’t medical advice.", style = MaterialTheme.typography.bodySmall, color = Muted)
     }
 }

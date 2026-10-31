@@ -14,7 +14,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.lifecycleScope
-import com.bas1minute.sync.ui.AuthScreen
+import com.bas1minute.sync.ui.LockScreen
+import com.bas1minute.sync.ui.SetupScreen
 import com.bas1minute.sync.ui.Bas1MinuteTheme
 import com.bas1minute.sync.ui.HelpActions
 import com.bas1minute.sync.ui.MainShell
@@ -69,7 +70,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             Bas1MinuteTheme {
                 when {
-                    !app.loggedIn -> AuthScreen(app)
+                    !app.setupDone -> SetupScreen(app)
+                    !app.unlocked -> LockScreen(app)
                     !app.permissionsDone -> PermissionsScreen(
                         snapshot = app.phone,
                         actions = OnboardingActions(

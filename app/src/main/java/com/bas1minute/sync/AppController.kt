@@ -21,7 +21,10 @@ class AppController(private val ctx: android.content.Context, private val scope:
     val prefs = Prefs(ctx)
     val repo = Repo(ctx)
 
-    var loggedIn by mutableStateOf(prefs.isConfigured)
+    /** Name and PIN set on first launch (privacy first: no phone, email or password). */
+    var setupDone by mutableStateOf(prefs.setupDone || prefs.isConfigured)
+    /** App lock: true when the PIN isn't required or was entered this session. */
+    var unlocked by mutableStateOf(!prefs.appLock)
     var permissionsDone by mutableStateOf(prefs.onboardingDone)
     var tab by mutableStateOf(Tab.Today)
     var openCircleId by mutableStateOf<Int?>(null)
@@ -70,7 +73,9 @@ class AppController(private val ctx: android.content.Context, private val scope:
     /** Phone readings (always available) + website data (cached when offline). */
     fun refresh() = launch {
         phone = loadSnapshot(ctx)
-        if (!loggedIn) return@launch
+        if (!setupDone) return@launch
+        // Cheers and circles need the name-only account; everything else is on the phone.
+        if (!repo.ensureAccount()) { offline = true; refreshCounters(); return@launch }
         val t = repo.today()
         t.value?.let { today = it }
         offline = t.offline
@@ -80,6 +85,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
     }
 
     fun refreshCircles() = launch {
+        if (!repo.ensureAccount()) { offline = true; message = "Circles need the internet the first time. Connect and try again."; return@launch }
         val c = repo.circles()
         c.value?.let { circles = it }
         offline = c.offline
@@ -110,6 +116,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
      */
     fun fullSync() {
         if (syncing) return
+        if (!prefs.shareActivity) { message = "Sharing is off, so everything stays on this phone."; return }
         syncing = true
         home = homeState()
         launch {
@@ -150,11 +157,22 @@ class AppController(private val ctx: android.content.Context, private val scope:
 
     // ---- account ----
 
-    fun loggedInNow() {
-        loggedIn = true
-        permissionsDone = prefs.onboardingDone
-        refresh()
-        fullSync()  // restores history when logging in on a new phone
+    /** First launch: name and a 4-digit PIN. Creates the name-only account in the background (fine offline). */
+    fun finishSetup(name: String, pin: String) {
+        prefs.name = name.trim()
+        prefs.firstName = name.trim().split(" ").first()
+        prefs.pinHash = prefs.hashPin(pin)
+        prefs.setupDone = true
+        setupDone = true
+        unlocked = true
+        launch { repo.ensureAccount(); refresh() }
+    }
+
+    /** "Forgot PIN?": set a new one, no questions asked (the PIN is a convenience lock). */
+    fun resetPin(pin: String) {
+        prefs.pinHash = prefs.hashPin(pin)
+        unlocked = true
+        message = "New PIN set."
     }
 
     fun finishPermissions() {
@@ -163,17 +181,50 @@ class AppController(private val ctx: android.content.Context, private val scope:
         sync()
     }
 
-    fun logout() = launch {
-        repo.logout()
-        today = null; circles = null; circle = null; openCircleId = null; burstOpen = false; logOpen = false; aboutPage = null; wheelOpen = false
-        loggedIn = false
-        tab = Tab.Today
+    /** Share steps and screen time with the server (for circles and backup), or stop; optionally delete what was shared. */
+    fun setSharing(on: Boolean, deleteShared: Boolean = false) = launch {
+        busy = true
+        when (val r = repo.setShare(on)) {
+            is Res.Fail -> message = r.message
+            else -> {
+                prefs.shareActivity = on
+                if (on) {
+                    LocalDb.get(ctx).clearAccountData()   // mark saved days to be sent
+                    message = "Sharing on. Only your steps and screen time are sent."
+                    sync()
+                } else {
+                    message = if (deleteShared) {
+                        when (val d = repo.deleteSharedData()) {
+                            is Res.Ok -> "Sharing off. ${d.value} shared day${if (d.value == 1) "" else "s"} deleted from the server."
+                            is Res.Fail -> "Sharing off. " + d.message
+                            else -> "Sharing off."
+                        }
+                    } else "Sharing off. Nothing more leaves this phone."
+                }
+            }
+        }
+        busy = false
+        home = homeState()
+        refresh()
+    }
+
+    /** Delete everything on this phone and the circle account on the server, then start fresh. */
+    fun deleteEverything() = launch {
+        when (val r = repo.deleteEverything()) {
+            is Res.Fail -> message = r.message
+            else -> {
+                today = null; circles = null; circle = null; openCircleId = null
+                burstOpen = false; logOpen = false; aboutPage = null; wheelOpen = false
+                phone = Snapshot()
+                setupDone = false; permissionsDone = false; unlocked = true
+                tab = Tab.Today
+            }
+        }
     }
 
     private fun onAuthLost() {
-        prefs.clearSession()
-        loggedIn = false
-        message = "Please log in again."
+        // The name-only account was removed on the server: make a new one next time (circles must be rejoined).
+        prefs.token = ""
     }
 
     // ---- Health wheel ----
@@ -212,13 +263,12 @@ class AppController(private val ctx: android.content.Context, private val scope:
     // ---- actions ----
 
     fun addBurst() = launch {
-        val current = today?.today?.bursts ?: 0
-        handle(repo.logDay(LocalDate.now(), null, current + 1, null, null), "Burst added. Shabash!") { refresh() }
+        handle(repo.addBurst(), "Burst added. Shabash!") { refresh() }
     }
 
     /** One glass = 250 ml. Water is a running total for today, so replaying offline is safe. */
     fun addWater(ml: Int = 250) = launch {
-        val current = phone.today?.row?.waterMl ?: today?.today?.water ?: 0
+        val current = phone.today?.row?.waterMl ?: 0
         handle(repo.logDay(LocalDate.now(), null, null, null, null, waterMl = (current + ml).coerceAtMost(10_000)), "+$ml ml") { refresh() }
     }
 

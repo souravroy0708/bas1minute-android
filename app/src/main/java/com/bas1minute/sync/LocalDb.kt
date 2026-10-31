@@ -38,6 +38,10 @@ data class DayRow(
     val weightSource: String?,
     val dirty: Boolean,
     val updatedAt: Long,
+    // v4: kept on the phone only
+    val bursts: Int = 0,
+    val calmMinutes: Int = 0,
+    val mood: Int? = null,
 )
 
 /**
@@ -47,13 +51,13 @@ data class DayRow(
  * display; they reach the website through the action outbox.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 3) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 4) {
 
     companion object {
         private const val KEEP_DAYS = 400L
         private val PHONE = setOf("health_connect", "phone_sensor", "phone_estimate", "usage_stats")
         private const val COLS = "date, steps, steps_source, screen_minutes, social_minutes, sleep_minutes, sleep_source, " +
-            "first_use, last_use, water_ml, water_source, weight_kg, weight_source, dirty, updated_at"
+            "first_use, last_use, water_ml, water_source, weight_kg, weight_source, dirty, updated_at, bursts, calm_minutes, mood"
 
         @Volatile private var instance: LocalDb? = null
 
@@ -78,12 +82,14 @@ class LocalDb private constructor(context: Context) :
         db.execSQL("CREATE INDEX days_dirty ON days(dirty)")
         createV2(db)
         createV3(db)
+        createV4(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // One block per version. Never drop user data.
         if (oldVersion < 2) createV2(db)
         if (oldVersion < 3) createV3(db)
+        if (oldVersion < 4) createV4(db)
     }
 
     private fun createV2(db: SQLiteDatabase) {
@@ -100,6 +106,12 @@ class LocalDb private constructor(context: Context) :
         db.execSQL("CREATE TABLE IF NOT EXISTS app_usage (date TEXT NOT NULL, app TEXT NOT NULL, minutes INTEGER NOT NULL, PRIMARY KEY (date, app))")
     }
 
+    /** v4: bursts, calm and mood live on the phone only (never sent). */
+    private fun createV4(db: SQLiteDatabase) {
+        for (col in listOf("bursts INTEGER NOT NULL DEFAULT 0", "calm_minutes INTEGER NOT NULL DEFAULT 0", "mood INTEGER"))
+            db.execSQL("ALTER TABLE days ADD COLUMN $col")
+    }
+
     // ---------- days ----------
 
     private fun row(c: Cursor) = DayRow(
@@ -109,6 +121,7 @@ class LocalDb private constructor(context: Context) :
         firstUse = c.stringOrNull(7), lastUse = c.stringOrNull(8), waterMl = c.intOrNull(9), waterSource = c.stringOrNull(10),
         weightKg = if (c.isNull(11)) null else c.getDouble(11), weightSource = c.stringOrNull(12),
         dirty = c.getInt(13) == 1, updatedAt = c.getLong(14),
+        bursts = c.getInt(15), calmMinutes = c.getInt(16), mood = c.intOrNull(17),
     )
 
     private fun Cursor.longOrNull(i: Int) = if (isNull(i)) null else getLong(i)
@@ -211,6 +224,27 @@ class LocalDb private constructor(context: Context) :
             db.endTransaction()
         }
         return filled
+    }
+
+    /** Phone-only values for a day. Null means "leave as is". Never marks the day for sync. */
+    @Synchronized
+    fun savePrivate(date: LocalDate, bursts: Int? = null, calmMinutes: Int? = null, mood: Int? = null) {
+        val v = ContentValues()
+        bursts?.let { v.put("bursts", it.coerceIn(0, 20)) }
+        calmMinutes?.let { v.put("calm_minutes", it.coerceIn(0, 240)) }
+        mood?.let { v.put("mood", it.coerceIn(1, 5)) }
+        if (v.size() == 0) return
+        if (day(date) == null) {
+            v.put("date", date.toString()); v.put("updated_at", System.currentTimeMillis()); v.put("dirty", 0)
+            writableDatabase.insert("days", null, v)
+        } else {
+            writableDatabase.update("days", v, "date = ?", arrayOf(date.toString()))
+        }
+    }
+
+    /** Remove every saved day (used by "Delete everything"). */
+    fun wipeAll() {
+        for (t in listOf("days", "app_usage", "outbox", "cache")) writableDatabase.delete(t, null, null)
     }
 
     fun days(from: LocalDate, to: LocalDate): List<DayRow> =

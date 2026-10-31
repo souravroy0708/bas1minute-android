@@ -93,6 +93,17 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## Privacy first (v0.4)
+
+- **No login.** First launch asks only for a **name and a 4-digit PIN**. Optional App lock uses the PIN;
+  "Forgot PIN" sets a new one (a convenience lock, not security).
+- **Everything stays on the phone** (SQLite): steps, screen time, sleep, water, weight, mood, bursts, calm.
+- **Sharing is off by default.** Profile → Your data → *Share my steps and screen time* sends only those two
+  numbers (circles + backup). Turning it off can delete what was shared.
+- **Circles work for everyone** via an anonymous name-only account (`POST /api/v1/auth/device/`). Non-sharing
+  members show as **Private**. Points: 1 per day at your own step goal.
+- **Delete everything** wipes the phone and the circle account.
+
 ## Distance and 21 days
 
 - **Distance** = steps × step length. Default 76 cm (≈ 1,315 steps per km), editable in Profile → Step length.

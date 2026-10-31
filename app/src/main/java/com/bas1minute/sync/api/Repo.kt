@@ -26,7 +26,39 @@ class Repo(context: Context) {
     private val db = LocalDb.get(ctx)
     private val prefs = Prefs(ctx)
 
-    // ---------- account ----------
+    // ---------- anonymous account (name only; needed for circles) ----------
+
+    /** Creates the name-only account if this phone doesn't have one yet. False when offline. */
+    suspend fun ensureAccount(): Boolean {
+        if (prefs.token.isNotBlank()) return true
+        if (prefs.name.isBlank()) return false
+        val r = api.post("auth/device/", JSONObject().put("name", prefs.name).put("device", device()))
+        if (!r.ok || r.json == null) return false
+        prefs.token = r.json.optString("token")
+        r.json.optJSONObject("me")?.let { saveMe(Me.from(it)) }
+        if (prefs.shareActivity) api.post("me/", JSONObject().put("share_activity", true))
+        return true
+    }
+
+    /** Turn sharing of steps and screen time on or off on the server. */
+    suspend fun setShare(on: Boolean): Res<Unit> {
+        if (!ensureAccount()) return Res.Fail("You’re offline. Try again when connected.")
+        val r = api.post("me/", JSONObject().put("share_activity", on))
+        return if (r.ok) Res.Ok(Unit) else Res.Fail(r.error ?: "Couldn’t update sharing.")
+    }
+
+    /** Delete every day this phone shared with the server. Account and circles stay. */
+    suspend fun deleteSharedData(): Res<Int> {
+        if (prefs.token.isBlank()) return Res.Ok(0)
+        val r = api.post("me/data/delete/")
+        return when {
+            r.code == null -> Res.Fail("You’re offline. Try again when connected.")
+            r.ok -> Res.Ok(r.json?.optInt("deleted_days") ?: 0)
+            else -> Res.Fail(r.error ?: "Couldn’t delete shared data.")
+        }
+    }
+
+    // ---------- legacy website accounts (not used by the app any more) ----------
 
     suspend fun login(mobile: String, password: String): Res<Me> =
         session(api.post("auth/login/", JSONObject().put("mobile", mobile).put("password", password).put("device", device())))
@@ -62,19 +94,21 @@ class Repo(context: Context) {
         }
     }
 
-    suspend fun deleteAccount(): Res<Unit> {
-        val r = api.post("me/delete/", JSONObject().put("confirm", "DELETE"))
-        return when {
-            r.code == null -> Res.Fail("You’re offline. Connect to the internet to delete your account.")
-            r.ok -> { prefs.clearSession(); withContext(Dispatchers.IO) { db.clearAccountData() }; Res.Ok(Unit) }
-            else -> Res.Fail(r.error ?: "Couldn’t delete the account.")
+    /** Delete everything: the server account (if any) and all data on this phone. */
+    suspend fun deleteEverything(): Res<Unit> {
+        if (prefs.token.isNotBlank()) {
+            val r = api.post("me/delete/", JSONObject().put("confirm", "DELETE"))
+            if (r.code == null) return Res.Fail("You’re offline. Connect to the internet so your circle account is deleted too.")
         }
+        withContext(Dispatchers.IO) { db.wipeAll() }
+        prefs.wipeAll()
+        return Res.Ok(Unit)
     }
 
     private fun saveMe(me: Me) {
         prefs.name = me.name
         prefs.firstName = me.firstName
-        prefs.mobile = me.mobile
+        prefs.mobile = me.mobile.takeIf { it != "null" } ?: ""
         prefs.stepGoal = me.stepGoal
         prefs.burstGoal = me.burstGoal
         prefs.screenLimitMinutes = me.screenGoal
@@ -110,30 +144,33 @@ class Repo(context: Context) {
 
     // ---------- actions that work offline (queued) ----------
 
+    /** Everything typed in Log a day stays on this phone. */
     suspend fun logDay(
         date: LocalDate, steps: Int?, bursts: Int?, screenMinutes: Int?, mindful: Int?,
         waterMl: Int? = null, weightKg: Double? = null, sleepMinutes: Int? = null,
-    ): Res<JSONObject> {
-        val body = JSONObject().put("date", date.toString())
-        steps?.let { body.put("steps", it) }
-        bursts?.let { body.put("bursts", it) }
-        screenMinutes?.let { body.put("screen_minutes", it) }
-        mindful?.let { body.put("mindful_minutes", it) }
-        waterMl?.let { body.put("water_ml", it) }
-        weightKg?.let { body.put("weight_kg", Math.round(it * 10) / 10.0) }
-        sleepMinutes?.let { body.put("sleep_minutes", it) }
-        // Show typed values straight away, even offline
-        if (waterMl != null || weightKg != null || sleepMinutes != null) {
-            withContext(Dispatchers.IO) { db.saveTyped(date, waterMl, weightKg, sleepMinutes) }
+    ): Res<JSONObject> = withContext(Dispatchers.IO) {
+        if (steps != null || screenMinutes != null) {
+            // Typed steps and screen time are replaced automatically when the phone measures them.
+            db.saveDay(date, com.bas1minute.sync.PhoneDay(steps = steps?.toLong(), stepsSource = "manual", socialMinutes = screenMinutes))
         }
-        return write("day/", body, queueable = true)
+        db.savePrivate(date, bursts = bursts, calmMinutes = mindful)
+        db.saveTyped(date, waterMl, weightKg, sleepMinutes)
+        Res.Ok(JSONObject())
     }
 
-    suspend fun mood(value: Int): Res<JSONObject> =
-        write("mood/", JSONObject().put("date", LocalDate.now().toString()).put("mood", value), queueable = true)
+    suspend fun mood(value: Int): Res<JSONObject> = withContext(Dispatchers.IO) {
+        db.savePrivate(LocalDate.now(), mood = value); Res.Ok(JSONObject())
+    }
 
-    suspend fun calmMinute(): Res<JSONObject> =
-        write("calm/", JSONObject().put("date", LocalDate.now().toString()).put("minutes", 1), queueable = true)
+    suspend fun calmMinute(): Res<JSONObject> = withContext(Dispatchers.IO) {
+        val today = LocalDate.now()
+        db.savePrivate(today, calmMinutes = (db.day(today)?.calmMinutes ?: 0) + 1); Res.Ok(JSONObject())
+    }
+
+    suspend fun addBurst(): Res<JSONObject> = withContext(Dispatchers.IO) {
+        val today = LocalDate.now()
+        db.savePrivate(today, bursts = (db.day(today)?.bursts ?: 0) + 1); Res.Ok(JSONObject())
+    }
 
     suspend fun cheer(circleId: Int, userId: Int, kind: String): Res<JSONObject> =
         write("circles/$circleId/cheer/", JSONObject().put("user_id", userId).put("kind", kind), queueable = true)

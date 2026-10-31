@@ -43,22 +43,22 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
     val today = LocalDate.now()
     val days = (0..6).map { today.minusDays(it.toLong()) }
     var day by remember { mutableStateOf(today) }
-    val serverDay = app.today?.week?.firstOrNull { it.date == day }
-    var steps by remember(day) { mutableStateOf(serverDay?.steps?.toString() ?: "") }
-    var bursts by remember(day) { mutableIntStateOf(serverDay?.bursts ?: 0) }
-    var calm by remember(day) { mutableStateOf(serverDay?.mindful?.takeIf { it > 0 }?.toString() ?: "") }
-    var hours by remember(day) { mutableStateOf(serverDay?.screen?.let { (it / 60).toString() } ?: "") }
-    var mins by remember(day) { mutableStateOf(serverDay?.screen?.let { (it % 60).toString() } ?: "") }
-    val local = app.phone.week.firstOrNull { it.date == day }?.row
-    var sleepH by remember(day) { mutableStateOf((local?.sleepMinutes ?: serverDay?.sleep)?.let { (it / 60).toString() } ?: "") }
-    var sleepM by remember(day) { mutableStateOf((local?.sleepMinutes ?: serverDay?.sleep)?.let { (it % 60).toString() } ?: "") }
-    var water by remember(day) { mutableStateOf((local?.waterMl ?: serverDay?.water)?.toString() ?: "") }
-    var weight by remember(day) { mutableStateOf((local?.weightKg ?: serverDay?.weight)?.let { "%.1f".format(it) } ?: "") }
+    // Everything here is saved on this phone only
+    val local = app.phone.last21.firstOrNull { it.date == day }?.row
+    var steps by remember(day) { mutableStateOf(local?.steps?.toString() ?: "") }
+    var bursts by remember(day) { mutableIntStateOf(local?.bursts ?: 0) }
+    var calm by remember(day) { mutableStateOf(local?.calmMinutes?.takeIf { it > 0 }?.toString() ?: "") }
+    var hours by remember(day) { mutableStateOf(local?.socialMinutes?.let { (it / 60).toString() } ?: "") }
+    var mins by remember(day) { mutableStateOf(local?.socialMinutes?.let { (it % 60).toString() } ?: "") }
+    var sleepH by remember(day) { mutableStateOf(local?.sleepMinutes?.let { (it / 60).toString() } ?: "") }
+    var sleepM by remember(day) { mutableStateOf(local?.sleepMinutes?.let { (it % 60).toString() } ?: "") }
+    var water by remember(day) { mutableStateOf(local?.waterMl?.toString() ?: "") }
+    var weight by remember(day) { mutableStateOf(local?.weightKg?.let { "%.1f".format(it) } ?: "") }
     val sleepFromPhone = local?.sleepSource == "health_connect" || local?.sleepSource == "phone_estimate"
     val waterFromPhone = local?.waterSource == "health_connect"
     val weightFromPhone = local?.weightSource == "health_connect"
     var error by remember { mutableStateOf<String?>(null) }
-    val phoneSynced = serverDay?.stepsSource == "health_connect" || serverDay?.stepsSource == "phone_sensor"
+    val phoneSynced = local?.stepsSource == "health_connect" || local?.stepsSource == "phone_sensor"
 
     LaunchedEffect(Unit) { error = null }
 
@@ -97,7 +97,7 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
 
         AppCard(title = "Steps") {
             if (phoneSynced) {
-                Text("Your phone already sent ${serverDay?.steps ?: 0} steps for this day. That number is kept.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
+                Text("Your phone counted ${local?.steps ?: 0} steps for this day. That number is kept.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
             } else {
                 Text("Only if your phone can’t count them. Copy from Google Fit, Samsung Health or your watch.", style = MaterialTheme.typography.bodyMedium, color = Muted)
                 AppField("Steps walked", steps, { steps = it.filter(Char::isDigit).take(6) }, null, placeholder = "5240", keyboard = KeyboardType.Number)

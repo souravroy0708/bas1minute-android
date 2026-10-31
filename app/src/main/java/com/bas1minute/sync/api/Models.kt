@@ -81,6 +81,8 @@ data class BoardRow(
     val userId: Int, val name: String, val isMe: Boolean, val isOwner: Boolean, val rank: Int, val points: Int,
     val pointsToday: Int, val stepsToday: Int, val todayPct: Int, val burstsToday: Int, val calmToday: Boolean,
     val screenToday: Int?, val cheered: Boolean, val nudged: Boolean,
+    /** False when this member keeps everything on their phone: show "Private", no numbers. */
+    val shares: Boolean = true,
 )
 
 data class FeedItem(val from: String, val to: String, val kind: String, val at: String)
@@ -106,6 +108,7 @@ data class CircleDetail(
                         it.optInt("rank"), it.optInt("points"), it.optInt("points_today"), it.optInt("steps_today"),
                         it.optInt("today_pct"), it.optInt("bursts_today"), it.optBoolean("calm_today"),
                         it.intOrNull("screen_today"), it.optBoolean("cheered"), it.optBoolean("nudged"),
+                        it.optBoolean("shares", true),
                     )
                 },
                 team.optInt("points"), team.optInt("target"), team.optInt("pct"), j.optInt("days_left"), j.optInt("points_per_day", 3),

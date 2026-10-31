@@ -61,8 +61,14 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
     var stepGoal by remember(me) { mutableStateOf((me?.stepGoal ?: prefs.stepGoal).toString()) }
     var burstGoal by remember(me) { mutableStateOf((me?.burstGoal ?: prefs.burstGoal).toString()) }
     var screenGoal by remember(me) { mutableStateOf((me?.screenGoal ?: prefs.screenLimitMinutes).toString()) }
-    var confirmLogout by remember { mutableStateOf(false) }
+    var confirmStopSharing by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    var changingPin by remember { mutableStateOf(false) }
+    if (changingPin) {
+        androidx.activity.compose.BackHandler { changingPin = false }
+        NameAndPin(title = "Change PIN", onBack = { changingPin = false }, askName = false) { _, pin -> app.resetPin(pin); changingPin = false }
+        return
+    }
     val snap = app.phone
 
     Column(
@@ -76,7 +82,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             Spacer(Modifier.width(14.dp))
             Column {
                 Text(prefs.name.ifBlank { "Your profile" }, style = MaterialTheme.typography.headlineMedium)
-                Text(prefs.mobile + (me?.memberSince?.let { "  ·  since ${it.take(7)}" } ?: ""), style = MaterialTheme.typography.bodySmall, color = Muted)
+                Text(if (prefs.shareActivity) "Sharing steps and screen time" else "Private: everything stays on this phone", style = MaterialTheme.typography.bodySmall, color = Muted)
             }
         }
 
@@ -107,17 +113,42 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
-        // Two-way sync with the server
-        AppCard(title = "Sync with server") {
-            val waiting = snap.pendingDays + app.waiting
-            Text(
-                "Backs up everything to your Bas 1 Minute account and brings your last 90 days to this phone, " +
-                    "so nothing is lost if you change phones.",
-                style = MaterialTheme.typography.bodyMedium, color = Muted,
-            )
-            BigButton(if (app.home.syncing) "Syncing…" else "Sync with server", enabled = !app.home.syncing) { app.fullSync() }
-            OfflineNote(waiting, snap.savedDays)
-            app.fullSyncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (waiting == 0) MintDark else Muted) }
+        // Privacy: sharing is off by default
+        AppCard(title = "Your data") {
+            Text("Everything is stored on this phone. No phone number, email or password. We don’t sell your data.",
+                style = MaterialTheme.typography.bodyMedium, color = Muted)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Share my steps and screen time", style = MaterialTheme.typography.titleMedium)
+                    Text("Lets circles rank you and keeps a backup. Only these two numbers are sent; nothing else ever leaves the phone.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = prefs.shareActivity, enabled = !app.busy,
+                    colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on -> if (on) app.setSharing(true) else confirmStopSharing = true })
+            }
+            if (!prefs.shareActivity) {
+                Text("You can still join circles and see members who share. You’ll show as Private.",
+                    style = MaterialTheme.typography.bodySmall, color = Muted)
+            } else {
+                BigButton(if (app.home.syncing) "Syncing…" else "Back up now", enabled = !app.home.syncing) { app.fullSync() }
+                OfflineNote(snap.pendingDays + app.waiting, snap.savedDays)
+                app.fullSyncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Muted) }
+            }
+        }
+
+        // App lock with the PIN set at install
+        AppCard(title = "App lock") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Ask for my PIN when the app opens", style = MaterialTheme.typography.titleMedium)
+                    Text("A simple lock for shared phones. Forgot it? Set a new one from the lock screen.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = prefs.appLock, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on -> prefs.appLock = on; app.home = app.homeState() })
+            }
+            TextButton(onClick = { changingPin = true }) { Text("Change PIN", color = Ink, style = MaterialTheme.typography.labelLarge) }
         }
 
         // Phone connections
@@ -190,45 +221,29 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             LinkRow("Phone-specific help", "Settings for your ${com.bas1minute.sync.PhoneHelp.device().brand}: usage access, battery") { app.aboutPage = "help" }
         }
 
-        GhostButton("Log out") { confirmLogout = true }
         TextButton(onClick = { deleting = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Delete my account and data", color = Danger, style = MaterialTheme.typography.labelLarge)
+            Text("Delete everything and start fresh", color = Danger, style = MaterialTheme.typography.labelLarge)
         }
         Text("Bas 1 Minute supports everyday activity and isn’t medical advice.", style = MaterialTheme.typography.bodySmall, color = Muted)
     }
 
-    if (confirmLogout) {
-        Confirm("Log out?", "Your phone keeps counting steps. Log in again any time to sync.", "Log out", onDismiss = { confirmLogout = false }) {
-            confirmLogout = false
-            app.logout()
-        }
+    if (confirmStopSharing) {
+        AlertDialog(
+            onDismissRequest = { confirmStopSharing = false },
+            title = { Text("Stop sharing?", style = MaterialTheme.typography.titleLarge) },
+            text = { Text("Nothing more will leave this phone, and you’ll show as Private in circles. Also delete what you shared before?",
+                style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = { TextButton(onClick = { confirmStopSharing = false; app.setSharing(false, deleteShared = true) }) {
+                Text("Stop and delete", color = Danger) } },
+            dismissButton = { TextButton(onClick = { confirmStopSharing = false; app.setSharing(false) }) { Text("Just stop", color = Ink) } },
+        )
     }
     if (deleting) {
-        var typed by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { deleting = false },
-            title = { Text("Delete your account?", style = MaterialTheme.typography.titleLarge) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("This permanently removes your profile, every day of activity, your circles memberships and cheers. It can’t be undone.",
-                        style = MaterialTheme.typography.bodyMedium)
-                    AppField("Type DELETE to confirm", typed, { typed = it }, null)
-                }
-            },
-            confirmButton = {
-                TextButton(enabled = typed == "DELETE", onClick = {
-                    deleting = false
-                    app.launch {
-                        when (val r = app.repo.deleteAccount()) {
-                            is Res.Ok -> { app.message = "Your account and data were deleted."; app.logout() }
-                            is Res.Fail -> app.message = r.message
-                            is Res.Queued -> {}
-                        }
-                    }
-                }) { Text("Delete", color = Danger) }
-            },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel", color = Muted) } },
-        )
+        Confirm("Delete everything?", "Removes all your data from this phone and your circle account from the server. You’ll start again from setup. This can’t be undone.",
+            "Delete everything", onDismiss = { deleting = false }) {
+            deleting = false
+            app.deleteEverything()
+        }
     }
 }
 

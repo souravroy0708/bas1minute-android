@@ -26,10 +26,13 @@ object Sync {
 
         Recorder.captureRecent(context)
 
-        if (!prefs.isConfigured) return remember(prefs, Outcome(false, "Saved on your phone. Log in to back it up."))
+        // Privacy first: nothing leaves the phone unless sharing is on.
+        if (!prefs.shareActivity) return remember(prefs, Outcome(true, "Saved on your phone only. Sharing is off."))
+        val repo = com.bas1minute.sync.api.Repo(context)
+        if (!repo.ensureAccount()) return remember(prefs, Outcome(false, "Saved on your phone. Will share when you’re online.", retry = true))
 
         // Actions taken offline (logged days, mood, calm, cheers) go first, in the order they happened.
-        com.bas1minute.sync.api.Repo(context).flushOutbox()
+        repo.flushOutbox()
 
         val today = LocalDate.now()
         val oldest = today.minusDays(MAX_AGE_DAYS)
@@ -44,6 +47,10 @@ object Sync {
 
             val items = JSONArray()
             for (row in batch) items(row).forEach { items.put(it) }
+            if (items.length() == 0) {  // nothing shareable in these days (e.g. only typed data)
+                withContext(Dispatchers.IO) { db.markSynced(batch) }
+                if (batch.size < DAYS_PER_REQUEST) break else continue
+            }
 
             val reply = try {
                 SyncClient.post(prefs.serverUrl, prefs.syncKey, JSONObject().put("days", items))
@@ -75,27 +82,14 @@ object Sync {
     }
 
     /** Only phone-measured values go here; typed ones travel through the action outbox. */
+    /** Only what sharing promises: daily steps and screen time (social, messaging, browser apps). Nothing else. */
     private fun items(row: DayRow): List<JSONObject> {
         val date = row.date.toString()
         val out = ArrayList<JSONObject>()
-        if (row.steps != null) out += JSONObject().put("date", date).put("steps", row.steps).put("source", row.stepsSource ?: "health_connect")
-        if (row.screenMinutes != null || row.socialMinutes != null || row.firstUse != null) {
-            val u = JSONObject().put("date", date).put("source", "usage_stats")
-            row.screenMinutes?.let { u.put("screen_minutes", it) }
-            row.socialMinutes?.let { u.put("social_minutes", it) }
-            row.firstUse?.let { u.put("first_use_at", it) }
-            row.lastUse?.let { u.put("last_use_at", it) }
-            out += u
+        if (row.steps != null && row.stepsSource != "manual") {
+            out += JSONObject().put("date", date).put("steps", row.steps).put("source", row.stepsSource ?: "health_connect")
         }
-        if (row.sleepMinutes != null && (row.sleepSource == "health_connect" || row.sleepSource == "phone_estimate")) {
-            out += JSONObject().put("date", date).put("sleep_minutes", row.sleepMinutes).put("source", row.sleepSource)
-        }
-        if ((row.waterMl != null && row.waterSource == "health_connect") || (row.weightKg != null && row.weightSource == "health_connect")) {
-            val h = JSONObject().put("date", date).put("source", "health_connect")
-            if (row.waterSource == "health_connect") row.waterMl?.let { h.put("water_ml", it) }
-            if (row.weightSource == "health_connect") row.weightKg?.let { h.put("weight_kg", Math.round(it * 10) / 10.0) }
-            out += h
-        }
+        row.socialMinutes?.let { out += JSONObject().put("date", date).put("social_minutes", it).put("source", "usage_stats") }
         return out
     }
 

@@ -107,7 +107,7 @@ fun CalmTab(app: AppController, onCall: (String) -> Unit) {
             TextButton(onClick = { running = false; elapsed = 0f }) { Text("Stop", color = Muted) }
         }
         if (done) {
-            Text("Today so far: ${app.today?.today?.mindful ?: 1} min of calm. It counts toward your ring points.",
+            Text("Today so far: ${app.phone.today?.row?.calmMinutes ?: 1} min of calm.",
                 style = MaterialTheme.typography.bodyMedium, color = MintDark, textAlign = TextAlign.Center)
             GhostButton("Back to today") { app.tab = Tab.Today }
         }

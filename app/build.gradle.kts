@@ -19,7 +19,7 @@ android {
         minSdk = 26          // Health Connect needs Android 8.0+
         targetSdk = 36
         versionCode = buildNumber
-        versionName = "0.3.$buildNumber"
+        versionName = "0.4.$buildNumber"
         // Your live site. Members can change it in the app (for local testing).
         buildConfigField("String", "DEFAULT_SERVER", "\"https://bas1minute.pythonanywhere.com\"")
         // Shown on the in-app privacy screen. Change to your real support address.
