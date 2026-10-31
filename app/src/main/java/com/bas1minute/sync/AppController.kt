@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.time.LocalDate
 
-enum class Tab { Today, Insights, Circles, Calm, Profile }
+enum class Tab { Today, Insights, Circles, Spin, Profile }
 
 /** Holds what the screens show. Reads phone data and the website; falls back to saved copies offline. */
 class AppController(private val ctx: android.content.Context, private val scope: CoroutineScope) {
@@ -34,8 +34,10 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var aboutPage by mutableStateOf<String?>(null)
     /** Guided 1-minute burst timer open on top of Today. */
     var burstOpen by mutableStateOf(false)
-    /** Spin-the-health-wheel screen open on top of Today. */
+    /** Spin-the-health-wheel screen open on top of Today (legacy; Spin is now a tab). */
     var wheelOpen by mutableStateOf(false)
+    /** 1-minute calm open on top of Today. */
+    var calmOpen by mutableStateOf(false)
     /** Bumped after each spin so screens re-read spins left and tips found. */
     var wheelVersion by mutableIntStateOf(0)
     /** Last full two-way sync result, for the Profile card. */
@@ -166,6 +168,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
         setupDone = true
         unlocked = true
         launch { repo.ensureAccount(); refresh() }
+        prefs.pendingJoin.takeIf { it.isNotBlank() }?.let { joinFromLink(it) }
     }
 
     /** "Forgot PIN?": set a new one, no questions asked (the PIN is a convenience lock). */
@@ -225,6 +228,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
     private fun onAuthLost() {
         // The name-only account was removed on the server: make a new one next time (circles must be rejoined).
         prefs.token = ""
+        com.bas1minute.sync.api.SecretStore(ctx).clear()
     }
 
     // ---- Health wheel ----
@@ -252,6 +256,24 @@ class AppController(private val ctx: android.content.Context, private val scope:
     fun tipShown(tip: Wellbeing.Tip) {
         prefs.discoveredTips = prefs.discoveredTips + tip.id.toString()
         wheelVersion++
+    }
+
+    /** Invite link tapped (https://…/join/CODE/ or bas1minute://join/CODE): join without typing the code. */
+    fun joinFromLink(code: String) {
+        val clean = code.uppercase().filter { it.isLetterOrDigit() }.take(12)
+        if (clean.length < 6) return
+        if (!setupDone) { prefs.pendingJoin = clean; return }   // joins right after name + PIN
+        launch {
+            if (!repo.ensureAccount()) { prefs.pendingJoin = clean; message = "Connect to the internet to join the circle."; return@launch }
+            val res = repo.joinCircle(clean)
+            handle(res, "You joined the circle. Say hello with a Shabash!") {
+                prefs.pendingJoin = ""
+                if (res is Res.Ok) {
+                    tab = Tab.Circles
+                    openCircle(res.value.getJSONObject("circle").getInt("id"))
+                }
+            }
+        }
     }
 
     fun setAutoSync(on: Boolean) {

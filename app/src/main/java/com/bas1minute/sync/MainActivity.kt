@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         app = AppController(applicationContext, lifecycleScope)
+        handleLink(intent)
         if (app.prefs.autoSync) SyncWorker.schedule(this)
 
         val help = HelpActions(
@@ -89,6 +90,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleLink(intent)
+    }
+
+    /** https://<site>/join/CODE/ or bas1minute://join/CODE → join that circle. */
+    private fun handleLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        val code = when (uri.scheme) {
+            "bas1minute" -> uri.pathSegments.firstOrNull()
+            "https", "http" -> uri.pathSegments.takeIf { it.size >= 2 && it[0] == "join" }?.get(1)
+            else -> null
+        } ?: return
+        intent.data = null   // don't join twice on rotation
+        app.joinFromLink(code)
     }
 
     override fun onResume() {

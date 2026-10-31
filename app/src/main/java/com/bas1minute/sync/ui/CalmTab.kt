@@ -43,7 +43,7 @@ import kotlin.math.cos
 
 /** Bas 1 minute shaanti: breathe in 4 seconds, out 6, six times. Works offline (counted later). */
 @Composable
-fun CalmTab(app: AppController, onCall: (String) -> Unit) {
+fun CalmTab(app: AppController, onCall: (String) -> Unit, onClose: () -> Unit) {
     var running by remember { mutableStateOf(false) }
     var done by remember { mutableStateOf(false) }
     var elapsed by remember { mutableFloatStateOf(0f) }
@@ -74,6 +74,9 @@ fun CalmTab(app: AppController, onCall: (String) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        TextButton(onClick = onClose, modifier = Modifier.align(Alignment.Start)) {
+            Text("← Today", color = Muted, style = MaterialTheme.typography.labelLarge)
+        }
         Text("Bas 1 minute shaanti", style = MaterialTheme.typography.labelMedium, color = Blue,
             modifier = Modifier.padding(top = 12.dp).clip(CircleShape).background(Color(0xFFE9ECFF)).padding(horizontal = 14.dp, vertical = 6.dp))
         Text("One minute of slow breathing", style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
@@ -109,7 +112,7 @@ fun CalmTab(app: AppController, onCall: (String) -> Unit) {
         if (done) {
             Text("Today so far: ${app.phone.today?.row?.calmMinutes ?: 1} min of calm.",
                 style = MaterialTheme.typography.bodyMedium, color = MintDark, textAlign = TextAlign.Center)
-            GhostButton("Back to today") { app.tab = Tab.Today }
+            GhostButton("Back to today", onClick = onClose)
         }
         Text("If you feel dizzy, breathe normally. For support any time, call Tele-MANAS on 14416, free and 24x7.",
             style = MaterialTheme.typography.bodySmall, color = Muted, textAlign = TextAlign.Center)

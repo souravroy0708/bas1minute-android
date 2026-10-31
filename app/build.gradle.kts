@@ -19,7 +19,7 @@ android {
         minSdk = 26          // Health Connect needs Android 8.0+
         targetSdk = 36
         versionCode = buildNumber
-        versionName = "0.4.$buildNumber"
+        versionName = "0.5.$buildNumber"
         // Your live site. Members can change it in the app (for local testing).
         buildConfigField("String", "DEFAULT_SERVER", "\"https://bas1minute.pythonanywhere.com\"")
         // Shown on the in-app privacy screen. Change to your real support address.
@@ -45,8 +45,9 @@ android {
             manifestPlaceholders["cleartext"] = "false"   // HTTPS only
             signingConfig = if (releaseKeystore != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
             // Kept off during the pilot so crash reports stay readable. Turn on before the Play Store.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Obfuscate and shrink: makes reverse engineering the release APK much harder.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

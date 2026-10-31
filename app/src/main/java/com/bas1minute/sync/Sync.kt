@@ -53,7 +53,8 @@ object Sync {
             }
 
             val reply = try {
-                SyncClient.post(prefs.serverUrl, prefs.syncKey, JSONObject().put("days", items))
+                com.bas1minute.sync.api.Api(context).post("activity/", JSONObject().put("days", items))
+                    .let { SyncClient.Reply(it.code ?: throw java.io.IOException("offline"), it.json?.toString() ?: "") }
             } catch (e: Exception) {
                 return remember(prefs, offline(sentDays, db))
             }

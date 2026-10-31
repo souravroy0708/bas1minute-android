@@ -93,6 +93,20 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## API security (v0.5)
+
+Every request is POST and signed: `X-B1M-Time`, `X-B1M-Nonce`, `X-B1M-Sign` = HMAC-SHA256(device secret,
+method\npath\ntime\nnonce\nsha256(body)). The secret comes once from `auth/device/` (or `auth/upgrade/` for older
+installs) and is encrypted with Android Keystore (`api/SecretStore.kt`). Release builds are obfuscated (R8).
+
+## Tabs and invite links
+
+Bottom tabs: Today · Insights · Circles · **Spin** (health wheel) · Profile. Calm opens from the Calm tile
+on Today. **Invite on WhatsApp** sends `https://<site>/join/CODE/`: tapping it opens the app and joins
+automatically (also right after first setup). For links to open the app directly, set
+`ANDROID_CERT_SHA256` on the server (`/.well-known/assetlinks.json`); otherwise the link opens a page with
+"Open in the app and join".
+
 ## Privacy first (v0.4)
 
 - **No login.** First launch asks only for a **name and a 4-digit PIN**. Optional App lock uses the PIN;

@@ -25,16 +25,23 @@ class Repo(context: Context) {
     private val api = Api(ctx)
     private val db = LocalDb.get(ctx)
     private val prefs = Prefs(ctx)
+    private val secrets = SecretStore(ctx)
 
     // ---------- anonymous account (name only; needed for circles) ----------
 
     /** Creates the name-only account if this phone doesn't have one yet. False when offline. */
     suspend fun ensureAccount(): Boolean {
-        if (prefs.token.isNotBlank()) return true
+        if (prefs.token.isNotBlank()) {
+            if (secrets.secret.isNotBlank()) return true
+            val up = api.post("auth/upgrade/")   // installs from before request signing
+            if (up.ok) up.json?.optString("secret")?.takeIf { it.isNotBlank() }?.let { secrets.secret = it }
+            return secrets.secret.isNotBlank() || up.code == null
+        }
         if (prefs.name.isBlank()) return false
         val r = api.post("auth/device/", JSONObject().put("name", prefs.name).put("device", device()))
         if (!r.ok || r.json == null) return false
         prefs.token = r.json.optString("token")
+        secrets.secret = r.json.optString("secret")
         r.json.optJSONObject("me")?.let { saveMe(Me.from(it)) }
         if (prefs.shareActivity) api.post("me/", JSONObject().put("share_activity", true))
         return true
@@ -102,6 +109,7 @@ class Repo(context: Context) {
         }
         withContext(Dispatchers.IO) { db.wipeAll() }
         prefs.wipeAll()
+        secrets.clear()
         return Res.Ok(Unit)
     }
 
@@ -121,7 +129,7 @@ class Repo(context: Context) {
     }
     fun cachedToday(): TodayData? = cached("today") { TodayData.from(it) }
 
-    suspend fun circles(): Loaded<CirclesData> = load("circles/", "circles") { CirclesData.from(it) }
+    suspend fun circles(): Loaded<CirclesData> = load("circles/list/", "circles") { CirclesData.from(it) }
     fun cachedCircles(): CirclesData? = cached("circles") { CirclesData.from(it) }
 
     suspend fun circle(id: Int): Loaded<CircleDetail> = load("circles/$id/", "circle:$id") { CircleDetail.from(it) }
@@ -215,7 +223,7 @@ class Repo(context: Context) {
 
     /** Download up to 90 days from the server into this phone (restore). Null if offline. */
     suspend fun pullHistory(days: Int = 90): Int? {
-        val r = api.get("history/?days=$days")
+        val r = api.post("history/", JSONObject().put("days", days))
         if (!r.ok || r.json == null) return null
         val arr = r.json.optJSONArray("days") ?: return 0
         val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }

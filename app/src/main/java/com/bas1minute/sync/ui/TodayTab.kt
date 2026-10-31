@@ -187,7 +187,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                         title = "Calm", value = "$calm min",
                         hint = if (calm > 0) "Mind ka workout done" else "Slow breathing",
                         dots = null, button = "Start 1 min", modifier = Modifier.weight(1f),
-                        onClick = { app.tab = Tab.Calm },
+                        onClick = { app.calmOpen = true },
                     )
                 }
 
@@ -233,7 +233,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                             Text("Thanks for checking in. Rough days happen. A slow minute of breathing can help, and talking to someone helps too.",
                                 style = MaterialTheme.typography.bodyMedium)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SmallPill("1-minute calm") { app.tab = Tab.Calm }
+                                SmallPill("1-minute calm") { app.calmOpen = true }
                                 SmallPill("Call Tele-MANAS 14416") { onCall("14416") }
                             }
                             Text("Free Government of India mental health helpline, 24x7, many languages. Also 1800-891-4416.",

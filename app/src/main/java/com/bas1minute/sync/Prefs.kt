@@ -127,6 +127,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("share_activity", false)
         set(v) = p.edit().putBoolean("share_activity", v).apply()
 
+    /** Invite code from a link tapped before setup was finished. */
+    var pendingJoin: String
+        get() = p.getString("pending_join", "") ?: ""
+        set(v) = p.edit().putString("pending_join", v).apply()
+
     /** Wipe all settings (Delete everything). */
     fun wipeAll() { p.edit().clear().apply() }
 

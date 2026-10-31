@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -32,7 +32,7 @@ private val TABS = listOf(
     TabItem(Tab.Today, "Today", Icons.Filled.Home),
     TabItem(Tab.Insights, "Insights", Icons.Filled.Info),
     TabItem(Tab.Circles, "Circles", Icons.Filled.Face),
-    TabItem(Tab.Calm, "Calm", Icons.Filled.Favorite),
+    TabItem(Tab.Spin, "Spin", Icons.Filled.Star),
     TabItem(Tab.Profile, "Profile", Icons.Filled.Person),
 )
 
@@ -55,7 +55,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                         selected = app.tab == item.tab,
                         onClick = {
                             if (item.tab == Tab.Circles && app.tab == Tab.Circles) app.closeCircle()
-                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.wheelOpen = false }
+                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false }
                             if (item.tab == Tab.Profile) app.aboutPage = null
                             app.tab = item.tab
                         },
@@ -76,9 +76,9 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (app.tab) {
                 Tab.Today -> when {
-                    app.wheelOpen -> {
-                        androidx.activity.compose.BackHandler { app.wheelOpen = false }
-                        WheelScreen(app, onClose = { app.wheelOpen = false })
+                    app.calmOpen -> {
+                        androidx.activity.compose.BackHandler { app.calmOpen = false }
+                        CalmTab(app, onCall, onClose = { app.calmOpen = false })
                     }
                     app.burstOpen -> {
                         androidx.activity.compose.BackHandler { app.burstOpen = false }
@@ -92,7 +92,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                 }
                 Tab.Insights -> InsightsTab(app)
                 Tab.Circles -> CirclesTab(app, onShare, actions.onShareWhatsApp)
-                Tab.Calm -> CalmTab(app, onCall)
+                Tab.Spin -> WheelScreen(app, onClose = null)
                 Tab.Profile -> app.aboutPage?.let { page ->
                     androidx.activity.compose.BackHandler { app.aboutPage = null }
                     if (page == "help") PhoneHelpScreen(app, actions, onBack = { app.aboutPage = null })

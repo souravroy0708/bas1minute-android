@@ -48,10 +48,10 @@ import java.text.NumberFormat
 import java.util.Locale
 
 /** Invite message: joins happen inside the app with the code, never on a web page. */
-fun inviteText(from: String, circle: String, code: String): String =
+fun inviteText(from: String, circle: String, code: String, link: String): String =
     (if (from.isNotBlank()) "$from invited you" else "You’re invited") +
         " to “$circle” on Bas 1 Minute. Roz 7,000 steps aur 4 one-minute bursts, saath mein.\n\n" +
-        "Open the Bas 1 Minute app → Circles → Join with code: $code"
+        "Tap to join: $link\n\n(Or in the app: Circles → Join with code $code)"
 
 fun kindColor(kind: String): Color = when (kind) {
     "family" -> Haldi
@@ -251,7 +251,7 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
             } else {
                 Text("Anyone with this code can join. Share it only with people you want in the circle.", style = MaterialTheme.typography.bodyMedium, color = Muted)
                 Text(d.inviteCode, style = MaterialTheme.typography.displayMedium, color = Ink)
-                val invite = inviteText(app.prefs.firstName, d.name, d.inviteCode)
+                val invite = inviteText(app.prefs.firstName, d.name, d.inviteCode, d.inviteUrl)
                 BigButton("Invite on WhatsApp", dark = false) { onShareWhatsApp(invite) }
                 GhostButton("Share invite") { onShare(invite) }
             }
