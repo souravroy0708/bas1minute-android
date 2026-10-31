@@ -69,7 +69,9 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
     // Phone steps win (fresher); otherwise what the website has (for example typed on the website)
     val stepsKnown = phoneToday?.steps ?: server?.today?.steps?.toLong()
     val steps = stepsKnown ?: 0L
-    val screen = phoneToday?.screenMinutes ?: server?.today?.screen
+    // Home "screen time" = social, messaging and browser apps (see ScreenTimeReader.SOCIAL)
+    val screen = phoneToday?.row?.socialMinutes ?: server?.today?.social
+    val km = if (stepsKnown == null) null else com.bas1minute.sync.Distance.km(steps, app.prefs.stepLengthCm)
     val bursts = server?.today?.bursts ?: 0
     val calm = server?.today?.mindful ?: 0
     val mood = server?.today?.mood
@@ -108,6 +110,10 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(if (stepsKnown == null) "—" else numbers.format(steps), color = Color.White, style = MaterialTheme.typography.displayMedium)
                             Text("of ${numbers.format(state.stepGoal)} steps", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+                            if (km != null) {
+                                Text(com.bas1minute.sync.Distance.format(km), color = Haldi, style = MaterialTheme.typography.titleLarge,
+                                    modifier = Modifier.padding(top = 4.dp))
+                            }
                         }
                     }
                 }
@@ -121,7 +127,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     )
                     HeaderTile(
                         "Screen time", screen?.let { hm(it) } ?: "—",
-                        when { screen == null -> "Allow in Profile"; screenOver -> "Over ${hm(state.screenLimit)}"; else -> "Limit ${hm(state.screenLimit)}" },
+                        when { screen == null -> "Allow in Profile"; screenOver -> "Over ${hm(state.screenLimit)} · social apps"; else -> "Social apps · limit ${hm(state.screenLimit)}" },
                         if (screenOver) Coral else Haldi, Modifier.weight(1f),
                     )
                 }
@@ -137,6 +143,8 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (app.offline) OfflineBanner(app.waiting)
+
+                QuoteCard(onShare = phoneActions.onShareWhatsApp)
 
                 if (app.phone.samsungNeedsSetup && System.currentTimeMillis() - app.prefs.samsungDismissedAt > WEEK_MS) {
                     SamsungHealthCard(
@@ -163,7 +171,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                 }
 
                 if (stepsKnown != null && stepsLeft in 1L..1500L) Nudge("Bas ${numbers.format(stepsLeft)} steps left. A 10-minute walk will do it.")
-                else if (screenOver) Nudge("Screen time is over your limit. Swap 10 minutes of scrolling for a walk?")
+                else if (screenOver) Nudge("Social and browsing time is over your limit. Swap 10 minutes of scrolling for a walk?")
 
                 // Bursts + calm
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -182,6 +190,10 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     )
                 }
 
+                TwentyOneDays(app)
+
+                WheelTeaser(app)
+
                 // Water, sleep, social media (quick look; details in Insights)
                 val row = app.phone.today?.row
                 val ins = app.phone.insights
@@ -190,8 +202,8 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                         "+ 1 glass", Modifier.weight(1f)) { app.addWater() }
                     QuickTile("Sleep", row?.sleepMinutes?.let { hm(it) } ?: "—",
                         if (row?.sleepSource == "phone_estimate") "estimate" else "last night", Modifier.weight(1f)) { app.tab = Tab.Insights }
-                    QuickTile("Social", (row?.socialMinutes ?: ins?.socialToday)?.let { hm(it) } ?: "—",
-                        "see forecast", Modifier.weight(1f), alert = (row?.socialMinutes ?: 0) >= 120) { app.tab = Tab.Insights }
+                    QuickTile("1-year view", ins?.forecasts?.firstOrNull()?.let { "${it.days} days" } ?: "—",
+                        "on screens at this rate", Modifier.weight(1f), alert = (ins?.socialAvg ?: 0) >= 120) { app.tab = Tab.Insights }
                 }
                 GhostButton("Log a day") { app.logOpen = true }
 
@@ -225,29 +237,6 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                             }
                             Text("Free Government of India mental health helpline, 24x7, many languages. Also 1800-891-4416.",
                                 style = MaterialTheme.typography.bodySmall, color = Muted)
-                        }
-                    }
-                }
-
-                // Week (from the phone's saved days)
-                val week = app.phone.week
-                AppCard(title = "This week", trailing = { Segmented(listOf("Steps", "Screen"), chart) { chart = it } }) {
-                    if (week.isEmpty()) {
-                        Text("Loading…", color = Muted, style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        val labels = week.mapIndexed { i, d -> if (i == week.lastIndex) "Today" else d.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH) }
-                        if (chart == 0) {
-                            WeekBars(labels.zip(week.map { it.steps?.toInt() }), state.stepGoal, Violet, null) {
-                                if (it >= 1000) "${it / 1000}.${(it % 1000) / 100}k" else it.toString()
-                            }
-                            val logged = week.mapNotNull { it.steps }
-                            WeekSummary("Average" to (if (logged.isEmpty()) "—" else numbers.format(logged.sum() / logged.size)),
-                                "Goal days" to "${logged.count { it >= state.stepGoal }} of 7")
-                        } else {
-                            WeekBars(labels.zip(week.map { it.screenMinutes }), state.screenLimit, Color(0xFFB9C0FF), Coral) { hm(it) }
-                            val logged = week.mapNotNull { it.screenMinutes }
-                            WeekSummary("Average" to (if (logged.isEmpty()) "—" else hm(logged.sum() / logged.size)),
-                                "Under limit" to "${logged.count { it <= state.screenLimit }} of 7")
                         }
                     }
                 }

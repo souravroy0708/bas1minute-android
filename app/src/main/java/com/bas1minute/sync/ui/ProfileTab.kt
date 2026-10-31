@@ -90,6 +90,14 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
             AppField("Screen-time limit (minutes)", screenGoal, { screenGoal = it.filter(Char::isDigit).take(3) }, null,
                 keyboard = KeyboardType.Number, hint = "180 = 3 hours")
+            var stepCm by remember { mutableStateOf(prefs.stepLengthCm.toString()) }
+            AppField("Step length (cm)", stepCm, { v ->
+                stepCm = v.filter(Char::isDigit).take(3)
+                stepCm.toIntOrNull()?.takeIf { it in 40..120 }?.let { prefs.stepLengthCm = it; app.home = app.homeState() }
+            }, if (stepCm.toIntOrNull()?.let { it in 40..120 } == false) "Between 40 and 120 cm" else null,
+                keyboard = KeyboardType.Number,
+                hint = "Used for distance: ${com.bas1minute.sync.Distance.stepsPerKm(prefs.stepLengthCm)} steps ≈ 1 km. " +
+                    "To measure: walk 10 normal steps, measure the distance, divide by 10.")
             BigButton(if (app.busy) "Saving…" else "Save", enabled = !app.busy) {
                 val body = JSONObject().put("name", name).put("city", city)
                 stepGoal.toIntOrNull()?.let { body.put("step_goal", it) }

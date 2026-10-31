@@ -27,6 +27,8 @@ data class Snapshot(
     val samsungSharing: Boolean? = null,
     /** Installed outside the Play Store on Android 13+: usage access needs "Allow restricted settings" first. */
     val restrictedSettings: Boolean = false,
+    /** Oldest first, exactly 21 entries (today last); row is null for days with no data. */
+    val last21: List<DayValue> = emptyList(),
 ) {
     /** Show the "Connect Samsung Health" help: installed, and not confirmed sharing. */
     val samsungNeedsSetup: Boolean get() = samsungInstalled && samsungSharing != true
@@ -76,5 +78,9 @@ suspend fun loadSnapshot(context: Context): Snapshot {
         samsungInstalled = samsungInstalled,
         samsungSharing = samsungSharing,
         restrictedSettings = InstallSource.restrictedSettingsLikely(context),
+        last21 = withContext(Dispatchers.IO) {
+            val rows = db.days(today.minusDays(20), today).associateBy { it.date }
+            (20 downTo 0).map { today.minusDays(it.toLong()) }.map { d -> DayValue(d, rows[d]?.steps, rows[d]?.screenMinutes, rows[d]) }
+        },
     )
 }

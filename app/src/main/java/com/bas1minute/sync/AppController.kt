@@ -31,6 +31,10 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var aboutPage by mutableStateOf<String?>(null)
     /** Guided 1-minute burst timer open on top of Today. */
     var burstOpen by mutableStateOf(false)
+    /** Spin-the-health-wheel screen open on top of Today. */
+    var wheelOpen by mutableStateOf(false)
+    /** Bumped after each spin so screens re-read spins left and tips found. */
+    var wheelVersion by mutableIntStateOf(0)
     /** Last full two-way sync result, for the Profile card. */
     var fullSyncMessage by mutableStateOf<String?>(null)
 
@@ -161,7 +165,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
 
     fun logout() = launch {
         repo.logout()
-        today = null; circles = null; circle = null; openCircleId = null; burstOpen = false; logOpen = false; aboutPage = null
+        today = null; circles = null; circle = null; openCircleId = null; burstOpen = false; logOpen = false; aboutPage = null; wheelOpen = false
         loggedIn = false
         tab = Tab.Today
     }
@@ -170,6 +174,33 @@ class AppController(private val ctx: android.content.Context, private val scope:
         prefs.clearSession()
         loggedIn = false
         message = "Please log in again."
+    }
+
+    // ---- Health wheel ----
+
+    fun spinsLeft(): Int {
+        val today = LocalDate.now().toString()
+        return if (prefs.spinDay != today) Wellbeing.SPINS_PER_DAY else (Wellbeing.SPINS_PER_DAY - prefs.spinCount).coerceAtLeast(0)
+    }
+
+    /** Picks the segment and tip for one spin (prefers tips not seen yet), and uses up a spin. Null when none left. */
+    fun takeSpin(random: kotlin.random.Random = kotlin.random.Random.Default): Pair<Int, Wellbeing.Tip>? {
+        if (spinsLeft() <= 0) return null
+        val today = LocalDate.now().toString()
+        if (prefs.spinDay != today) { prefs.spinDay = today; prefs.spinCount = 0 }
+        prefs.spinCount = prefs.spinCount + 1
+        val segment = random.nextInt(WheelMath.SEGMENTS)
+        val category = Wellbeing.CATEGORIES[segment].id
+        val pool = Wellbeing.tipsIn(category)
+        val fresh = pool.filter { it.id.toString() !in prefs.discoveredTips }
+        val tip = (fresh.ifEmpty { pool }).random(random)
+        return segment to tip
+    }
+
+    /** Called when the wheel stops, so the tip counts as discovered only once it’s shown. */
+    fun tipShown(tip: Wellbeing.Tip) {
+        prefs.discoveredTips = prefs.discoveredTips + tip.id.toString()
+        wheelVersion++
     }
 
     fun setAutoSync(on: Boolean) {

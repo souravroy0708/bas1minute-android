@@ -27,7 +27,7 @@ website; it uses the server only through `/api/v1/`.
 | Privacy | Profile → About → Privacy (native; also Health Connect's link) | — |
 | Backup to server | Profile → **Sync with server** (two-way: upload + restore 90 days) | `activity`, outbox, `history` |
 
-**App only:** Insights (social media time check and 1 / 3 / 10-year forecast, phone and sleep habits,
+**App only:** distance from steps, the 21-day habit grid and streak, Today's thought (daily quote) and the Spin the health wheel game, Insights (social media time check and 1 / 3 / 10-year forecast, phone and sleep habits,
 water, weight), automatic steps / screen / social / sleep / water / weight, Samsung Health setup, offline mode.
 
 **Website only (not member features):** landing pages, waitlist and launch countdown, staff admin.

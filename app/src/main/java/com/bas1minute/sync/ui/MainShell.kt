@@ -55,7 +55,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                         selected = app.tab == item.tab,
                         onClick = {
                             if (item.tab == Tab.Circles && app.tab == Tab.Circles) app.closeCircle()
-                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false }
+                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.wheelOpen = false }
                             if (item.tab == Tab.Profile) app.aboutPage = null
                             app.tab = item.tab
                         },
@@ -76,6 +76,10 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (app.tab) {
                 Tab.Today -> when {
+                    app.wheelOpen -> {
+                        androidx.activity.compose.BackHandler { app.wheelOpen = false }
+                        WheelScreen(app, onClose = { app.wheelOpen = false })
+                    }
                     app.burstOpen -> {
                         androidx.activity.compose.BackHandler { app.burstOpen = false }
                         BurstScreen(app, onClose = { app.burstOpen = false })

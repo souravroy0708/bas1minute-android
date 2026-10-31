@@ -181,7 +181,7 @@ fun PrivacyContent() {
     AppCard(title = "What the app reads on your phone") {
         Points(listOf(
             "Steps" to "From Health Connect (Google Fit, Samsung Health, watches) or the phone’s step sensor.",
-            "Screen and social media time" to "Daily totals worked out on the phone, plus when you last used the phone at night and first used it in the morning.",
+            "Screen time" to "Daily total time in social, messaging and browser apps (for example Instagram, YouTube, WhatsApp, Chrome), worked out on the phone, plus when you last used the phone at night and first used it in the morning. App names never leave the phone.",
             "Sleep, water, weight" to "From Health Connect only if you allow each one, or typed by you. Sleep can be estimated from your phone-free night. Weight is off unless you switch it on.",
         ))
     }

@@ -14,9 +14,11 @@ trap 'rm -rf "$TMP"' EXIT
 unzip -q "$ZIP" -d "$TMP"
 SRC="$TMP/bas1minute-android"
 [ -d "$SRC" ] || { echo "The zip doesn't contain a bas1minute-android folder."; exit 1; }
+# Never take Git history or build output from a zip: your repo's own .git must stay untouched.
+rm -rf "$SRC/.git" "$SRC/dist" "$SRC/.gradle" "$SRC/app/build"
 
 # Never touch these
-keep='^\./(\.git/|\.gradle/|build/|app/build/|\.idea/|local\.properties$)|\.jks$|\.keystore$|keystore\.b64$'
+keep='^\./(\.git/|\.gradle/|build/|app/build/|\.idea/|dist/|local\.properties$|secrets\.env$)|\.jks$|\.keystore$|\.b64$'
 
 # 1. Delete files that are in the repo but not in the new version
 ( cd "$REPO" && find . -type f | grep -Ev "$keep" | sort ) > "$TMP/old.txt"

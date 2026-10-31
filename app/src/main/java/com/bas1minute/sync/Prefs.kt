@@ -78,6 +78,25 @@ class Prefs(context: Context) {
         get() = p.getLong("samsung_dismissed", 0L)
         set(v) = p.edit().putLong("samsung_dismissed", v).apply()
 
+    /** Step length for distance. 76 cm ≈ 1,300 steps per km (typical adult). Editable in Profile. */
+    var stepLengthCm: Int
+        get() = p.getInt("step_cm", 76)
+        set(v) = p.edit().putInt("step_cm", v.coerceIn(40, 120)).apply()
+
+    // ---- Health wheel (stays on this phone; not account data) ----
+    var spinDay: String
+        get() = p.getString("spin_day", "") ?: ""
+        set(v) = p.edit().putString("spin_day", v).apply()
+
+    var spinCount: Int
+        get() = p.getInt("spin_count", 0)
+        set(v) = p.edit().putInt("spin_count", v).apply()
+
+    /** Ids of wheel tips this person has discovered. */
+    var discoveredTips: Set<String>
+        get() = p.getStringSet("tips_found", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("tips_found", v).apply()
+
     fun clearSession() {
         p.edit().remove("key").remove("name").remove("first_name").remove("mobile")
             .remove("last_at").remove("last_msg").remove("last_ok").apply()

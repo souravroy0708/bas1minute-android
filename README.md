@@ -93,6 +93,28 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## Distance and 21 days
+
+- **Distance** = steps × step length. Default 76 cm (≈ 1,315 steps per km), editable in Profile → Step length.
+  Shown in the home ring, updating with steps, and in the 21-day totals (`Distance.kt`).
+- **Your 21 days** (Today, right below Bursts and Calm): habit grid (one dot per day, gold = step goal reached),
+  current streak, total steps, distance, average, goal days, and a 21-day chart for steps or screen time.
+  Read from the phone's database, so it works offline. The database keeps up to 400 days (a few KB); the
+  home screen shows the last 21. 21 days is a challenge length, not a scientific habit threshold
+  (research suggests about 66 days on average).
+- **Screen time on the home screen** counts social, messaging and browser apps (`ScreenTimeReader.SOCIAL`:
+  Instagram, YouTube, Facebook, WhatsApp, Telegram, Chrome and other browsers…) plus anything Android labels
+  as social. Total phone time is still recorded and synced as before.
+
+## Daily motivation
+
+- **Today's thought:** 30 original health quotes (`Wellbeing.kt`), one per day, the same for everyone all day,
+  cycling through all 30 before repeating. Share sends it to WhatsApp.
+- **Spin the health wheel:** 8 segments (Sleep, Food, Move, Water, Mind, Phone, Morning, Habit) and 30 tips.
+  3 spins a day (`Wellbeing.SPINS_PER_DAY`); prefers tips not seen yet; "X of 30 tips discovered" and a list
+  of found tips. Landing maths in `WheelMath` (tested: 20,000 simulated spins all land on the chosen segment).
+  Tips are general wellness habits worded as "can help", not medical advice.
+
 ## Feature parity
 
 See `FEATURES.md`: every website member feature has an in-app home. **Profile → Sync with server** uploads

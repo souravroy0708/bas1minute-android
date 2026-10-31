@@ -32,8 +32,19 @@ class ScreenTimeReader(private val context: Context) {
         const val STOPPED = 23  // ACTIVITY_STOPPED (API 29+)
         const val MIN_NIGHT_MINUTES = 180
 
-        /** Social media and short-video apps popular in India. Messaging apps (WhatsApp, Telegram) aren’t counted. */
+        /**
+         * Apps counted as "screen time" on the home screen: social media, short video, messaging and browsers
+         * (the apps people lose time in), popular in India. Plus anything Android labels as a social app.
+         */
         val SOCIAL = setOf(
+            // Messaging
+            "com.whatsapp", "com.whatsapp.w4b", "org.telegram.messenger", "com.facebook.orca", "com.facebook.mlite",
+            "com.Slack", "jp.naver.line.android", "com.discord",
+            // Browsers
+            "com.android.chrome", "com.chrome.beta", "com.sec.android.app.sbrowser", "org.mozilla.firefox",
+            "com.opera.browser", "com.opera.mini.native", "com.microsoft.emmx", "com.brave.browser",
+            "com.mi.globalbrowser", "com.heytap.browser", "com.UCMobile.intl", "com.google.android.googlequicksearchbox",
+            // Social and short video
             "com.instagram.android", "com.instagram.barcelona", "com.facebook.katana", "com.facebook.lite",
             "com.google.android.youtube", "com.snapchat.android", "com.twitter.android", "com.reddit.frontpage",
             "com.pinterest", "com.linkedin.android", "com.tumblr", "in.mohalla.sharechat", "in.mohalla.video",

@@ -52,7 +52,7 @@ fun InsightsTab(app: AppController) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text("Time check", color = Haldi, style = MaterialTheme.typography.labelLarge)
-            Text("Social media today", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+            Text("Screen time today", color = Color.White, style = MaterialTheme.typography.headlineMedium)
             Text(ins?.socialToday?.let { hm(it) } ?: "—", color = Color.White, style = MaterialTheme.typography.displayLarge)
             Text(
                 when {
@@ -83,7 +83,7 @@ fun InsightsTab(app: AppController) {
                     Equivalent("🚶", "${n.format(f.walkKm)} km of brisk walking", "at about 5 km an hour")
                     Equivalent("💪", "${n.format(f.hours * 2)} thirty-minute workouts", "")
                     Equivalent("📚", "${n.format(f.hours / 100)} new skills learned", "at about 100 focused hours per skill")
-                    Text("Based on your last ${ins.daysMeasured} measured day${if (ins.daysMeasured == 1) "" else "s"}. Messaging apps aren’t counted.",
+                    Text("Based on your last ${ins.daysMeasured} measured day${if (ins.daysMeasured == 1) "" else "s"}. Counts social, messaging and browser apps.",
                         style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
 
