@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
@@ -280,7 +281,7 @@ fun Avatar(photo: android.graphics.Bitmap?, name: String, size: androidx.compose
     Box(modifier.size(size).clip(CircleShape).background(Haldi), contentAlignment = Alignment.Center) {
         if (photo != null) {
             androidx.compose.foundation.Image(
-                photo.asImageBitmapCompat(), contentDescription = "Profile photo",
+                photo.asImageBitmap(), contentDescription = "Profile photo",
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
             )
         } else {
@@ -290,4 +291,3 @@ fun Avatar(photo: android.graphics.Bitmap?, name: String, size: androidx.compose
     }
 }
 
-private fun android.graphics.Bitmap.asImageBitmapCompat() = androidx.compose.ui.graphics.asImageBitmap(this)
