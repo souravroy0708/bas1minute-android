@@ -77,8 +77,8 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
             days.forEachIndexed { i, d ->
                 val on = d == day
                 val label = when (i) { 0 -> "Today"; 1 -> "Yesterday"; else -> d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " ${d.dayOfMonth}" }
-                Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else Ink,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else Color.White)
+                Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else TextMain,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else CardBg)
                         .clickable { day = d }.padding(horizontal = 16.dp, vertical = 10.dp))
             }
         }
@@ -98,7 +98,7 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
             }
         }
 
-        AppCard(title = "Steps") {
+        AppCard(title = t("Steps")) {
             if (phoneSynced) {
                 Text("Your phone counted ${local?.steps ?: 0} steps for this day. That number is kept.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
             } else {
@@ -120,7 +120,7 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
             }
         }
 
-        AppCard(title = "Water") {
+        AppCard(title = t("Water")) {
             if (waterFromPhone) {
                 Text("From Health Connect: ${local?.waterMl} ml.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
             } else {
@@ -130,7 +130,7 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
         }
 
         if (app.prefs.trackWeight) {
-            AppCard(title = "Weight", trailing = { Text("Only you see this", color = Muted, style = MaterialTheme.typography.bodySmall) }) {
+            AppCard(title = "Weight", trailing = { Text(t("Only you see this"), color = Muted, style = MaterialTheme.typography.bodySmall) }) {
                 if (weightFromPhone) {
                     Text("From your scale via Health Connect: ${"%.1f".format(local?.weightKg ?: 0.0)} kg.", style = MaterialTheme.typography.bodyMedium, color = MintDark)
                 } else {
@@ -141,7 +141,7 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
         }
 
         error?.let { Text(it, color = Danger, style = MaterialTheme.typography.bodyMedium) }
-        BigButton("Save") {
+        BigButton(t("Save")) {
             val sleepTotal = if (sleepFromPhone || (sleepH.isBlank() && sleepM.isBlank())) null else (sleepH.toIntOrNull() ?: 0) * 60 + (sleepM.toIntOrNull() ?: 0)
             if (sleepTotal != null && sleepTotal > 18 * 60) { error = "Sleep can’t be more than 18 hours."; return@BigButton }
             val waterMl = if (waterFromPhone) null else water.toIntOrNull()

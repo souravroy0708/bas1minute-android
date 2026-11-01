@@ -66,6 +66,7 @@ fun InsightsTab(app: AppController) {
         }
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GhostButton("Open my week in review") { app.openReview() }
             // ---------- Forecast ----------
             if (ins != null && ins.forecasts.isNotEmpty() && ins.socialAvg != null && ins.socialAvg > 0) {
                 val f: Forecast = ins.forecasts[pick]
@@ -142,7 +143,7 @@ fun InsightsTab(app: AppController) {
 
             // ---------- Water ----------
             if (ins != null) {
-                AppCard(title = "Water", trailing = { SmallPill("+ 1 glass") { app.addWater() } }) {
+                AppCard(title = t("Water"), trailing = { SmallPill("+ 1 glass") { app.addWater() } }) {
                     val days = ins.water
                     WeekBars(
                         days.mapIndexed { i, (d, ml) -> (if (i == days.lastIndex) "Today" else d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)) to ml },
@@ -158,7 +159,7 @@ fun InsightsTab(app: AppController) {
 
             // ---------- Weight (opt-in, private) ----------
             if (app.prefs.trackWeight && ins != null) {
-                AppCard(title = "Weight", trailing = { Text("Only you see this", color = Muted, style = MaterialTheme.typography.bodySmall) }) {
+                AppCard(title = "Weight", trailing = { Text(t("Only you see this"), color = Muted, style = MaterialTheme.typography.bodySmall) }) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(ins.weightLatest?.let { "%.1f".format(it) } ?: "—", style = MaterialTheme.typography.displayMedium)
                         Spacer(Modifier.width(6.dp))

@@ -29,6 +29,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -85,6 +88,19 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
     var chart by remember { mutableIntStateOf(0) }
     val name = app.prefs.firstName.ifBlank { "dost" }
     var explainRings by remember { mutableStateOf(false) }
+    // Celebrate reaching the goal, once a day
+    var celebrate by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(stepsKnown, state.stepGoal) {
+        val today = com.bas1minute.sync.LocalDateHolder.today()
+        if (stepsKnown != null && stepsKnown >= state.stepGoal && app.prefs.celebratedDay != today) {
+            app.prefs.celebratedDay = today
+            celebrate = true
+        }
+    }
+    if (celebrate) GoalCelebration(
+        numbers.format(steps), com.bas1minute.sync.Distance.format(com.bas1minute.sync.Distance.km(steps, app.prefs.stepLengthCm)),
+        onShare = { celebrate = false; app.shareKind = "steps" }, onClose = { celebrate = false },
+    )
     if (explainRings) RingExplainer(numbers.format(state.stepGoal), hm(state.screenLimit)) { explainRings = false }
 
     PullToRefreshBox(isRefreshing = state.syncing, onRefresh = { app.sync() }, modifier = Modifier.fillMaxSize().background(Paper)) {
@@ -101,7 +117,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     Avatar(app.avatar, name, 48.dp, Modifier.clickable { app.tab = Tab.Profile })
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Namaste, $name", color = Color.White, style = MaterialTheme.typography.titleLarge, maxLines = 1,
+                        Text("${t("Namaste")}, $name", color = Color.White, style = MaterialTheme.typography.titleLarge, maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         Text(
                             app.prefs.bio.ifBlank { LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)) },
@@ -110,7 +126,10 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                         )
                     }
                     Box(Modifier.size(38.dp).clip(CircleShape).background(Ink3).clickable { app.shareKind = "steps" },
-                        contentAlignment = Alignment.Center) { Text("📤", style = MaterialTheme.typography.titleMedium) }
+                        contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.IosShare, contentDescription = "Share my day",
+                            tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
                     Spacer(Modifier.width(8.dp))
                     SyncChip(state, app.phone.pendingDays + app.waiting, app.offline)
                 }
@@ -168,6 +187,11 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                 // 1. Finish setup, just in time (only while something is missing)
                 if (!app.phone.stepsReady || !app.phone.usageAccess) FinishSetupCard(app, phoneActions)
 
+                // Sunday / Monday: the weekly story, until opened
+                if (com.bas1minute.sync.WeekReview.isReviewDay() && app.prefs.reviewSeenWeek != com.bas1minute.sync.WeekReview.weekKey()) {
+                    WeekReviewCard(app)
+                }
+
                 // 2. The habit at a glance
                 TwentyOneDays(app, compact = true)
 
@@ -216,14 +240,14 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                 WheelTeaser(app)
 
                 // Mood (private)
-                AppCard(title = "How are you feeling?", trailing = { Text("Only you see this", color = Muted, style = MaterialTheme.typography.bodySmall) }) {
+                AppCard(title = t("How are you feeling?"), trailing = { Text(t("Only you see this"), color = Muted, style = MaterialTheme.typography.bodySmall) }) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                         MOODS.forEach { (value, label) ->
                             val on = mood == value
                             Text(
                                 label,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (on) Color.White else Ink,
+                                color = if (on) Color.White else TextMain,
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(50))
@@ -257,7 +281,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
 @Composable
 private fun QuickTile(label: String, value: String, action: String, modifier: Modifier = Modifier, alert: Boolean = false, onClick: () -> Unit) {
     Column(
-        modifier.clip(RoundedCornerShape(20.dp)).background(if (alert) Color(0xFFFFE7DF) else Color.White).clickable(onClick = onClick).padding(14.dp),
+        modifier.clip(RoundedCornerShape(20.dp)).background(if (alert) Color(0xFFFFE7DF) else CardBg).clickable(onClick = onClick).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = Muted)
@@ -272,7 +296,7 @@ private fun ActionTile(
     modifier: Modifier = Modifier, onClick: () -> Unit, secondary: Pair<String, () -> Unit>? = null,
 ) {
     Column(
-        modifier.clip(RoundedCornerShape(22.dp)).background(Color.White).padding(16.dp),
+        modifier.clip(RoundedCornerShape(22.dp)).background(CardBg).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(title, style = MaterialTheme.typography.labelMedium, color = Muted)
@@ -297,7 +321,7 @@ private fun ActionTile(
 private fun OfflineBanner(waiting: Int) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFFFFF3C8)).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text("☁", style = MaterialTheme.typography.titleLarge)
+        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.CloudOff, contentDescription = null, tint = Ink, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(10.dp))
         Text(
             "Offline. Showing what’s saved on your phone." + if (waiting > 0) " $waiting action${if (waiting == 1) "" else "s"} will send later." else "",
@@ -342,7 +366,7 @@ fun OfflineNote(pending: Int, saved: Int) {
 fun Nudge(text: String) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Ink).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text("⚡", style = MaterialTheme.typography.titleLarge, color = Haldi)
+        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Bolt, contentDescription = null, tint = Haldi, modifier = Modifier.size(26.dp))
         Spacer(Modifier.width(10.dp))
         Text(text, style = MaterialTheme.typography.titleMedium, color = Color.White)
     }

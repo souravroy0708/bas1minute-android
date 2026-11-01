@@ -1,12 +1,13 @@
 package com.bas1minute.sync.ui
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -30,9 +31,9 @@ private data class TabItem(val tab: Tab, val label: String, val icon: ImageVecto
 
 private val TABS = listOf(
     TabItem(Tab.Today, "Today", Icons.Filled.Home),
-    TabItem(Tab.Insights, "Insights", Icons.Filled.Info),
-    TabItem(Tab.Circles, "Circles", Icons.Filled.Face),
-    TabItem(Tab.Spin, "Spin", Icons.Filled.Star),
+    TabItem(Tab.Insights, "Insights", Icons.Filled.Insights),
+    TabItem(Tab.Circles, "Circles", Icons.Filled.Groups),
+    TabItem(Tab.Spin, "Spin", Icons.Filled.Casino),
     TabItem(Tab.Profile, "Profile", Icons.Filled.Person),
 )
 
@@ -60,7 +61,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                             app.tab = item.tab
                         },
                         icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(item.label, style = MaterialTheme.typography.labelMedium) },
+                        label = { Text(t(item.label), style = MaterialTheme.typography.labelMedium) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Ink, selectedTextColor = Haldi, indicatorColor = Haldi,
                             unselectedIconColor = MutedOnDark, unselectedTextColor = MutedOnDark,
@@ -74,18 +75,33 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
     ) { padding ->
         ShareSheet(app, actions.onShareImage)
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when (app.tab) {
+        WeekReviewStory(app)
+        // Fade-through between tabs and their full screens (burst, calm, log, circle)
+        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}"
+        androidx.compose.animation.AnimatedContent(
+            targetState = screen,
+            transitionSpec = {
+                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220, delayMillis = 60)) togetherWith
+                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120))
+            },
+            label = "screens",
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) { key ->
+        // Each side of the fade draws from its own snapshot, so old and new screens really cross-fade
+        val part = key.split(":")
+        val shownTab = com.bas1minute.sync.Tab.valueOf(part[0])
+        Box(Modifier.fillMaxSize()) {
+            when (shownTab) {
                 Tab.Today -> when {
-                    app.calmOpen -> {
+                    part[2] == "true" -> {
                         androidx.activity.compose.BackHandler { app.calmOpen = false }
                         CalmTab(app, onCall, onClose = { app.calmOpen = false })
                     }
-                    app.burstOpen -> {
+                    part[1] == "true" -> {
                         androidx.activity.compose.BackHandler { app.burstOpen = false }
                         BurstScreen(app, onClose = { app.burstOpen = false })
                     }
-                    app.logOpen -> {
+                    part[3] == "true" -> {
                         androidx.activity.compose.BackHandler { app.logOpen = false }
                         LogTab(app, onClose = { app.logOpen = false })
                     }
@@ -100,6 +116,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                     else AboutScreen(page, onBack = { app.aboutPage = null })
                 } ?: ProfileTab(app, actions)
             }
+        }
         }
     }
 }

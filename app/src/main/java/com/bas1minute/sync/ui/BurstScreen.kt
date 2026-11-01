@@ -94,8 +94,8 @@ fun BurstScreen(app: AppController, onClose: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             BURSTS.forEach { b ->
                 val on = b == type
-                Text(b.label, style = MaterialTheme.typography.labelLarge, color = if (on) Color.White else Ink,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else Color.White)
+                Text(b.label, style = MaterialTheme.typography.labelLarge, color = if (on) Color.White else TextMain,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else CardBg)
                         .clickable(enabled = !running) { type = b }.padding(horizontal = 16.dp, vertical = 10.dp))
             }
         }

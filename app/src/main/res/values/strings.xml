@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Bas 1 Minute</string>
+    <string name="widget_description">Today’s steps, distance and streak</string>
 </resources>

@@ -110,7 +110,7 @@ private fun StepsPage(snapshot: Snapshot, actions: OnboardingActions, onNext: ()
                 ok = snapshot.hcGranted, action = if (snapshot.hcGranted) null else "Allow", onAction = actions.onAskHealthConnect,
             )
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> StatusRow(
-                "Health Connect", "Needs installing or updating", ok = false, action = "Get it", onAction = actions.onInstallHealthConnect,
+                "Health Connect", "Needs installing or updating", ok = false, action = t("Get it"), onAction = actions.onInstallHealthConnect,
             )
             else -> StatusRow("Health Connect", "Not available on this phone", ok = false)
         }

@@ -35,5 +35,6 @@ object Recorder {
             }
         }
         withContext(Dispatchers.IO) { db.prune(today) }
+        runCatching { StepsWidget.refresh(context) }   // keep the home-screen widget current
     }
 }

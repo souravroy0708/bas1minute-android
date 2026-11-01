@@ -52,7 +52,7 @@ fun SetupScreen(app: AppController) {
         return
     }
     if (step == "welcome") Welcome(onStart = { step = "name" }, onPrivacy = { privacy = true })
-    else NameAndPin(title = "What should we call you?", onBack = { step = "welcome" }, askName = true, askPin = false) { name, _ -> app.finishSetup(name, null) }
+    else NameAndPin(title = t("What should we call you?"), onBack = { step = "welcome" }, askName = true, askPin = false) { name, _ -> app.finishSetup(name, null) }
 }
 
 @Composable
@@ -79,13 +79,13 @@ private fun Welcome(onStart: () -> Unit, onPrivacy: () -> Unit) {
         Text("Fit hone ke liye ghante nahi, minute chahiye.", style = MaterialTheme.typography.displayLarge, color = Color.White)
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Ink2).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Your data, your phone.", style = MaterialTheme.typography.titleLarge, color = Haldi)
+            Text(t("Your data, your phone."), style = MaterialTheme.typography.titleLarge, color = Haldi)
             Promise("No phone number, email or password. Just your name.")
             Promise("Everything stays on this phone.")
             Promise("Share only steps and screen time, only if you choose, to compete in circles.")
             Promise("We don’t sell your data. Ever.")
         }
-        BigButton("Get started", dark = false, onClick = onStart)
+        BigButton(t("Get started"), dark = false, onClick = onStart)
         TextButton(onClick = onPrivacy, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Text("How we handle your data", color = MutedOnDark)
         }
@@ -119,7 +119,7 @@ fun NameAndPin(title: String, onBack: (() -> Unit)?, askName: Boolean, askPin: B
         if (askName) {
             Text("Just a name, shown only to circles you join. No phone number, no email, no password.",
                 style = MaterialTheme.typography.bodyLarge, color = Muted)
-            AppField("Your name", name, { name = it.take(40) }, null, placeholder = "Sourav")
+            AppField(t("Your name"), name, { name = it.take(40) }, null, placeholder = "Sourav")
         }
         if (askPin) {
             Text("Choose a 4-digit PIN to open the app. Forgot it? You can set a new one anytime.",
@@ -141,7 +141,7 @@ private fun PinField(label: String, value: String, onChange: (String) -> Unit) {
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Color.White, unfocusedContainerColor = Color.White),
+        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = CardBg, unfocusedContainerColor = CardBg),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth(),
     )
@@ -190,7 +190,7 @@ fun LockScreen(app: AppController) {
                 }
             }
         }
-        TextButton(onClick = { resetting = true }) { Text("Forgot PIN? Set a new one", color = Haldi, style = MaterialTheme.typography.labelLarge) }
+        TextButton(onClick = { resetting = true }) { Text(t("Forgot PIN? Set a new one"), color = Haldi, style = MaterialTheme.typography.labelLarge) }
     }
 }
 
@@ -210,7 +210,7 @@ fun AppField(
         supportingText = (error ?: hint)?.let { { Text(it) } },
         visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
-        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Color.White, unfocusedContainerColor = Color.White),
+        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = CardBg, unfocusedContainerColor = CardBg),
         shape = RoundedCornerShape(16.dp),
         modifier = modifier.fillMaxWidth(),
     )

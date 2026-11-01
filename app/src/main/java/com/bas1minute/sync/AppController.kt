@@ -38,6 +38,14 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var burstOpen by mutableStateOf(false)
     /** Spin-the-health-wheel screen open on top of Today (legacy; Spin is now a tab). */
     var wheelOpen by mutableStateOf(false)
+    /** Weekly story open. */
+    var reviewOpen by mutableStateOf(false)
+    fun openReview() { prefs.reviewSeenWeek = WeekReview.weekKey(); reviewOpen = true }
+
+    /** Appearance and language (Profile → Appearance). */
+    var theme by mutableStateOf(prefs.theme)
+    var language by mutableStateOf(prefs.language)
+
     /** Share-an-achievement sheet: "steps", "streak" or "rank" (null = closed). */
     var shareKind by mutableStateOf<String?>(null)
     /** Profile photo (phone only); bumped when it changes. */

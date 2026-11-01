@@ -53,7 +53,7 @@ private fun Title(title: String, lede: String) {
 private fun Points(items: List<Pair<String, String>>) {
     items.forEach { (head, body) ->
         Row {
-            Text("•", style = MaterialTheme.typography.titleMedium, color = Ink)
+            Text("•", style = MaterialTheme.typography.titleMedium, color = TextMain)
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(head, style = MaterialTheme.typography.titleMedium)
@@ -65,7 +65,7 @@ private fun Points(items: List<Pair<String, String>>) {
 
 @Composable
 private fun Stat(number: String, text: String, source: String) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardBg).padding(16.dp)) {
         Text(number, style = MaterialTheme.typography.displayMedium, color = Blue)
         Text(text, style = MaterialTheme.typography.bodyMedium)
         Text(source, style = MaterialTheme.typography.bodySmall, color = Muted)
@@ -194,7 +194,7 @@ fun PrivacyContent() {
             "Stop anytime" to "Turn it off, and delete what you shared, in one tap.",
         ))
     }
-    AppCard(title = "Circles") {
+    AppCard(title = t("Circles")) {
         Points(listOf(
             "Your name only" to "Circles need a name so friends know who you are. No other details are stored.",
             "Private members" to "If you don’t share, you can still join and see members who do. You show as Private.",

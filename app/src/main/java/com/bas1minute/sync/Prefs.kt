@@ -152,6 +152,26 @@ class Prefs(context: Context) {
         get() = p.getString("push_token", "") ?: ""
         set(v) = p.edit().putString("push_token", v).apply()
 
+    /** Day (yyyy-mm-dd) the goal celebration was last shown: once a day. */
+    var celebratedDay: String
+        get() = p.getString("celebrated_day", "") ?: ""
+        set(v) = p.edit().putString("celebrated_day", v).apply()
+
+    /** Week key (e.g. 2026-W44) whose review was already opened. */
+    var reviewSeenWeek: String
+        get() = p.getString("review_seen", "") ?: ""
+        set(v) = p.edit().putString("review_seen", v).apply()
+
+    /** "system", "light" or "dark". */
+    var theme: String
+        get() = p.getString("theme", "system") ?: "system"
+        set(v) = p.edit().putString("theme", v).apply()
+
+    /** "en" or "hi". */
+    var language: String
+        get() = p.getString("language", "en") ?: "en"
+        set(v) = p.edit().putString("language", v).apply()
+
     /** Short bio shown on Home and Profile (phone only). */
     var bio: String
         get() = p.getString("bio", "") ?: ""

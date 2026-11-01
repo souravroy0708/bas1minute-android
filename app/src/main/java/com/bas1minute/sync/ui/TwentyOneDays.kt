@@ -55,7 +55,13 @@ object TwentyOneStats {
 @Composable
 fun TwentyOneDays(app: AppController, compact: Boolean = false) {
     val days = app.phone.last21
-    if (days.size != 21) return
+    if (!app.phone.loaded || days.size != 21) {
+        AppCard(title = t("Your 21 days")) {
+            Skeleton(Modifier.fillMaxWidth().height(96.dp))
+            Skeleton(Modifier.fillMaxWidth().height(52.dp))
+        }
+        return
+    }
     val n = remember { NumberFormat.getIntegerInstance(Locale("en", "IN")) }
     val goal = app.home.stepGoal
     val limit = app.home.screenLimit
@@ -71,7 +77,7 @@ fun TwentyOneDays(app: AppController, compact: Boolean = false) {
     val streak = TwentyOneStats.streak(steps, goal)
     val screenMeasured = screen.filterNotNull()
 
-    AppCard(title = "Your 21 days", trailing = {
+    AppCard(title = t("Your 21 days"), trailing = {
         Text(if (streak > 0) "🔥 $streak-day streak" else "Start a streak today", style = MaterialTheme.typography.labelMedium,
             color = Ink, modifier = Modifier.clip(RoundedCornerShape(50)).background(if (streak > 0) Haldi else Paper)
                 .padding(horizontal = 10.dp, vertical = 6.dp))
@@ -113,14 +119,14 @@ fun TwentyOneDays(app: AppController, compact: Boolean = false) {
         if (!expanded) {
             // One glanceable line of totals, then the details on demand
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Stat21("Steps", if (measured.isEmpty()) "—" else n.format(total), Modifier.weight(1f))
-                Stat21("Distance", if (measured.isEmpty()) "—" else Distance.format(Distance.km(total, stepCm)), Modifier.weight(1f))
-                Stat21("Goal days", "$goalDays/21", Modifier.weight(1f))
+                Stat21(t("Steps"), if (measured.isEmpty()) "—" else n.format(total), Modifier.weight(1f))
+                Stat21(t("Distance"), if (measured.isEmpty()) "—" else Distance.format(Distance.km(total, stepCm)), Modifier.weight(1f))
+                Stat21(t("Goal days"), "$goalDays/21", Modifier.weight(1f))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Show chart and details", style = MaterialTheme.typography.labelLarge, color = Blue,
+                Text(t("Show chart and details"), style = MaterialTheme.typography.labelLarge, color = Blue,
                     modifier = Modifier.weight(1f).clickable { expanded = true }.padding(vertical = 6.dp))
-                SmallPill(if (streak > 0) "Share 📤" else "Share 📤") { app.shareKind = "streak" }
+                SmallPill(if (streak > 0) "Share" else "Share") { app.shareKind = "streak" }
             }
             return@AppCard
         }
@@ -131,17 +137,17 @@ fun TwentyOneDays(app: AppController, compact: Boolean = false) {
         // Totals
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Stat21("Total steps", if (measured.isEmpty()) "—" else n.format(total), Modifier.weight(1f))
-            Stat21("Distance", if (measured.isEmpty()) "—" else Distance.format(Distance.km(total, stepCm)), Modifier.weight(1f))
+            Stat21(t("Distance"), if (measured.isEmpty()) "—" else Distance.format(Distance.km(total, stepCm)), Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Stat21("Avg a day", if (measured.isEmpty()) "—" else n.format(total / measured.size), Modifier.weight(1f))
-            Stat21("Goal days", "$goalDays / 21", Modifier.weight(1f))
+            Stat21(t("Goal days"), "$goalDays / 21", Modifier.weight(1f))
         }
 
         // 21-day chart
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(if (chart == 0) "Steps each day" else "Screen time each day", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            Segmented(listOf("Steps", "Screen"), chart) { chart = it }
+            Segmented(listOf(t("Steps"), "Screen"), chart) { chart = it }
         }
         if (chart == 0) {
             MiniBars(steps.map { it?.toInt() }, goal, Violet, null)
@@ -157,15 +163,15 @@ fun TwentyOneDays(app: AppController, compact: Boolean = false) {
                 style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (compact) Text("Hide details", style = MaterialTheme.typography.labelLarge, color = Blue,
+            if (compact) Text(t("Hide details"), style = MaterialTheme.typography.labelLarge, color = Blue,
                 modifier = Modifier.weight(1f).clickable { expanded = false }.padding(vertical = 6.dp))
             else Spacer(Modifier.weight(1f))
-            SmallPill(if (streak > 0) "Share my $streak-day streak 📤" else "Share my 21 days 📤") { app.shareKind = "streak" }
+            SmallPill(if (streak > 0) "Share my $streak-day streak" else "Share my 21 days") { app.shareKind = "streak" }
         }
         Row {
             Text(days.first().date.let { "${it.dayOfMonth} ${it.month.name.take(3).lowercase().replaceFirstChar { c -> c.uppercase() }}" },
                 style = MaterialTheme.typography.bodySmall, color = Muted, modifier = Modifier.weight(1f))
-            Text("Today", style = MaterialTheme.typography.bodySmall, color = Ink)
+            Text(t("Today"), style = MaterialTheme.typography.bodySmall, color = TextMain)
         }
     }
 }

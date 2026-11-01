@@ -1,6 +1,8 @@
 package com.bas1minute.sync.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,29 +95,40 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             Box(contentAlignment = Alignment.BottomEnd) {
                 Avatar(app.avatar, prefs.firstName, 96.dp, Modifier.clickable { actions.onPickPhoto() })
                 Box(Modifier.size(30.dp).clip(CircleShape).background(Haldi).clickable { actions.onPickPhoto() },
-                    contentAlignment = Alignment.Center) { Text("✎", color = Ink, style = MaterialTheme.typography.titleMedium) }
+                    contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Edit, contentDescription = t("Change photo"), tint = Ink, modifier = Modifier.size(16.dp))
+                }
             }
             Text(prefs.name.ifBlank { "Your profile" }, style = MaterialTheme.typography.headlineMedium, color = Color.White)
             if (bio.isNotBlank()) Text(bio, style = MaterialTheme.typography.bodyMedium, color = MutedOnDark,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SmallPill(if (app.avatar == null) "Add photo" else "Change photo") { actions.onPickPhoto() }
-                if (app.avatar != null) Text("Remove", style = MaterialTheme.typography.labelMedium, color = MutedOnDark,
+                if (app.avatar != null) Text(t("Remove"), style = MaterialTheme.typography.labelMedium, color = MutedOnDark,
                     modifier = Modifier.clickable { app.removeAvatar() }.padding(horizontal = 10.dp, vertical = 9.dp))
             }
             Text("🔒 Photo and bio stay on this phone", style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
         }
-        AppCard(title = "Bio") {
+        AppCard(title = t("Bio")) {
             AppField("A line about you", bio, { v -> bio = v.take(120); prefs.bio = bio; app.home = app.homeState() }, null,
                 placeholder = "Walking 7K a day with my family 🚶", hint = "${bio.length}/120 · shown on your home screen")
         }
 
+        SectionHeader(t("Appearance"))
+        AppCard {
+            Text(t("Language"), style = MaterialTheme.typography.titleMedium)
+            ChoiceRow(listOf("en" to "English", "hi" to "हिन्दी"), app.language) { v -> prefs.language = v; app.language = v }
+            Text(t("Theme"), style = MaterialTheme.typography.titleMedium)
+            ChoiceRow(listOf("system" to t("System"), "light" to t("Light"), "dark" to t("Dark")), app.theme) { v -> prefs.theme = v; app.theme = v }
+        }
+
+        SectionHeader(t("Goals"))
         // Goals
         AppCard(title = "Your details and goals") {
             AppField("Name", name, { name = it.take(100) }, null)
             AppField("City", city, { city = it.take(80) }, null, placeholder = "Hyderabad")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AppField("Steps", stepGoal, { stepGoal = it.filter(Char::isDigit).take(5) }, null, keyboard = KeyboardType.Number, modifier = Modifier.weight(1f))
+                AppField(t("Steps"), stepGoal, { stepGoal = it.filter(Char::isDigit).take(5) }, null, keyboard = KeyboardType.Number, modifier = Modifier.weight(1f))
                 AppField("Bursts", burstGoal, { burstGoal = it.filter(Char::isDigit).take(1) }, null, keyboard = KeyboardType.Number, modifier = Modifier.weight(1f))
             }
             AppField("Screen-time limit (minutes)", screenGoal, { screenGoal = it.filter(Char::isDigit).take(3) }, null,
@@ -137,8 +150,21 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
+        // Weight is opt-in
+        AppCard(title = "Weight") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Track my weight", style = MaterialTheme.typography.titleMedium)
+                    Text("Optional and private. Never shared with circles.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = prefs.trackWeight, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on -> prefs.trackWeight = on; app.home = app.homeState() })
+            }
+        }
+
+        SectionHeader(t("Privacy and security"))
         // Privacy: sharing is off by default
-        AppCard(title = "Your data") {
+        AppCard(title = t("Your data")) {
             Text("Everything is stored on this phone. No phone number, email or password. We don’t sell your data.",
                 style = MaterialTheme.typography.bodyMedium, color = Muted)
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -161,8 +187,26 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
+        // App lock with the PIN set at install
+        AppCard(title = t("App lock")) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Ask for my PIN when the app opens", style = MaterialTheme.typography.titleMedium)
+                    Text("A simple lock for shared phones. Forgot it? Set a new one from the lock screen.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = prefs.appLock, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on ->
+                        if (on && prefs.pinHash.isBlank()) { lockAfterPin = true; changingPin = true }   // choose a PIN first
+                        else { prefs.appLock = on; app.home = app.homeState() }
+                    })
+            }
+            if (prefs.pinHash.isNotBlank()) TextButton(onClick = { changingPin = true }) { Text("Change PIN", color = TextMain, style = MaterialTheme.typography.labelLarge) }
+        }
+
+        SectionHeader(t("Notifications"))
         // Motivation pushes from the Bas 1 Minute team
-        AppCard(title = "Motivation notifications") {
+        AppCard(title = t("Motivation notifications")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Nudges and health facts", style = MaterialTheme.typography.titleMedium)
@@ -189,30 +233,14 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
-        // App lock with the PIN set at install
-        AppCard(title = "App lock") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Ask for my PIN when the app opens", style = MaterialTheme.typography.titleMedium)
-                    Text("A simple lock for shared phones. Forgot it? Set a new one from the lock screen.",
-                        style = MaterialTheme.typography.bodySmall, color = Muted)
-                }
-                Switch(checked = prefs.appLock, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
-                    onCheckedChange = { on ->
-                        if (on && prefs.pinHash.isBlank()) { lockAfterPin = true; changingPin = true }   // choose a PIN first
-                        else { prefs.appLock = on; app.home = app.homeState() }
-                    })
-            }
-            if (prefs.pinHash.isNotBlank()) TextButton(onClick = { changingPin = true }) { Text("Change PIN", color = Ink, style = MaterialTheme.typography.labelLarge) }
-        }
-
+        SectionHeader(t("This phone"))
         // Phone connections
-        AppCard(title = "This phone") {
+        AppCard(title = t("This phone")) {
             when (snap.hcStatus) {
                 HealthConnectClient.SDK_AVAILABLE -> StatusRow("Health Connect", if (snap.hcGranted) "Reading your steps" else "Not allowed yet",
                     ok = snap.hcGranted, action = if (snap.hcGranted) null else "Allow", onAction = actions.onAskHealthConnect)
                 HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> StatusRow("Health Connect", "Needs installing or updating",
-                    ok = false, action = "Get it", onAction = actions.onInstallHealthConnect)
+                    ok = false, action = t("Get it"), onAction = actions.onInstallHealthConnect)
                 else -> {}
             }
             if (snap.samsungInstalled) StatusRow(
@@ -255,18 +283,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             )
         }
 
-        // Weight is opt-in
-        AppCard(title = "Weight") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Track my weight", style = MaterialTheme.typography.titleMedium)
-                    Text("Optional and private. Never shared with circles.", style = MaterialTheme.typography.bodySmall, color = Muted)
-                }
-                Switch(checked = prefs.trackWeight, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
-                    onCheckedChange = { on -> prefs.trackWeight = on; app.home = app.homeState() })
-            }
-        }
-
+        SectionHeader(t("About"))
         // About (native pages, no web links)
         AppCard(title = "About Bas 1 Minute") {
             LinkRow("Our idea", "Why 7,000 steps and four one-minute bursts") { app.aboutPage = "idea" }
@@ -276,6 +293,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             LinkRow("Phone-specific help", "Settings for your ${com.bas1minute.sync.PhoneHelp.device().brand}: usage access, battery") { app.aboutPage = "help" }
         }
 
+        SectionHeader(t("Danger zone"))
         TextButton(onClick = { deleting = true }, modifier = Modifier.fillMaxWidth()) {
             Text("Delete everything and start fresh", color = Danger, style = MaterialTheme.typography.labelLarge)
         }
@@ -290,7 +308,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 style = MaterialTheme.typography.bodyMedium) },
             confirmButton = { TextButton(onClick = { confirmStopSharing = false; app.setSharing(false, deleteShared = true) }) {
                 Text("Stop and delete", color = Danger) } },
-            dismissButton = { TextButton(onClick = { confirmStopSharing = false; app.setSharing(false) }) { Text("Just stop", color = Ink) } },
+            dismissButton = { TextButton(onClick = { confirmStopSharing = false; app.setSharing(false) }) { Text("Just stop", color = TextMain) } },
         )
     }
     if (deleting) {
@@ -311,5 +329,27 @@ private fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         Text("›", style = MaterialTheme.typography.headlineMedium, color = Muted)
+    }
+}
+
+/** Small uppercase label that groups Profile settings, like Android Settings. */
+@Composable
+private fun SectionHeader(text: String) {
+    Text(text.uppercase(), style = MaterialTheme.typography.labelMedium, color = Muted,
+        modifier = Modifier.padding(start = 8.dp, top = 12.dp))
+}
+
+@Composable
+private fun ChoiceRow(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (value, label) ->
+            val on = value == selected
+            Box(Modifier.heightIn(min = 48.dp).clickable(role = androidx.compose.ui.semantics.Role.RadioButton) { onSelect(value) },
+                contentAlignment = Alignment.Center) {
+                Text(label, style = MaterialTheme.typography.labelLarge, color = if (on) Color.White else TextMain,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else Paper)
+                        .padding(horizontal = 16.dp, vertical = 10.dp))
+            }
+        }
     }
 }

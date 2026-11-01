@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,21 +42,21 @@ import com.bas1minute.sync.AppController
 fun FinishSetupCard(app: AppController, actions: PhoneActions) {
     val snap = app.phone
     val todo = listOf(!snap.stepsReady, !snap.usageAccess).count { it }
-    AppCard(title = "Finish setting up", trailing = {
+    AppCard(title = t("Finish setting up"), trailing = {
         Text("$todo step${if (todo == 1) "" else "s"} left", style = MaterialTheme.typography.labelMedium, color = Ink,
             modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 10.dp, vertical = 5.dp))
     }) {
         Text("Two quick permissions and Bas 1 Minute counts everything for you. Everything stays on this phone.",
             style = MaterialTheme.typography.bodySmall, color = Muted)
         when {
-            snap.stepsReady -> StatusRow("Step counting", "On", ok = true)
+            snap.stepsReady -> StatusRow(t("Step counting"), t("On"), ok = true)
             snap.hcStatus == HealthConnectClient.SDK_AVAILABLE ->
-                StatusRow("Step counting", "From Health Connect, Google Fit or your watch", ok = false, action = "Allow", onAction = actions.onAskHealthConnect)
+                StatusRow(t("Step counting"), "From Health Connect, Google Fit or your watch", ok = false, action = t("Allow"), onAction = actions.onAskHealthConnect)
             snap.recordingAvailable ->
-                StatusRow("Step counting", "Use this phone’s step sensor", ok = false, action = "Allow", onAction = actions.onAskActivity)
-            else -> StatusRow("Step counting", "Install Health Connect to count steps", ok = false, action = "Get it", onAction = actions.onInstallHealthConnect)
+                StatusRow(t("Step counting"), "Use this phone’s step sensor", ok = false, action = t("Allow"), onAction = actions.onAskActivity)
+            else -> StatusRow(t("Step counting"), "Install Health Connect to count steps", ok = false, action = t("Get it"), onAction = actions.onInstallHealthConnect)
         }
-        StatusRow("Screen time", if (snap.usageAccess) "On" else "Find Bas 1 Minute, switch on “Permit usage access”",
+        StatusRow(t("Screen time"), if (snap.usageAccess) "On" else "Find Bas 1 Minute, switch on “Permit usage access”",
             ok = snap.usageAccess, action = if (snap.usageAccess) null else "Open", onAction = actions.onOpenUsageAccess)
         if (!snap.usageAccess && snap.restrictedSettings) {
             UsageAccessHelp(onOpenUsageAccess = actions.onOpenUsageAccess, onOpenAppInfo = actions.onOpenAppInfo, helpActions = actions.help)
@@ -65,17 +71,17 @@ fun QuickActions(
     onBurst: () -> Unit, onCalm: () -> Unit, onWater: () -> Unit, onLog: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Action("⚡", "Burst", "$bursts/$burstGoal", Haldi, Modifier.weight(1f), onBurst)
-        Action("🧘", "Calm", "$calm min", Color(0xFFFFE7DF), Modifier.weight(1f), onCalm)
-        Action("💧", "Water", if (water >= 1000) "%.1f L".format(water / 1000.0) else "$water ml", Color(0xFFDDF0FD), Modifier.weight(1f), onWater)
-        Action("✍️", "Log", "a day", Color(0xFFE9ECFF), Modifier.weight(1f), onLog)
+        Action(Icons.Filled.Bolt, t("Burst"), "$bursts/$burstGoal", Haldi, Modifier.weight(1f), onBurst)
+        Action(Icons.Filled.SelfImprovement, t("Calm"), "$calm min", Color(0xFFFFE7DF), Modifier.weight(1f), onCalm)
+        Action(Icons.Filled.WaterDrop, t("Water"), if (water >= 1000) "%.1f L".format(water / 1000.0) else "$water ml", Color(0xFFDDF0FD), Modifier.weight(1f), onWater)
+        Action(Icons.Filled.EditNote, t("Log"), t("a day"), Color(0xFFE9ECFF), Modifier.weight(1f), onLog)
     }
 }
 
 @Composable
-private fun Action(icon: String, label: String, value: String, tint: Color, modifier: Modifier, onClick: () -> Unit) {
+private fun Action(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, tint: Color, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.heightIn(min = 96.dp).clip(RoundedCornerShape(20.dp)).background(Color.White)
+        modifier.heightIn(min = 96.dp).clip(RoundedCornerShape(20.dp)).background(CardBg)
             .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = "$label, $value" }
             .padding(vertical = 12.dp),
@@ -83,9 +89,9 @@ private fun Action(icon: String, label: String, value: String, tint: Color, modi
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(Modifier.size(40.dp).clip(CircleShape).background(tint), contentAlignment = Alignment.Center) {
-            Text(icon, style = MaterialTheme.typography.titleMedium)
+            androidx.compose.material3.Icon(icon, contentDescription = null, tint = Ink, modifier = Modifier.size(22.dp))
         }
-        Text(label, style = MaterialTheme.typography.labelLarge, color = Ink)
+        Text(label, style = MaterialTheme.typography.labelLarge, color = TextMain)
         Text(value, style = MaterialTheme.typography.bodySmall, color = Muted, textAlign = TextAlign.Center)
     }
 }
@@ -98,11 +104,11 @@ fun RingLegend(onExplain: () -> Unit) {
             .heightIn(min = 48.dp).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Dot(Violet); Spacer(Modifier.width(6.dp)); Text("Steps", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+        Dot(Violet); Spacer(Modifier.width(6.dp)); Text(t("Steps"), color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.width(14.dp))
-        Dot(Haldi); Spacer(Modifier.width(6.dp)); Text("Screen time", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+        Dot(Haldi); Spacer(Modifier.width(6.dp)); Text(t("Screen time"), color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.width(10.dp))
-        Text("ⓘ", color = MutedOnDark, style = MaterialTheme.typography.bodyMedium)
+        androidx.compose.material3.Icon(Icons.Outlined.Info, contentDescription = null, tint = MutedOnDark, modifier = Modifier.size(16.dp))
     }
 }
 
@@ -113,7 +119,7 @@ private fun Dot(c: Color) = Box(Modifier.size(10.dp).clip(CircleShape).backgroun
 fun RingExplainer(stepGoal: String, limit: String, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Your two rings", style = MaterialTheme.typography.titleLarge) },
+        title = { Text(t("Your two rings"), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Outer ring: steps. It fills as you walk toward your goal of $stepGoal.", style = MaterialTheme.typography.bodyMedium)
@@ -122,6 +128,6 @@ fun RingExplainer(stepGoal: String, limit: String, onDismiss: () -> Unit) {
                 Text("Change both in Profile → Your details and goals.", style = MaterialTheme.typography.bodySmall, color = Muted)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Got it") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(t("Got it")) } },
     )
 }

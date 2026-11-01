@@ -67,10 +67,10 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --console=plain
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Bas1Minute-v0.9.${{ github.run_number }}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Bas1Minute-v1.0.${{ github.run_number }}.apk"
           # Fixed name too, so this link always gives the newest version:
           # https://github.com/<you>/<repo>/releases/latest/download/Bas1Minute.apk
-          cp "app/build/outputs/apk/release/Bas1Minute-v0.9.${{ github.run_number }}.apk" app/build/outputs/apk/release/Bas1Minute.apk
+          cp "app/build/outputs/apk/release/Bas1Minute-v1.0.${{ github.run_number }}.apk" app/build/outputs/apk/release/Bas1Minute.apk
 
       # Google Play needs an .aab (App Bundle), not an .apk. Only built when your real signing key is
       # configured, because Play rejects bundles signed with the throwaway debug key.
@@ -82,7 +82,7 @@ jobs:
           B1M_KEY_PASSWORD: ${{ secrets.B1M_KEY_PASSWORD }}
         run: |
           ./gradlew bundleRelease --console=plain
-          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/Bas1Minute-v0.9.${{ github.run_number }}.aab"
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/Bas1Minute-v1.0.${{ github.run_number }}.aab"
 
       - name: Warn when no Play bundle was built
         if: env.B1M_KEYSTORE_PATH == ''
@@ -92,14 +92,14 @@ jobs:
         if: env.B1M_KEYSTORE_PATH != ''
         uses: actions/upload-artifact@v4
         with:
-          name: Bas1Minute-play-bundle-v0.9.${{ github.run_number }}
+          name: Bas1Minute-play-bundle-v1.0.${{ github.run_number }}
           path: app/build/outputs/bundle/release/*.aab
           retention-days: 30
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Bas1Minute-v0.9.${{ github.run_number }}
+          name: Bas1Minute-v1.0.${{ github.run_number }}
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
@@ -107,12 +107,12 @@ jobs:
         if: success() && env.B1M_KEYSTORE_PATH != '' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.9.${{ github.run_number }}
-          name: Bas 1 Minute 0.9.${{ github.run_number }}
+          tag_name: v1.0.${{ github.run_number }}
+          name: Bas 1 Minute 1.0.${{ github.run_number }}
           make_latest: true
           files: |
             app/build/outputs/apk/release/Bas1Minute.apk
-            app/build/outputs/apk/release/Bas1Minute-v0.9.${{ github.run_number }}.apk
+            app/build/outputs/apk/release/Bas1Minute-v1.0.${{ github.run_number }}.apk
           body: |
             **Install:** download `Bas1Minute.apk` on your Android phone and open it. If asked, allow installing
             from your browser or Files app. Updating? Just install over the old version; your data stays.

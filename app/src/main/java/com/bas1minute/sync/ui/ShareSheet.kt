@@ -98,7 +98,7 @@ fun ShareSheet(app: AppController, onShareImage: (Bitmap, String) -> Unit) {
             BigButton("Share image", dark = false) { onShareImage(bitmap, caption); app.shareKind = null }
             Text("Only this image is shared. Nothing else from your phone.", style = MaterialTheme.typography.bodySmall, color = Muted)
             TextButton(onClick = { app.shareKind = null }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text("Cancel", color = Muted)
+                Text(t("Cancel"), color = Muted)
             }
         }
     }
@@ -109,8 +109,8 @@ private fun Choice(options: List<Pair<String, String>>, selected: String, onSele
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEach { (value, label) ->
             val on = value == selected
-            Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else Ink,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else Color.White)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else TextMain,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else CardBg)
                     .clickable { onSelect(value) }.padding(horizontal = 14.dp, vertical = 8.dp))
         }
     }

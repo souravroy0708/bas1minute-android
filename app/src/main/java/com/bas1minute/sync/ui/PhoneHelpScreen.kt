@@ -38,7 +38,7 @@ fun PhoneHelpScreen(app: AppController, actions: PhoneActions, onBack: () -> Uni
             intro = if (app.phone.usageAccess) "Usage access is already on. Keep this in case you reinstall."
             else "Needed for screen time, social media time and sleep estimates.",
             helpActions = actions.help,
-            background = if (app.phone.usageAccess) Color.White else Color(0xFFFFF3C8),
+            background = if (app.phone.usageAccess) Color(0xFFEEF0FF) else Color(0xFFFFF3C8),
             buttons = listOf("Open usage access" to actions.onOpenUsageAccess, "Open app info" to actions.onOpenAppInfo),
         )
 
@@ -47,7 +47,7 @@ fun PhoneHelpScreen(app: AppController, actions: PhoneActions, onBack: () -> Uni
             intro = if (PhoneHelp.batteryStrict(d)) "${d.brand} phones save battery by pausing apps in the background. Allow Bas 1 Minute so it can sync on its own."
             else "Most phones like yours sync fine. If syncing only happens when you open the app, do this.",
             helpActions = actions.help,
-            background = Color.White,
+            background = Color(0xFFEEF0FF),
             buttons = listOf("Open battery settings" to actions.onOpenBatterySettings),
         )
     }

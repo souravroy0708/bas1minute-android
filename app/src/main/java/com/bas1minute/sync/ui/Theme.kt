@@ -22,9 +22,15 @@ val Violet = Color(0xFF8F99FF)
 val Coral = Color(0xFFFF8A65)
 val Mint = Color(0xFF5ED6A0)
 val MintDark = Color(0xFF0B7A55)
-val Paper = Color(0xFFF4F5FA)
-val PaperLine = Color(0xFFDCDFEC)
-val Muted = Color(0xFF4A4F6A)
+/** Dark mode switch, set by Bas1MinuteTheme. Surface colours below read it, so screens adapt automatically. */
+object ThemeState { var dark by androidx.compose.runtime.mutableStateOf(false) }
+
+// Theme-aware surfaces and text (the dark hero, brand yellow and chart colours stay the same in both themes)
+val Paper: Color get() = if (ThemeState.dark) Color(0xFF0A0C22) else Color(0xFFF4F5FA)
+val PaperLine: Color get() = if (ThemeState.dark) Color(0xFF2B3063) else Color(0xFFDCDFEC)
+val Muted: Color get() = if (ThemeState.dark) Color(0xFFA9AECB) else Color(0xFF4A4F6A)
+val CardBg: Color get() = if (ThemeState.dark) Color(0xFF161A42) else Color.White
+val TextMain: Color get() = if (ThemeState.dark) Color(0xFFEEF0FF) else Color(0xFF0F1235)
 val MutedOnDark = Color(0xFFBCC1E0)
 val Blue = Color(0xFF3446C8)
 val Danger = Color(0xFFB42318)
@@ -55,9 +61,21 @@ private val AppTypography = Typography(
 )
 
 @Composable
-fun Bas1MinuteTheme(content: @Composable () -> Unit) {
+fun Bas1MinuteTheme(dark: Boolean = false, content: @Composable () -> Unit) {
+    ThemeState.dark = dark
     MaterialTheme(
-        colorScheme = lightColorScheme(
+        colorScheme = if (dark) androidx.compose.material3.darkColorScheme(
+            primary = Violet,
+            onPrimary = Ink,
+            secondary = Haldi,
+            onSecondary = Ink,
+            background = Color(0xFF0A0C22),
+            onBackground = Color(0xFFEEF0FF),
+            surface = Color(0xFF161A42),
+            onSurface = Color(0xFFEEF0FF),
+            surfaceVariant = Color(0xFF0A0C22),
+            outline = Color(0xFF2B3063),
+        ) else lightColorScheme(
             primary = Ink,
             onPrimary = Color.White,
             secondary = Haldi,
@@ -70,6 +88,8 @@ fun Bas1MinuteTheme(content: @Composable () -> Unit) {
             outline = PaperLine,
         ),
         typography = AppTypography,
-        content = content,
-    )
+    ) {
+        // Default text colour follows the theme (texts without an explicit colour stay readable in dark mode)
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides TextMain, content = content)
+    }
 }

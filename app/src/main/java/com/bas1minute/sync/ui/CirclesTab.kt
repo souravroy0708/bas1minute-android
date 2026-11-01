@@ -120,7 +120,7 @@ private fun CircleList(app: AppController) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         kinds.forEach { (value, label) ->
                             val on = kind == value
-                            Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else Ink,
+                            Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else TextMain,
                                 modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else Paper)
                                     .clickable { kind = value }.padding(horizontal = 12.dp, vertical = 8.dp))
                         }
@@ -138,7 +138,7 @@ private fun CircleList(app: AppController) {
                     }
                 }) { Text("Create", style = MaterialTheme.typography.labelLarge) }
             },
-            dismissButton = { TextButton(onClick = { creating = false }) { Text("Cancel", color = Muted) } },
+            dismissButton = { TextButton(onClick = { creating = false }) { Text(t("Cancel"), color = Muted) } },
         )
     }
 
@@ -169,7 +169,7 @@ private fun CircleList(app: AppController) {
                     }
                 }) { Text("Join", style = MaterialTheme.typography.labelLarge) }
             },
-            dismissButton = { TextButton(onClick = { joining = false }) { Text("Cancel", color = Muted) } },
+            dismissButton = { TextButton(onClick = { joining = false }) { Text(t("Cancel"), color = Muted) } },
         )
     }
 }
@@ -177,7 +177,7 @@ private fun CircleList(app: AppController) {
 @Composable
 private fun CircleCard(c: CircleSummary, onClick: () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color.White).clickable(onClick = onClick).padding(20.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBg).clickable(onClick = onClick).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -227,11 +227,12 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
             TeamBar(d.teamPct, onDark = true)
             Text(if (d.teamPct >= 100) "Team goal reached. Bahut badhiya, sab log!" else "Every point anyone earns fills this bar.",
                 style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
-            if (d.board.any { it.isMe && it.shares }) SmallPill("Share my rank 📤") { app.shareKind = "rank" }
+            if (d.board.any { it.isMe && it.shares }) SmallPill("Share my rank") { app.shareKind = "rank" }
         }
 
         // Leaderboard
         AppCard(title = "This week") {
+            Podium(d.board)
             Text("Up to ${d.pointsPerDay} points a day, against each person’s own goals.", style = MaterialTheme.typography.bodySmall, color = Muted)
             d.board.forEach { row -> BoardLine(row, onCheer = { kind -> app.cheer(row.userId, kind) }) }
         }
@@ -251,7 +252,7 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
                 Text("This circle is full (20 members).", color = Muted, style = MaterialTheme.typography.bodyMedium)
             } else {
                 Text("Anyone with this code can join. Share it only with people you want in the circle.", style = MaterialTheme.typography.bodyMedium, color = Muted)
-                Text(d.inviteCode, style = MaterialTheme.typography.displayMedium, color = Ink)
+                Text(d.inviteCode, style = MaterialTheme.typography.displayMedium, color = TextMain)
                 val invite = inviteText(app.prefs.firstName, d.name, d.inviteCode, d.inviteUrl)
                 BigButton("Invite on WhatsApp", dark = false) { onShareWhatsApp(invite) }
                 GhostButton("Share invite") { onShare(invite) }
@@ -278,7 +279,7 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
 private fun BoardLine(row: BoardRow, onCheer: (String) -> Unit) {
     val numbers = remember { NumberFormat.getIntegerInstance(Locale("en", "IN")) }
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (row.isMe) Color(0xFFF7F8FF) else Color.White).padding(vertical = 8.dp, horizontal = 4.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (row.isMe) Paper else CardBg).padding(vertical = 8.dp, horizontal = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -334,7 +335,7 @@ private fun OwnerPanel(app: AppController, d: CircleDetail) {
         StatusRow("Invite link", "Make a new one if the old link spread too far", ok = true, action = "New link") {
             app.launch { app.handle(app.repo.manageCircle(d.id, "invite"), "New invite link made. The old one no longer works.") { app.openCircle(d.id) } }
         }
-        d.board.filter { !it.isMe }.forEach { m -> StatusRow(m.name, "Member", ok = true, action = "Remove") { removing = m } }
+        d.board.filter { !it.isMe }.forEach { m -> StatusRow(m.name, "Member", ok = true, action = t("Remove")) { removing = m } }
         TextButton(onClick = { confirmDelete = true }) { Text("Delete circle for everyone", color = Danger, style = MaterialTheme.typography.labelLarge) }
     }
     if (renaming) {
@@ -351,7 +352,7 @@ private fun OwnerPanel(app: AppController, d: CircleDetail) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         kinds.forEach { (value, label) ->
                             val on = kind == value
-                            Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else Ink,
+                            Text(label, style = MaterialTheme.typography.labelMedium, color = if (on) Color.White else TextMain,
                                 modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Ink else Paper)
                                     .clickable { kind = value }.padding(horizontal = 12.dp, vertical = 8.dp))
                         }
@@ -361,12 +362,12 @@ private fun OwnerPanel(app: AppController, d: CircleDetail) {
             confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = {
                 renaming = false
                 app.launch { app.handle(app.repo.manageCircle(d.id, "rename", org.json.JSONObject().put("name", name).put("kind", kind)), "Circle updated.") { app.openCircle(d.id) } }
-            }) { Text("Save") } },
-            dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel", color = Muted) } },
+            }) { Text(t("Save")) } },
+            dismissButton = { TextButton(onClick = { renaming = false }) { Text(t("Cancel"), color = Muted) } },
         )
     }
     removing?.let { m ->
-        Confirm("Remove ${m.name}?", "They can rejoin only with a new invite.", "Remove", onDismiss = { removing = null }) {
+        Confirm("Remove ${m.name}?", "They can rejoin only with a new invite.", t("Remove"), onDismiss = { removing = null }) {
             removing = null
             app.launch { app.handle(app.repo.manageCircle(d.id, "remove", org.json.JSONObject().put("user_id", m.userId)), "${m.name} removed.") { app.openCircle(d.id) } }
         }
@@ -398,6 +399,6 @@ fun Confirm(title: String, body: String, action: String, onDismiss: () -> Unit, 
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = { Text(body, style = MaterialTheme.typography.bodyMedium) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(action, color = Danger, style = MaterialTheme.typography.labelLarge) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Muted) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t("Cancel"), color = Muted) } },
     )
 }

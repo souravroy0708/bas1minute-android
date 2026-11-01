@@ -116,6 +116,6 @@ fun CalmTab(app: AppController, onCall: (String) -> Unit, onClose: () -> Unit) {
         }
         Text("If you feel dizzy, breathe normally. For support any time, call Tele-MANAS on 14416, free and 24x7.",
             style = MaterialTheme.typography.bodySmall, color = Muted, textAlign = TextAlign.Center)
-        TextButton(onClick = { onCall("14416") }) { Text("Call 14416", color = Ink, style = MaterialTheme.typography.labelLarge) }
+        TextButton(onClick = { onCall("14416") }) { Text("Call 14416", color = TextMain, style = MaterialTheme.typography.labelLarge) }
     }
 }

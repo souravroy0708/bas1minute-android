@@ -93,6 +93,23 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## v1.0: love and retention
+
+- **Home-screen widget** (`StepsWidget.kt`, `res/layout/widget_steps.xml`): steps, goal bar, distance, streak;
+  refreshed after every phone read and every 30 minutes; tap opens the app.
+- **Week in review** (`WeekReview.kt`, `ui/WeekReviewStory.kt`): 5-page swipeable story (steps vs last week, best
+  day, goal days + streak, screen time vs last week, share). Card on Home on Sunday/Monday until opened; also in Insights.
+- **Circle podium** (`ui/Podium.kt`): top 3 sharers, animated.
+- **Transitions:** fade-through between tabs and full screens (`ui/MainShell.kt`).
+
+## Hindi and dark mode (v0.11)
+
+- **Language:** Profile → Appearance → English / हिन्दी. `ui/I18n.kt`: wrap a screen string as `t("English")` and add
+  its Hindi to the map; anything untranslated falls back to English. Tabs, Home, 21 days, setup, lock and Profile
+  sections are translated so far.
+- **Theme:** System (default) / Light / Dark. Surfaces read theme tokens (`Paper`, `CardBg`, `TextMain`, `Muted`,
+  `PaperLine` in `ui/Theme.kt`); the dark hero, brand yellow and chart colours are the same in both.
+
 ## Share achievements (v0.7)
 
 "Share my day" (Today), "Share my streak" (21 days) and "Share my rank" (circle) open a sheet: pick Steps /

@@ -4,4 +4,10 @@
         <item name="android:navigationBarColor">#F4F5FA</item>
         <item name="android:windowBackground">@android:color/white</item>
     </style>
+    <!-- Branded launch screen (Android 12+ splash API, back-ported) -->
+    <style name="Theme.Bas1Minute.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0F1235</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Bas1Minute</item>
+    </style>
 </resources>

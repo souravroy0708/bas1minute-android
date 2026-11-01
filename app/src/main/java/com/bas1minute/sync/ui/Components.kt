@@ -35,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
@@ -102,7 +101,7 @@ fun AppCard(title: String? = null, trailing: (@Composable () -> Unit)? = null, c
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .background(Color.White)
+            .background(CardBg)
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -241,7 +240,8 @@ fun BigButton(text: String, enabled: Boolean = true, dark: Boolean = true, modif
         onClick = onClick,
         enabled = enabled,
         shape = RoundedCornerShape(50),
-        colors = if (dark) ButtonDefaults.buttonColors(containerColor = Ink, contentColor = Color.White)
+        colors = if (dark) ButtonDefaults.buttonColors(
+            containerColor = if (ThemeState.dark) Violet else Ink, contentColor = if (ThemeState.dark) Ink else Color.White)
         else ButtonDefaults.buttonColors(containerColor = Haldi, contentColor = Ink),
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp),
     ) { Text(text, style = MaterialTheme.typography.labelLarge) }
@@ -252,9 +252,9 @@ fun GhostButton(text: String, onDark: Boolean = false, modifier: Modifier = Modi
     OutlinedButton(
         onClick = onClick,
         shape = RoundedCornerShape(50),
-        border = androidx.compose.foundation.BorderStroke(2.dp, if (onDark) Line else Ink),
+        border = androidx.compose.foundation.BorderStroke(2.dp, if (onDark || ThemeState.dark) Line else Ink),
         modifier = modifier.fillMaxWidth().heightIn(min = 52.dp),
-    ) { Text(text, style = MaterialTheme.typography.labelLarge, color = if (onDark) Color.White else Ink) }
+    ) { Text(text, style = MaterialTheme.typography.labelLarge, color = if (onDark) Color.White else TextMain) }
 }
 
 /** Round badge with a symbol, used as the illustration on onboarding pages. */
@@ -281,7 +281,7 @@ fun Avatar(photo: android.graphics.Bitmap?, name: String, size: androidx.compose
     Box(modifier.size(size).clip(CircleShape).background(Haldi), contentAlignment = Alignment.Center) {
         if (photo != null) {
             androidx.compose.foundation.Image(
-                photo.asImageBitmap(), contentDescription = "Profile photo",
+                photo.asImageBitmapCompat(), contentDescription = "Profile photo",
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
             )
         } else {
@@ -291,3 +291,4 @@ fun Avatar(photo: android.graphics.Bitmap?, name: String, size: androidx.compose
     }
 }
 
+private fun android.graphics.Bitmap.asImageBitmapCompat() = androidx.compose.ui.graphics.asImageBitmap(this)

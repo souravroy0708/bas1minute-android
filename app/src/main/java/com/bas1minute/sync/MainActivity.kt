@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -64,6 +65,7 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -95,7 +97,9 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            Bas1MinuteTheme {
+            val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            com.bas1minute.sync.ui.Lang.current = app.language
+            Bas1MinuteTheme(dark = when (app.theme) { "dark" -> true; "light" -> false; else -> systemDark }) {
                 when {
                     !app.setupDone -> SetupScreen(app)
                     !app.unlocked -> LockScreen(app)

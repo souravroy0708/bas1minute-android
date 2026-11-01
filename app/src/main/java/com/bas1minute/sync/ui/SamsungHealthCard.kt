@@ -36,7 +36,7 @@ fun SamsungHealthCard(
     onDismiss: (() -> Unit)? = null,
 ) {
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color.White).padding(18.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBg).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -74,7 +74,7 @@ fun SamsungHealthCard(
 private fun Step(n: Int, text: String) {
     Row(verticalAlignment = Alignment.Top) {
         Box(Modifier.size(24.dp).clip(CircleShape).background(Paper), contentAlignment = Alignment.Center) {
-            Text(n.toString(), style = MaterialTheme.typography.labelMedium, color = Ink)
+            Text(n.toString(), style = MaterialTheme.typography.labelMedium, color = TextMain)
         }
         Spacer(Modifier.width(10.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))

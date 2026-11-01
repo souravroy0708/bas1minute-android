@@ -67,7 +67,7 @@ fun QuoteCard(onShare: (String) -> Unit) {
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Ink).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Today’s thought", style = MaterialTheme.typography.labelMedium, color = Haldi)
+        Text(t("Today’s thought"), style = MaterialTheme.typography.labelMedium, color = Haldi)
         Row {
             Text("“", style = MaterialTheme.typography.displayLarge, color = Haldi, modifier = Modifier.offset(y = (-8).dp))
             Spacer(Modifier.width(6.dp))
@@ -75,7 +75,7 @@ fun QuoteCard(onShare: (String) -> Unit) {
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("New thought every day", style = MaterialTheme.typography.bodySmall, color = MutedOnDark, modifier = Modifier.weight(1f))
-            Text("Share", style = MaterialTheme.typography.labelMedium, color = Ink,
+            Text(t("Share"), style = MaterialTheme.typography.labelMedium, color = Ink,
                 modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi)
                     .clickable { onShare("“$quote”\n\nToday’s thought from Bas 1 Minute 🌱") }
                     .padding(horizontal = 14.dp, vertical = 8.dp))
@@ -133,13 +133,13 @@ fun WheelTeaser(app: AppController) {
     val left = remember(version) { app.spinsLeft() }
     val found = remember(version) { app.prefs.discoveredTips.size }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color.White).clickable { app.tab = com.bas1minute.sync.Tab.Spin }.padding(16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBg).clickable { app.tab = com.bas1minute.sync.Tab.Spin }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HealthWheel(size = 72.dp, rotation = 15f, showLabels = false)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Spin the health wheel", style = MaterialTheme.typography.titleLarge)
+            Text(t("Spin the health wheel"), style = MaterialTheme.typography.titleLarge)
             Text(if (left > 0) "$left spin${if (left == 1) "" else "s"} left today · discover a health tip"
                 else "Come back tomorrow for 3 new spins", style = MaterialTheme.typography.bodySmall, color = Muted)
             Text("$found of ${Wellbeing.TIPS.size} tips discovered", style = MaterialTheme.typography.labelMedium, color = Blue)
@@ -172,7 +172,7 @@ fun WheelScreen(app: AppController, onClose: (() -> Unit)?) {
         if (onClose != null) TextButton(onClick = onClose, modifier = Modifier.align(Alignment.Start)) {
             Text("← Today", color = Muted, style = MaterialTheme.typography.labelLarge)
         }
-        Text("Spin the health wheel", style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
+        Text(t("Spin the health wheel"), style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
         Text("Spin to discover a small habit for a healthier day.", style = MaterialTheme.typography.bodyLarge, color = Muted, textAlign = TextAlign.Center)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip("${left} spin${if (left == 1) "" else "s"} left today")
@@ -211,7 +211,7 @@ fun WheelScreen(app: AppController, onClose: (() -> Unit)?) {
             result?.let { tip ->
                 val cat = Wellbeing.CATEGORIES.first { it.id == tip.category }
                 Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color.White).padding(20.dp),
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBg).padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -230,12 +230,12 @@ fun WheelScreen(app: AppController, onClose: (() -> Unit)?) {
 
         if (found.isNotEmpty()) {
             TextButton(onClick = { showFound = !showFound }) {
-                Text(if (showFound) "Hide my tips" else "See my ${found.size} tips", color = Ink, style = MaterialTheme.typography.labelLarge)
+                Text(if (showFound) "Hide my tips" else "See my ${found.size} tips", color = TextMain, style = MaterialTheme.typography.labelLarge)
             }
             if (showFound) {
                 Wellbeing.TIPS.filter { it.id.toString() in found }.forEach { tip ->
                     val cat = Wellbeing.CATEGORIES.first { it.id == tip.category }
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(12.dp)) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(CardBg).padding(12.dp)) {
                         Text(cat.emoji, style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.width(10.dp))
                         Text(tip.text, style = MaterialTheme.typography.bodyMedium)
@@ -250,6 +250,6 @@ fun WheelScreen(app: AppController, onClose: (() -> Unit)?) {
 
 @Composable
 private fun Chip(text: String) {
-    Text(text, style = MaterialTheme.typography.labelMedium, color = Ink,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White).padding(horizontal = 12.dp, vertical = 6.dp))
+    Text(text, style = MaterialTheme.typography.labelMedium, color = TextMain,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(CardBg).padding(horizontal = 12.dp, vertical = 6.dp))
 }
