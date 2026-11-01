@@ -32,6 +32,29 @@ class MainActivity : ComponentActivity() {
     private val healthConnectPermissions =
         registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { app.refresh() }
 
+    /** Android photo picker: no storage permission needed; the photo is copied into the app’s private storage. */
+    private val photoPicker =
+        registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            if (uri == null) return@registerForActivityResult
+            lifecycleScope.launch {
+                val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ProfilePhoto.save(applicationContext, uri) }
+                if (ok) { app.reloadAvatar(); app.message = "Profile photo updated." } else app.message = "Couldn’t use that photo. Try another."
+            }
+        }
+
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) app.message = "Notifications are off. You can allow them in Android Settings."
+            Push.refreshToken(applicationContext)
+        }
+
+    /** Ask once (Android 13+), then register this phone for motivation pushes. */
+    private fun askNotifications() {
+        app.prefs.notifAsked = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        else Push.refreshToken(applicationContext)
+    }
+
     private val activityPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             lifecycleScope.launch {
@@ -55,6 +78,9 @@ class MainActivity : ComponentActivity() {
             onCopy = { text -> copyText(text) },
         )
         val phone = PhoneActions(
+            onPickPhoto = { photoPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            onShareImage = { bmp, caption -> shareImage(bmp, caption) },
+            onAskNotifications = { askNotifications() },
             help = help,
             onOpenBatterySettings = { openBatterySettings() },
             onOpenAppInfo = {
@@ -73,7 +99,7 @@ class MainActivity : ComponentActivity() {
                 when {
                     !app.setupDone -> SetupScreen(app)
                     !app.unlocked -> LockScreen(app)
-                    !app.permissionsDone -> PermissionsScreen(
+                    false -> PermissionsScreen(
                         snapshot = app.phone,
                         actions = OnboardingActions(
                             help = help,
@@ -112,6 +138,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // After setup: ask for notifications once, and keep this phone's push token current.
+        if (app.setupDone && app.permissionsDone && app.prefs.pushEnabled) {
+            if (!app.prefs.notifAsked) askNotifications() else Push.refreshToken(applicationContext)
+        }
         app.refresh()
     }
 
@@ -126,6 +156,23 @@ class MainActivity : ComponentActivity() {
     /** Only used for Google Play (installing Health Connect). The app never opens the Bas 1 Minute website. */
     private fun openStore(url: String) {
         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (e: Exception) { app.message = "Open the Play Store and search for Health Connect." }
+    }
+
+    /** Save the card to the app's private cache and hand it to WhatsApp / Instagram / Facebook via the share sheet. */
+    private fun shareImage(bitmap: android.graphics.Bitmap, caption: String) {
+        try {
+            val dir = java.io.File(cacheDir, "share").apply { mkdirs() }
+            val file = java.io.File(dir, "bas1minute.png")
+            file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val send = Intent(Intent.ACTION_SEND).setType("image/png")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .putExtra(Intent.EXTRA_TEXT, caption)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            startActivity(Intent.createChooser(send, "Share your achievement"))
+        } catch (e: Exception) {
+            app.message = "Couldn’t share the image. Try again."
+        }
     }
 
     /** Phone-specific help: a Google search for this exact phone (Google app or browser). */

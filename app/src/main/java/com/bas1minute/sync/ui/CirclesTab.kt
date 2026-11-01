@@ -227,6 +227,7 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
             TeamBar(d.teamPct, onDark = true)
             Text(if (d.teamPct >= 100) "Team goal reached. Bahut badhiya, sab log!" else "Every point anyone earns fills this bar.",
                 style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
+            if (d.board.any { it.isMe && it.shares }) SmallPill("Share my rank 📤") { app.shareKind = "rank" }
         }
 
         // Leaderboard

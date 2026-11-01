@@ -41,6 +41,9 @@ import com.bas1minute.sync.api.Res
 import org.json.JSONObject
 
 data class PhoneActions(
+    val onPickPhoto: () -> Unit,
+    val onShareImage: (android.graphics.Bitmap, String) -> Unit,
+    val onAskNotifications: () -> Unit,
     val help: HelpActions,
     val onOpenBatterySettings: () -> Unit,
     val onOpenAppInfo: () -> Unit,
@@ -64,9 +67,14 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
     var confirmStopSharing by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var changingPin by remember { mutableStateOf(false) }
+    var lockAfterPin by remember { mutableStateOf(false) }
     if (changingPin) {
         androidx.activity.compose.BackHandler { changingPin = false }
-        NameAndPin(title = "Change PIN", onBack = { changingPin = false }, askName = false) { _, pin -> app.resetPin(pin); changingPin = false }
+        NameAndPin(title = if (lockAfterPin) "Choose a PIN" else "Change PIN", onBack = { changingPin = false; lockAfterPin = false }, askName = false) { _, pin ->
+            app.resetPin(pin)
+            if (lockAfterPin) { prefs.appLock = true; lockAfterPin = false; app.home = app.homeState() }
+            changingPin = false
+        }
         return
     }
     val snap = app.phone
@@ -75,15 +83,31 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
         Modifier.fillMaxSize().background(Paper).statusBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-            Box(Modifier.size(64.dp).clip(CircleShape).background(Ink), contentAlignment = Alignment.Center) {
-                Text((prefs.firstName.ifBlank { "B" }).take(1).uppercase(), style = MaterialTheme.typography.headlineLarge, color = Haldi)
+        // Header: photo, name, bio (all stay on this phone)
+        var bio by remember { mutableStateOf(prefs.bio) }
+        Column(
+            Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(28.dp)).background(Ink).padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(contentAlignment = Alignment.BottomEnd) {
+                Avatar(app.avatar, prefs.firstName, 96.dp, Modifier.clickable { actions.onPickPhoto() })
+                Box(Modifier.size(30.dp).clip(CircleShape).background(Haldi).clickable { actions.onPickPhoto() },
+                    contentAlignment = Alignment.Center) { Text("✎", color = Ink, style = MaterialTheme.typography.titleMedium) }
             }
-            Spacer(Modifier.width(14.dp))
-            Column {
-                Text(prefs.name.ifBlank { "Your profile" }, style = MaterialTheme.typography.headlineMedium)
-                Text(if (prefs.shareActivity) "Sharing steps and screen time" else "Private: everything stays on this phone", style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text(prefs.name.ifBlank { "Your profile" }, style = MaterialTheme.typography.headlineMedium, color = Color.White)
+            if (bio.isNotBlank()) Text(bio, style = MaterialTheme.typography.bodyMedium, color = MutedOnDark,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallPill(if (app.avatar == null) "Add photo" else "Change photo") { actions.onPickPhoto() }
+                if (app.avatar != null) Text("Remove", style = MaterialTheme.typography.labelMedium, color = MutedOnDark,
+                    modifier = Modifier.clickable { app.removeAvatar() }.padding(horizontal = 10.dp, vertical = 9.dp))
             }
+            Text("🔒 Photo and bio stay on this phone", style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
+        }
+        AppCard(title = "Bio") {
+            AppField("A line about you", bio, { v -> bio = v.take(120); prefs.bio = bio; app.home = app.homeState() }, null,
+                placeholder = "Walking 7K a day with my family 🚶", hint = "${bio.length}/120 · shown on your home screen")
         }
 
         // Goals
@@ -137,6 +161,34 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
+        // Motivation pushes from the Bas 1 Minute team
+        AppCard(title = "Motivation notifications") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Nudges and health facts", style = MaterialTheme.typography.titleMedium)
+                    Text("Personal messages built on this phone from your own steps and screen time. Your numbers aren’t sent for this.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = prefs.pushEnabled, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on ->
+                        prefs.pushEnabled = on
+                        if (on) actions.onAskNotifications() else com.bas1minute.sync.Push.upload(app.ctxForPush)
+                        app.home = app.homeState()
+                    })
+            }
+            if (prefs.pushEnabled) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Playful taunts 😏", style = MaterialTheme.typography.titleMedium)
+                        Text("“Tumse na ho payega?” style teasing. Switch off to get only motivation, facts and cheers.",
+                            style = MaterialTheme.typography.bodySmall, color = Muted)
+                    }
+                    Switch(checked = prefs.allowTaunts, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                        onCheckedChange = { on -> prefs.allowTaunts = on; app.home = app.homeState() })
+                }
+            }
+        }
+
         // App lock with the PIN set at install
         AppCard(title = "App lock") {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -146,9 +198,12 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                         style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
                 Switch(checked = prefs.appLock, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
-                    onCheckedChange = { on -> prefs.appLock = on; app.home = app.homeState() })
+                    onCheckedChange = { on ->
+                        if (on && prefs.pinHash.isBlank()) { lockAfterPin = true; changingPin = true }   // choose a PIN first
+                        else { prefs.appLock = on; app.home = app.homeState() }
+                    })
             }
-            TextButton(onClick = { changingPin = true }) { Text("Change PIN", color = Ink, style = MaterialTheme.typography.labelLarge) }
+            if (prefs.pinHash.isNotBlank()) TextButton(onClick = { changingPin = true }) { Text("Change PIN", color = Ink, style = MaterialTheme.typography.labelLarge) }
         }
 
         // Phone connections

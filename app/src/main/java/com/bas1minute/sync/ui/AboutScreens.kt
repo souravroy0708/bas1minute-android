@@ -183,6 +183,7 @@ fun PrivacyContent() {
             "Everything you see in the app" to "Steps, distance, screen time, sleep, water, weight, mood, bursts, calm and your 21 days are saved in this phone’s own storage.",
             "App names" to "Screen time is worked out on the phone. Which apps you used never leaves it.",
             "Your PIN" to "Saved on the phone in scrambled form. It’s a simple lock, not account security.",
+            "Profile photo and bio" to "Kept in the app’s private storage on this phone. Never uploaded.",
         ))
     }
     AppCard(title = "Only if you choose to share") {

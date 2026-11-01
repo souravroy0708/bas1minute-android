@@ -197,16 +197,16 @@ fun StatusRow(title: String, subtitle: String, ok: Boolean, action: String? = nu
 
 @Composable
 fun SmallPill(text: String, onClick: () -> Unit) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelMedium,
-        color = Ink,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(Haldi)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-    )
+    // 48dp tall touch area (accessibility), pill drawn inside it
+    Box(Modifier.heightIn(min = 48.dp).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = Ink,
+            modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 14.dp, vertical = 9.dp),
+        )
+    }
 }
 
 /** Segmented two-option switch (for the week chart). */
@@ -273,3 +273,21 @@ fun hm(minutes: Int): String {
         else -> "${m}m"
     }
 }
+
+/** Round profile photo, or initials on brand yellow when there's no photo. */
+@Composable
+fun Avatar(photo: android.graphics.Bitmap?, name: String, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
+    Box(modifier.size(size).clip(CircleShape).background(Haldi), contentAlignment = Alignment.Center) {
+        if (photo != null) {
+            androidx.compose.foundation.Image(
+                photo.asImageBitmapCompat(), contentDescription = "Profile photo",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Text(name.trim().take(1).uppercase().ifBlank { "B" }, color = Ink,
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = (size.value * 0.42f).sp))
+        }
+    }
+}
+
+private fun android.graphics.Bitmap.asImageBitmapCompat() = androidx.compose.ui.graphics.asImageBitmap(this)

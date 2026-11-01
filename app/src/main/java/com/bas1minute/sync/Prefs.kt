@@ -132,6 +132,40 @@ class Prefs(context: Context) {
         get() = p.getString("pending_join", "") ?: ""
         set(v) = p.edit().putString("pending_join", v).apply()
 
+    /** Motivation pushes from Bas 1 Minute (on by default; Android 13+ also needs the system permission). */
+    var pushEnabled: Boolean
+        get() = p.getBoolean("push_on", true)
+        set(v) = p.edit().putBoolean("push_on", v).apply()
+
+    /** Playful taunts ("Tumse na ho payega?") can be switched off; other messages still come. */
+    var allowTaunts: Boolean
+        get() = p.getBoolean("allow_taunts", true)
+        set(v) = p.edit().putBoolean("allow_taunts", v).apply()
+
+    /** Asked for the notification permission once already. */
+    var notifAsked: Boolean
+        get() = p.getBoolean("notif_asked", false)
+        set(v) = p.edit().putBoolean("notif_asked", v).apply()
+
+    /** Latest Firebase token for this phone. */
+    var pushToken: String
+        get() = p.getString("push_token", "") ?: ""
+        set(v) = p.edit().putString("push_token", v).apply()
+
+    /** Short bio shown on Home and Profile (phone only). */
+    var bio: String
+        get() = p.getString("bio", "") ?: ""
+        set(v) = p.edit().putString("bio", v.take(120)).apply()
+
+    /** Days (yyyy-mm-dd) on which the one manual burst / one manual calm minute was used. Timers are unlimited. */
+    var manualBurstDays: Set<String>
+        get() = p.getStringSet("manual_burst_days", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("manual_burst_days", v.sorted().takeLast(60).toSet()).apply()
+
+    var manualCalmDays: Set<String>
+        get() = p.getStringSet("manual_calm_days", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("manual_calm_days", v.sorted().takeLast(60).toSet()).apply()
+
     /** Wipe all settings (Delete everything). */
     fun wipeAll() { p.edit().clear().apply() }
 

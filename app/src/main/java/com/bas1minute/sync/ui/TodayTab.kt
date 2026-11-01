@@ -29,6 +29,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -81,6 +84,8 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
     val screenOver = screen != null && screen > state.screenLimit
     var chart by remember { mutableIntStateOf(0) }
     val name = app.prefs.firstName.ifBlank { "dost" }
+    var explainRings by remember { mutableStateOf(false) }
+    if (explainRings) RingExplainer(numbers.format(state.stepGoal), hm(state.screenLimit)) { explainRings = false }
 
     PullToRefreshBox(isRefreshing = state.syncing, onRefresh = { app.sync() }, modifier = Modifier.fillMaxSize().background(Paper)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -93,23 +98,37 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 44.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Avatar(app.avatar, name, 48.dp, Modifier.clickable { app.tab = Tab.Profile })
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)),
-                            color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
-                        Text("Namaste, $name", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                        Text("Namaste, $name", color = Color.White, style = MaterialTheme.typography.titleLarge, maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        Text(
+                            app.prefs.bio.ifBlank { LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)) },
+                            color = MutedOnDark, style = MaterialTheme.typography.bodySmall, maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
                     }
+                    Box(Modifier.size(38.dp).clip(CircleShape).background(Ink3).clickable { app.shareKind = "steps" },
+                        contentAlignment = Alignment.Center) { Text("📤", style = MaterialTheme.typography.titleMedium) }
+                    Spacer(Modifier.width(8.dp))
                     SyncChip(state, app.phone.pendingDays + app.waiting, app.offline)
                 }
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(12.dp))
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     DualRing(
                         stepsFraction = steps.toFloat() / state.stepGoal,
                         screenFraction = (screen ?: 0).toFloat() / state.screenLimit,
                         screenOver = screenOver,
-                        modifier = Modifier.size(220.dp),
+                        modifier = Modifier.size(170.dp)
+                            .clickable(onClickLabel = "What do the rings mean?") { explainRings = true }
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = (if (stepsKnown == null) "Steps not counted yet. " else "${numbers.format(steps)} of ${numbers.format(state.stepGoal)} steps. ") +
+                                    (if (screen == null) "" else "Screen time ${hm(screen)} of ${hm(state.screenLimit)}.")
+                            },
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(if (stepsKnown == null) "—" else numbers.format(steps), color = Color.White, style = MaterialTheme.typography.displayMedium)
+                            Text(if (stepsKnown == null) "0" else numbers.format(steps), color = Color.White, style = MaterialTheme.typography.displayMedium)
                             Text("of ${numbers.format(state.stepGoal)} steps", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
                             if (km != null) {
                                 Text(com.bas1minute.sync.Distance.format(km), color = Haldi, style = MaterialTheme.typography.titleLarge,
@@ -118,7 +137,8 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                         }
                     }
                 }
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(14.dp))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { RingLegend { explainRings = true } }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     HeaderTile(
                         "Steps left",
@@ -145,7 +165,43 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
             ) {
                 if (app.offline) OfflineBanner(app.waiting)
 
-                QuoteCard(onShare = phoneActions.onShareWhatsApp)
+                // 1. Finish setup, just in time (only while something is missing)
+                if (!app.phone.stepsReady || !app.phone.usageAccess) FinishSetupCard(app, phoneActions)
+
+                // 2. The habit at a glance
+                TwentyOneDays(app, compact = true)
+
+                // 3. What can I do right now?
+                QuickActions(
+                    bursts = bursts, burstGoal = burstGoal, calm = calm,
+                    water = app.phone.today?.row?.waterMl ?: 0,
+                    onBurst = { app.burstOpen = true }, onCalm = { app.calmOpen = true },
+                    onWater = { app.addWater() }, onLog = { app.logOpen = true },
+                )
+
+                // 4. One smart card: the most relevant thing today
+                val hasCheers = !server?.cheers.isNullOrEmpty()
+                when {
+                    hasCheers -> {
+                    server?.cheers?.takeIf { it.isNotEmpty() }?.let { cheers ->
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Haldi).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text("From your circles today", style = MaterialTheme.typography.titleLarge, color = Ink)
+                            cheers.forEach { c ->
+                                Text(
+                                    if (c.kind == "cheer") "${c.from} sent you a Shabash!  ·  ${c.circle}" else "${c.from}: Chalo, ek burst?  ·  ${c.circle}",
+                                    style = MaterialTheme.typography.bodyMedium, color = Ink,
+                                )
+                            }
+                        }
+                    }
+                    }
+                    stepsKnown != null && stepsLeft in 1L..1500L -> Nudge("Bas ${numbers.format(stepsLeft)} steps left. A 10-minute walk will do it.")
+                    screenOver -> Nudge("Social and browsing time is over your limit. Swap 10 minutes of scrolling for a walk?")
+                    else -> QuoteCard(onShare = phoneActions.onShareWhatsApp)
+                }
 
                 if (app.phone.samsungNeedsSetup && System.currentTimeMillis() - app.prefs.samsungDismissedAt > WEEK_MS) {
                     SamsungHealthCard(
@@ -156,57 +212,8 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     )
                 }
 
-                server?.cheers?.takeIf { it.isNotEmpty() }?.let { cheers ->
-                    Column(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Haldi).padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text("From your circles today", style = MaterialTheme.typography.titleLarge, color = Ink)
-                        cheers.forEach { c ->
-                            Text(
-                                if (c.kind == "cheer") "${c.from} sent you a Shabash!  ·  ${c.circle}" else "${c.from}: Chalo, ek burst?  ·  ${c.circle}",
-                                style = MaterialTheme.typography.bodyMedium, color = Ink,
-                            )
-                        }
-                    }
-                }
-
-                if (stepsKnown != null && stepsLeft in 1L..1500L) Nudge("Bas ${numbers.format(stepsLeft)} steps left. A 10-minute walk will do it.")
-                else if (screenOver) Nudge("Social and browsing time is over your limit. Swap 10 minutes of scrolling for a walk?")
-
-                // Bursts + calm
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ActionTile(
-                        title = "Bursts", value = "$bursts / $burstGoal",
-                        hint = if (bursts >= burstGoal) "All done today" else "One minute, out of breath",
-                        dots = burstGoal to bursts, button = "Start 1 min", modifier = Modifier.weight(1f),
-                        onClick = { app.burstOpen = true },
-                        secondary = "+ I already did one" to { app.addBurst() },
-                    )
-                    ActionTile(
-                        title = "Calm", value = "$calm min",
-                        hint = if (calm > 0) "Mind ka workout done" else "Slow breathing",
-                        dots = null, button = "Start 1 min", modifier = Modifier.weight(1f),
-                        onClick = { app.calmOpen = true },
-                    )
-                }
-
-                TwentyOneDays(app)
-
+                // Below the fold
                 WheelTeaser(app)
-
-                // Water, sleep, social media (quick look; details in Insights)
-                val row = app.phone.today?.row
-                val ins = app.phone.insights
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickTile("Water", row?.waterMl?.let { if (it >= 1000) "%.1f L".format(it / 1000.0) else "$it ml" } ?: "0 ml",
-                        "+ 1 glass", Modifier.weight(1f)) { app.addWater() }
-                    QuickTile("Sleep", row?.sleepMinutes?.let { hm(it) } ?: "—",
-                        if (row?.sleepSource == "phone_estimate") "estimate" else "last night", Modifier.weight(1f)) { app.tab = Tab.Insights }
-                    QuickTile("1-year view", ins?.forecasts?.firstOrNull()?.let { "${it.days} days" } ?: "—",
-                        "on screens at this rate", Modifier.weight(1f), alert = (ins?.socialAvg ?: 0) >= 120) { app.tab = Tab.Insights }
-                }
-                GhostButton("Log a day") { app.logOpen = true }
 
                 // Mood (private)
                 AppCard(title = "How are you feeling?", trailing = { Text("Only you see this", color = Muted, style = MaterialTheme.typography.bodySmall) }) {
@@ -242,15 +249,6 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     }
                 }
 
-                // Sync status
-                AppCard(title = "Sync") {
-                    BigButton(if (state.syncing) "Syncing…" else "Sync now", enabled = !state.syncing) { app.sync() }
-                    if (state.lastSyncMessage.isNotBlank()) {
-                        val time = if (state.lastSyncAt > 0) DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.lastSyncAt)) else ""
-                        Text("${state.lastSyncMessage} $time".trim(), color = if (state.lastSyncOk) MintDark else Danger, style = MaterialTheme.typography.bodySmall)
-                    }
-                    OfflineNote(app.phone.pendingDays + app.waiting, app.phone.savedDays)
-                }
             }
         }
     }

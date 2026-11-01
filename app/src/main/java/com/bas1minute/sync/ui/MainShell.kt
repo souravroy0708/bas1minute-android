@@ -73,6 +73,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         // The tabs draw their own status-bar space; the bar handles the bottom.
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
     ) { padding ->
+        ShareSheet(app, actions.onShareImage)
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (app.tab) {
                 Tab.Today -> when {

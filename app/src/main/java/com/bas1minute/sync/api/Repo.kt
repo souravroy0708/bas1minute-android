@@ -175,9 +175,23 @@ class Repo(context: Context) {
         db.savePrivate(today, calmMinutes = (db.day(today)?.calmMinutes ?: 0) + 1); Res.Ok(JSONObject())
     }
 
-    suspend fun addBurst(): Res<JSONObject> = withContext(Dispatchers.IO) {
-        val today = LocalDate.now()
-        db.savePrivate(today, bursts = (db.day(today)?.bursts ?: 0) + 1); Res.Ok(JSONObject())
+    /** A burst finished with the 1-minute timer (unlimited). */
+    suspend fun addBurst(date: LocalDate = LocalDate.now()): Res<JSONObject> = withContext(Dispatchers.IO) {
+        db.savePrivate(date, bursts = (db.day(date)?.bursts ?: 0) + 1); Res.Ok(JSONObject())
+    }
+
+    /** A burst done without the timer: once per day, so typed numbers can’t be stacked. */
+    suspend fun addManualBurst(date: LocalDate = LocalDate.now()): Res<JSONObject> {
+        if (date.toString() in prefs.manualBurstDays) return Res.Fail("You’ve added your one manual burst for this day. Use the 1-minute timer for more.")
+        prefs.manualBurstDays = prefs.manualBurstDays + date.toString()
+        return addBurst(date)
+    }
+
+    /** One manual calm minute per day; the Calm screen adds as many as you do. */
+    suspend fun addManualCalm(date: LocalDate = LocalDate.now()): Res<JSONObject> = withContext(Dispatchers.IO) {
+        if (date.toString() in prefs.manualCalmDays) return@withContext Res.Fail("You’ve added your one manual calm minute for this day. Use the Calm timer for more.")
+        prefs.manualCalmDays = prefs.manualCalmDays + date.toString()
+        db.savePrivate(date, calmMinutes = (db.day(date)?.calmMinutes ?: 0) + 1); Res.Ok(JSONObject())
     }
 
     suspend fun cheer(circleId: Int, userId: Int, kind: String): Res<JSONObject> =
@@ -220,6 +234,12 @@ class Repo(context: Context) {
     }
 
     fun waitingActions(): Int = db.queuedCount()
+
+    /** Tell the server this phone's push token ("" turns pushes off). Needs the name-only account. */
+    suspend fun registerPush(token: String): Boolean {
+        if (!ensureAccount()) return false
+        return api.post("me/push-token/", JSONObject().put("token", token)).ok
+    }
 
     /** Download up to 90 days from the server into this phone (restore). Null if offline. */
     suspend fun pullHistory(days: Int = 90): Int? {

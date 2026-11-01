@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Steps from Health Connect (Google Fit, Samsung Health, watches, Android 14+ phone sensor) -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
@@ -79,6 +80,26 @@
                 <data android:scheme="bas1minute" android:host="join" />
             </intent-filter>
         </activity>
+
+        <!-- Share achievement images to WhatsApp, Instagram, Facebook… -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
+
+        <!-- Motivation pushes from the admin (Firebase). Templates are filled on the phone. -->
+        <service
+            android:name=".PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- Health Connect shows this when the user taps "privacy policy" on the permission screen -->
         <activity

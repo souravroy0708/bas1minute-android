@@ -10,6 +10,9 @@ val releaseKeystore: String? = System.getenv("B1M_KEYSTORE_PATH")
 // Each GitHub build gets a higher version number, which Android needs to accept an update.
 val buildNumber: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
 
+// Push notifications need app/google-services.json (from Firebase). Without it the app builds without pushes.
+if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
+
 android {
     namespace = "com.bas1minute.sync"
     compileSdk = 36
@@ -19,7 +22,7 @@ android {
         minSdk = 26          // Health Connect needs Android 8.0+
         targetSdk = 36
         versionCode = buildNumber
-        versionName = "0.5.$buildNumber"
+        versionName = "0.9.$buildNumber"
         // Your live site. Members can change it in the app (for local testing).
         buildConfigField("String", "DEFAULT_SERVER", "\"https://bas1minute.pythonanywhere.com\"")
         // Shown on the in-app privacy screen. Change to your real support address.
@@ -80,6 +83,8 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.activity.compose)
     implementation(libs.fragment.ktx)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.work.runtime.ktx)
     implementation(libs.health.connect)

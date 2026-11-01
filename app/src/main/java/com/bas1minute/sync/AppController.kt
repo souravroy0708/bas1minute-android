@@ -18,6 +18,8 @@ enum class Tab { Today, Insights, Circles, Spin, Profile }
 
 /** Holds what the screens show. Reads phone data and the website; falls back to saved copies offline. */
 class AppController(private val ctx: android.content.Context, private val scope: CoroutineScope) {
+    /** Application context for push registration from the UI. */
+    val ctxForPush: android.content.Context get() = ctx
     val prefs = Prefs(ctx)
     val repo = Repo(ctx)
 
@@ -36,6 +38,13 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var burstOpen by mutableStateOf(false)
     /** Spin-the-health-wheel screen open on top of Today (legacy; Spin is now a tab). */
     var wheelOpen by mutableStateOf(false)
+    /** Share-an-achievement sheet: "steps", "streak" or "rank" (null = closed). */
+    var shareKind by mutableStateOf<String?>(null)
+    /** Profile photo (phone only); bumped when it changes. */
+    var avatar by mutableStateOf<android.graphics.Bitmap?>(ProfilePhoto.load(ctx))
+    fun reloadAvatar() { avatar = ProfilePhoto.load(ctx) }
+    fun removeAvatar() { ProfilePhoto.remove(ctx); avatar = null }
+
     /** 1-minute calm open on top of Today. */
     var calmOpen by mutableStateOf(false)
     /** Bumped after each spin so screens re-read spins left and tips found. */
@@ -160,12 +169,15 @@ class AppController(private val ctx: android.content.Context, private val scope:
     // ---- account ----
 
     /** First launch: name and a 4-digit PIN. Creates the name-only account in the background (fine offline). */
-    fun finishSetup(name: String, pin: String) {
+    fun finishSetup(name: String, pin: String?) {
         prefs.name = name.trim()
         prefs.firstName = name.trim().split(" ").first()
-        prefs.pinHash = prefs.hashPin(pin)
+        if (pin != null && pin.length == 4) prefs.pinHash = prefs.hashPin(pin)
         prefs.setupDone = true
         setupDone = true
+        // Permissions are asked just in time from Home ("Finish setting up"), not as a separate step.
+        prefs.onboardingDone = true
+        permissionsDone = true
         unlocked = true
         launch { repo.ensureAccount(); refresh() }
         prefs.pendingJoin.takeIf { it.isNotBlank() }?.let { joinFromLink(it) }
@@ -216,6 +228,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
         when (val r = repo.deleteEverything()) {
             is Res.Fail -> message = r.message
             else -> {
+                ProfilePhoto.remove(ctx); avatar = null
                 today = null; circles = null; circle = null; openCircleId = null
                 burstOpen = false; logOpen = false; aboutPage = null; wheelOpen = false
                 phone = Snapshot()
@@ -284,8 +297,14 @@ class AppController(private val ctx: android.content.Context, private val scope:
 
     // ---- actions ----
 
+    /** From the 1-minute burst timer. */
     fun addBurst() = launch {
         handle(repo.addBurst(), "Burst added. Shabash!") { refresh() }
+    }
+
+    /** "+ I already did one": once per day. */
+    fun addManualBurst() = launch {
+        handle(repo.addManualBurst(), "Burst added. Shabash!") { refresh() }
     }
 
     /** One glass = 250 ml. Water is a running total for today, so replaying offline is safe. */

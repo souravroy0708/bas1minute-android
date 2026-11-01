@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,10 +47,6 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
     // Everything here is saved on this phone only
     val local = app.phone.last21.firstOrNull { it.date == day }?.row
     var steps by remember(day) { mutableStateOf(local?.steps?.toString() ?: "") }
-    var bursts by remember(day) { mutableIntStateOf(local?.bursts ?: 0) }
-    var calm by remember(day) { mutableStateOf(local?.calmMinutes?.takeIf { it > 0 }?.toString() ?: "") }
-    var hours by remember(day) { mutableStateOf(local?.socialMinutes?.let { (it / 60).toString() } ?: "") }
-    var mins by remember(day) { mutableStateOf(local?.socialMinutes?.let { (it % 60).toString() } ?: "") }
     var sleepH by remember(day) { mutableStateOf(local?.sleepMinutes?.let { (it / 60).toString() } ?: "") }
     var sleepM by remember(day) { mutableStateOf(local?.sleepMinutes?.let { (it % 60).toString() } ?: "") }
     var water by remember(day) { mutableStateOf(local?.waterMl?.toString() ?: "") }
@@ -74,7 +71,7 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
     ) {
         androidx.compose.material3.TextButton(onClick = onClose) { Text("← Today", color = Muted, style = MaterialTheme.typography.labelLarge) }
         Text("Log a day", style = MaterialTheme.typography.headlineLarge)
-        Text("Add bursts and calm, or numbers from another app. Takes 30 seconds.", style = MaterialTheme.typography.bodyLarge, color = Muted)
+        Text("Screen time is measured by the phone, so it can’t be typed. Add what the phone can’t see.", style = MaterialTheme.typography.bodyLarge, color = Muted)
 
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             days.forEachIndexed { i, d ->
@@ -86,12 +83,18 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
             }
         }
 
-        AppCard(title = "One-minute bursts") {
-            Text("How many times were you out of breath for a minute? Stairs, squats, a brisk walk.", style = MaterialTheme.typography.bodyMedium, color = Muted)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                RoundButton("−") { if (bursts > 0) bursts-- }
-                Text("$bursts", style = MaterialTheme.typography.displayMedium)
-                RoundButton("+") { if (bursts < 20) bursts++ }
+        val dayKey = day.toString()
+        val burstUsed = dayKey in app.prefs.manualBurstDays
+        val calmUsed = dayKey in app.prefs.manualCalmDays
+        AppCard(title = "Bursts and calm") {
+            Text("This day: ${local?.bursts ?: 0} burst${if ((local?.bursts ?: 0) == 1) "" else "s"} · ${local?.calmMinutes ?: 0} calm min. " +
+                "The timers count every minute; here you can add one of each per day that you did without the app.",
+                style = MaterialTheme.typography.bodyMedium, color = Muted)
+            OnceRow("+1 burst done without the timer", used = burstUsed) {
+                app.launch { app.handle(app.repo.addManualBurst(day), "Burst added.") { app.refresh() } }
+            }
+            OnceRow("+1 calm minute done without the app", used = calmUsed) {
+                app.launch { app.handle(app.repo.addManualCalm(day), "Calm minute added.") { app.refresh() } }
             }
         }
 
@@ -101,19 +104,6 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
             } else {
                 Text("Only if your phone can’t count them. Copy from Google Fit, Samsung Health or your watch.", style = MaterialTheme.typography.bodyMedium, color = Muted)
                 AppField("Steps walked", steps, { steps = it.filter(Char::isDigit).take(6) }, null, placeholder = "5240", keyboard = KeyboardType.Number)
-            }
-        }
-
-        AppCard(title = "Calm minutes") {
-            Text("Meditation, prayer or breathing. Sessions in the Calm tab are counted for you.", style = MaterialTheme.typography.bodyMedium, color = Muted)
-            AppField("Minutes", calm, { calm = it.filter(Char::isDigit).take(3) }, null, placeholder = "5", keyboard = KeyboardType.Number)
-        }
-
-        AppCard(title = "Screen time") {
-            Text("Only if this phone can’t read it. On Android: Settings, then Digital Wellbeing.", style = MaterialTheme.typography.bodyMedium, color = Muted)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AppField("Hours", hours, { hours = it.filter(Char::isDigit).take(2) }, null, keyboard = KeyboardType.Number, modifier = Modifier.weight(1f))
-                AppField("Minutes", mins, { mins = it.filter(Char::isDigit).take(2) }, null, keyboard = KeyboardType.Number, modifier = Modifier.weight(1f))
             }
         }
 
@@ -152,8 +142,6 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
 
         error?.let { Text(it, color = Danger, style = MaterialTheme.typography.bodyMedium) }
         BigButton("Save") {
-            val screenTotal = if (hours.isBlank() && mins.isBlank()) null else (hours.toIntOrNull() ?: 0) * 60 + (mins.toIntOrNull() ?: 0)
-            if (screenTotal != null && screenTotal > 24 * 60) { error = "Screen time can’t be more than 24 hours."; return@BigButton }
             val sleepTotal = if (sleepFromPhone || (sleepH.isBlank() && sleepM.isBlank())) null else (sleepH.toIntOrNull() ?: 0) * 60 + (sleepM.toIntOrNull() ?: 0)
             if (sleepTotal != null && sleepTotal > 18 * 60) { error = "Sleep can’t be more than 18 hours."; return@BigButton }
             val waterMl = if (waterFromPhone) null else water.toIntOrNull()
@@ -163,7 +151,7 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
             error = null
             app.launch {
                 app.handle(
-                    app.repo.logDay(day, if (phoneSynced) null else steps.toIntOrNull(), bursts, screenTotal, calm.toIntOrNull(),
+                    app.repo.logDay(day, if (phoneSynced) null else steps.toIntOrNull(), null, null, null,
                         waterMl = waterMl, weightKg = kg, sleepMinutes = sleepTotal),
                     "Saved. Nice work.",
                 ) { app.refresh(); onClose() }
@@ -176,5 +164,14 @@ fun LogTab(app: AppController, onClose: () -> Unit) {
 private fun RoundButton(symbol: String, onClick: () -> Unit) {
     Box(Modifier.size(52.dp).clip(CircleShape).background(Paper).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         Text(symbol, style = MaterialTheme.typography.headlineMedium)
+    }
+}
+
+@Composable
+private fun OnceRow(label: String, used: Boolean, onAdd: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (used) Paper else Color(0xFFFFF3C8))
+        .clickable(enabled = !used, onClick = onAdd).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.titleMedium, color = if (used) Muted else Ink, modifier = Modifier.weight(1f))
+        Text(if (used) "Added ✓" else "Add", style = MaterialTheme.typography.labelLarge, color = if (used) MintDark else Ink)
     }
 }

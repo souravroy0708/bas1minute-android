@@ -12,3 +12,8 @@ object Distance {
 
     fun stepsPerKm(stepLengthCm: Int): Int = (100_000.0 / stepLengthCm).toInt()
 }
+
+/** Today's date as yyyy-mm-dd (used for once-a-day manual entries). */
+object LocalDateHolder {
+    fun today(): String = java.time.LocalDate.now().toString()
+}

@@ -1,6 +1,7 @@
 package com.bas1minute.sync.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,7 +53,7 @@ object TwentyOneStats {
  * and a 21-day chart for steps or screen time (social, messaging and browser apps).
  */
 @Composable
-fun TwentyOneDays(app: AppController) {
+fun TwentyOneDays(app: AppController, compact: Boolean = false) {
     val days = app.phone.last21
     if (days.size != 21) return
     val n = remember { NumberFormat.getIntegerInstance(Locale("en", "IN")) }
@@ -59,6 +61,7 @@ fun TwentyOneDays(app: AppController) {
     val limit = app.home.screenLimit
     val stepCm = app.prefs.stepLengthCm
     var chart by remember { mutableIntStateOf(0) }
+    var expanded by remember { mutableStateOf(!compact) }
 
     val steps = days.map { it.row?.steps }
     val screen = days.map { it.row?.socialMinutes }
@@ -73,13 +76,14 @@ fun TwentyOneDays(app: AppController) {
             color = Ink, modifier = Modifier.clip(RoundedCornerShape(50)).background(if (streak > 0) Haldi else Paper)
                 .padding(horizontal = 10.dp, vertical = 6.dp))
     }) {
-        Text("A 21-day run is a great first challenge. Fill the grid by reaching your step goal each day.",
+        if (expanded) Text("A 21-day run is a great first challenge. Fill the grid by reaching your step goal each day.",
             style = MaterialTheme.typography.bodySmall, color = Muted)
 
         // Habit grid: 3 weeks × 7 days, oldest top-left, today bottom-right
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 6.dp),
+            modifier = if (compact) Modifier.padding(horizontal = 20.dp) else Modifier) {
             days.chunked(7).forEachIndexed { week, row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 6.dp)) {
                     row.forEachIndexed { i, d ->
                         val s = d.row?.steps
                         val isToday = week == 2 && i == 6
@@ -100,6 +104,25 @@ fun TwentyOneDays(app: AppController) {
                     }
                 }
             }
+        }
+        if (measured.isEmpty()) {
+            Text("Your first day fills in tonight. Just walk as usual; the phone counts for you.",
+                style = MaterialTheme.typography.bodyMedium, color = Muted)
+            return@AppCard
+        }
+        if (!expanded) {
+            // One glanceable line of totals, then the details on demand
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Stat21("Steps", if (measured.isEmpty()) "—" else n.format(total), Modifier.weight(1f))
+                Stat21("Distance", if (measured.isEmpty()) "—" else Distance.format(Distance.km(total, stepCm)), Modifier.weight(1f))
+                Stat21("Goal days", "$goalDays/21", Modifier.weight(1f))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Show chart and details", style = MaterialTheme.typography.labelLarge, color = Blue,
+                    modifier = Modifier.weight(1f).clickable { expanded = true }.padding(vertical = 6.dp))
+                SmallPill(if (streak > 0) "Share 📤" else "Share 📤") { app.shareKind = "streak" }
+            }
+            return@AppCard
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Legend(Haldi, "Goal reached"); Legend(Color(0xFFC9CEFF), "Moved"); Legend(PaperLine, "No data")
@@ -132,6 +155,12 @@ fun TwentyOneDays(app: AppController) {
             )
             Text("Screen time here counts social, messaging and browser apps (Instagram, YouTube, WhatsApp, Chrome…).",
                 style = MaterialTheme.typography.bodySmall, color = Muted)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (compact) Text("Hide details", style = MaterialTheme.typography.labelLarge, color = Blue,
+                modifier = Modifier.weight(1f).clickable { expanded = false }.padding(vertical = 6.dp))
+            else Spacer(Modifier.weight(1f))
+            SmallPill(if (streak > 0) "Share my $streak-day streak 📤" else "Share my 21 days 📤") { app.shareKind = "streak" }
         }
         Row {
             Text(days.first().date.let { "${it.dayOfMonth} ${it.month.name.take(3).lowercase().replaceFirstChar { c -> c.uppercase() }}" },

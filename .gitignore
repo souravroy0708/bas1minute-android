@@ -13,3 +13,6 @@ captures/
 dist/
 *.b64
 secrets.env
+
+# Firebase config (provided to CI as a secret)
+app/google-services.json

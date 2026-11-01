@@ -93,6 +93,24 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## Share achievements (v0.7)
+
+"Share my day" (Today), "Share my streak" (21 days) and "Share my rank" (circle) open a sheet: pick Steps /
+21-day streak / Circle rank, Post (4:5) or Story (9:16), name on or off, preview, share. The image is drawn on
+the phone (`ShareCard.kt`), saved in the app's private cache and handed to WhatsApp / Instagram / Facebook via
+Android's share sheet (FileProvider, `res/xml/share_paths.xml`).
+
+## Motivation push notifications (v0.6)
+
+The admin writes templates (Django admin → Push notifications → Campaigns → "Send now"). Firebase delivers them
+as data messages; `PushService` fills `{name} {steps} {goal} {steps_left} {km} {screen} {limit} {rank} {circle}`
+from this phone's own data and checks the audience on the phone (`Personalizer.kt`). Profile → Motivation
+notifications switches it off.
+
+**Setup:** create a Firebase project → add Android app `com.bas1minute.sync` → download `google-services.json`
+→ GitHub secret `GOOGLE_SERVICES_JSON_BASE64` (`base64 -w0 google-services.json`). Without it the app builds
+without pushes.
+
 ## API security (v0.5)
 
 Every request is POST and signed: `X-B1M-Time`, `X-B1M-Nonce`, `X-B1M-Sign` = HMAC-SHA256(device secret,

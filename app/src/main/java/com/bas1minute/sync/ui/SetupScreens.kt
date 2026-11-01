@@ -52,7 +52,7 @@ fun SetupScreen(app: AppController) {
         return
     }
     if (step == "welcome") Welcome(onStart = { step = "name" }, onPrivacy = { privacy = true })
-    else NameAndPin(title = "Make it yours", onBack = { step = "welcome" }, askName = true) { name, pin -> app.finishSetup(name, pin) }
+    else NameAndPin(title = "What should we call you?", onBack = { step = "welcome" }, askName = true, askPin = false) { name, _ -> app.finishSetup(name, null) }
 }
 
 @Composable
@@ -103,7 +103,7 @@ private fun Promise(text: String) {
 
 /** Name (optional) + PIN + confirm. Used for first setup and for "Forgot PIN" / "Change PIN". */
 @Composable
-fun NameAndPin(title: String, onBack: (() -> Unit)?, askName: Boolean, onDone: (name: String, pin: String) -> Unit) {
+fun NameAndPin(title: String, onBack: (() -> Unit)?, askName: Boolean, askPin: Boolean = true, onDone: (name: String, pin: String) -> Unit) {
     var name by rememberSaveable { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var pin2 by remember { mutableStateOf("") }
@@ -117,16 +117,18 @@ fun NameAndPin(title: String, onBack: (() -> Unit)?, askName: Boolean, onDone: (
         if (onBack != null) TextButton(onClick = onBack) { Text("← Back", color = Muted, style = MaterialTheme.typography.labelLarge) }
         Text(title, style = MaterialTheme.typography.headlineLarge)
         if (askName) {
-            Text("What should we call you? It’s shown to circles you join. Nothing else is asked.",
+            Text("Just a name, shown only to circles you join. No phone number, no email, no password.",
                 style = MaterialTheme.typography.bodyLarge, color = Muted)
             AppField("Your name", name, { name = it.take(40) }, null, placeholder = "Sourav")
         }
-        Text("Choose a 4-digit PIN to open the app if you switch on App lock. Forgot it? You can set a new one anytime.",
-            style = MaterialTheme.typography.bodyMedium, color = Muted)
-        PinField("4-digit PIN", pin) { pin = it }
-        PinField("Type it again", pin2) { pin2 = it }
-        if (pinOk && pin2.length == 4 && !match) Text("The PINs don’t match.", color = Danger, style = MaterialTheme.typography.bodyMedium)
-        BigButton("Continue", enabled = pinOk && match && (!askName || name.isNotBlank())) { onDone(name, pin) }
+        if (askPin) {
+            Text("Choose a 4-digit PIN to open the app. Forgot it? You can set a new one anytime.",
+                style = MaterialTheme.typography.bodyMedium, color = Muted)
+            PinField("4-digit PIN", pin) { pin = it }
+            PinField("Type it again", pin2) { pin2 = it }
+            if (pinOk && pin2.length == 4 && !match) Text("The PINs don’t match.", color = Danger, style = MaterialTheme.typography.bodyMedium)
+        }
+        BigButton(if (askPin) "Save PIN" else "Start", enabled = (!askPin || (pinOk && match)) && (!askName || name.isNotBlank())) { onDone(name, pin) }
     }
 }
 
