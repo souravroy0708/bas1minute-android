@@ -96,6 +96,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("track_voice", false)
         set(v) = p.edit().putBoolean("track_voice", v).apply()
 
+    /** Move tab: weekly distance goal in km. */
+    var weeklyKmGoal: Int
+        get() = p.getInt("weekly_km_goal", 10)
+        set(v) = p.edit().putInt("weekly_km_goal", v.coerceIn(1, 500)).apply()
+
     /** Shared pictures leave out the first and last 200 m by default (privacy first). */
     var trackHideEnds: Boolean
         get() = p.getBoolean("track_hide_ends", true)

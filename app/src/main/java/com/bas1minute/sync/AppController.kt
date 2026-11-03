@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.time.LocalDate
 
-enum class Tab { Today, Insights, Circles, Spin, Profile }
+/** Bottom tabs. Move (walks, runs, rides) is a daily tab; the health wheel opens from a card on Today. */
+enum class Tab { Today, Move, Circles, Insights, Profile }
 
 /** Holds what the screens show. Reads phone data and the website; falls back to saved copies offline. */
 class AppController(private val ctx: android.content.Context, private val scope: CoroutineScope) {
@@ -76,7 +77,34 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var phoneCheckOpen by mutableStateOf(false)
 
     /** GPS walk / run screen open on top of Today. */
-    var trackOpen by mutableStateOf(false)
+    var trackOpen: Boolean
+        get() = tab == Tab.Move
+        set(v) { if (v) tab = Tab.Move }
+    /** Health wheel, opened from its card on Today. */
+    var spinOpen by mutableStateOf(false)
+    /** Competitions on Circles. */
+    var competitions by mutableStateOf<List<com.bas1minute.sync.api.Competition>>(emptyList())
+    var openCompetitionId by mutableStateOf<Int?>(null)
+    var competition by mutableStateOf<com.bas1minute.sync.api.Competition?>(null)
+
+    fun loadCompetitions() = launch {
+        if (!repo.ensureAccount()) return@launch
+        community.competitions().value?.let { competitions = it }
+    }
+
+    fun openCompetition(id: Int) {
+        openCompetitionId = id
+        competition = competitions.firstOrNull { it.id == id }
+        launch { community.competition(id).let { l -> l.value?.let { competition = it }; offline = l.offline } }
+    }
+
+    fun joinCompetition(id: Int, join: Boolean) = launch {
+        val r = community.joinCompetition(id, join)
+        handle(r, if (join) "You’re in. Shabash! Your steps count from today." else "You left the competition.") {
+            if (r is com.bas1minute.sync.api.Res.Ok) competition = r.value
+            loadCompetitions()
+        }
+    }
     /** A finished activity's summary (null = start screen and history). */
     var trackDetailId by mutableStateOf<Long?>(null)
     /** 3-2-1 before recording starts (set once location and GPS are ready). */
@@ -297,7 +325,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
                 ProfilePhoto.remove(ctx); avatar = null
                 today = null; circles = null; circle = null; openCircleId = null
                 burstOpen = false; logOpen = false; aboutPage = null; wheelOpen = false
-                trackOpen = false; trackDetailId = null; trackVersion++
+                trackDetailId = null; trackVersion++; spinOpen = false; competitions = emptyList(); openCompetitionId = null
                 phoneCheckOpen = false; com.bas1minute.sync.phone.PhoneCheckReader.cached = null
                 globalOpen = false; findOpen = false; globalBoard = null; myRequests = emptyList()
                 phone = Snapshot()

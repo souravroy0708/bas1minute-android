@@ -133,7 +133,7 @@ fun WheelTeaser(app: AppController) {
     val left = remember(version) { app.spinsLeft() }
     val found = remember(version) { app.prefs.discoveredTips.size }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBg).clickable { app.tab = com.bas1minute.sync.Tab.Spin }.padding(16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(CardBg).clickable { app.spinOpen = true }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HealthWheel(size = 72.dp, rotation = 15f, showLabels = false)
@@ -144,7 +144,7 @@ fun WheelTeaser(app: AppController) {
                 else "Come back tomorrow for 3 new spins", style = MaterialTheme.typography.bodySmall, color = Muted)
             Text("$found of ${Wellbeing.TIPS.size} tips discovered", style = MaterialTheme.typography.labelMedium, color = Blue)
         }
-        SmallPill(if (left > 0) "Spin" else "Tips") { app.tab = com.bas1minute.sync.Tab.Spin }
+        SmallPill(if (left > 0) "Spin" else "Tips") { app.spinOpen = true }
     }
 }
 

@@ -179,7 +179,9 @@ class Repo(context: Context) {
 
     // ---------- actions that need the website ----------
 
-    suspend fun createCircle(name: String, kind: String) = write("circles/", JSONObject().put("name", name).put("kind", kind), queueable = false)
+    /** listed = anyone can find it and ask to join; private = invite only. Changeable later. */
+    suspend fun createCircle(name: String, kind: String, listed: Boolean = false, about: String = "") =
+        write("circles/", JSONObject().put("name", name).put("kind", kind).put("discoverable", listed).put("about", about), queueable = false)
     suspend fun joinCircle(code: String) = write("circles/join/", JSONObject().put("code", code), queueable = false)
     suspend fun shareScreen(circleId: Int, on: Boolean) = write("circles/$circleId/settings/", JSONObject().put("share_screen_time", on), queueable = false)
     suspend fun leaveCircle(circleId: Int) = write("circles/$circleId/leave/", JSONObject(), queueable = false)
@@ -238,6 +240,7 @@ class Repo(context: Context) {
         community.global("week")
         community.global("today")
         community.myRequests()
+        (community.competitions().value ?: emptyList()).filter { it.status != "ended" }.forEach { community.competition(it.id) }
         return true
     }
 

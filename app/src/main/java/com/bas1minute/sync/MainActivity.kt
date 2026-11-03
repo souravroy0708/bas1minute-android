@@ -235,8 +235,7 @@ class MainActivity : ComponentActivity() {
         // Tapped the walk/run notification
         if (intent?.getBooleanExtra(com.bas1minute.sync.track.TrackingService.EXTRA_OPEN_TRACK, false) == true) {
             intent?.removeExtra(com.bas1minute.sync.track.TrackingService.EXTRA_OPEN_TRACK)
-            app.tab = Tab.Today
-            app.trackOpen = true
+            app.tab = Tab.Move
         }
         // Tapped the Phone check evening alert
         if (intent?.getBooleanExtra(com.bas1minute.sync.phone.BatteryWorker.EXTRA_OPEN, false) == true) {

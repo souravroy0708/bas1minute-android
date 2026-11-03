@@ -63,7 +63,10 @@ fun kindColor(kind: String): Color = when (kind) {
 @Composable
 fun CirclesTab(app: AppController, onShare: (String) -> Unit, onShareWhatsApp: (String) -> Unit) {
     LaunchedEffect(Unit) { app.refreshCircles() }
-    if (app.globalOpen) {
+    if (app.openCompetitionId != null) {
+        BackHandler { app.openCompetitionId = null }
+        CompetitionScreen(app, onBack = { app.openCompetitionId = null })
+    } else if (app.globalOpen) {
         BackHandler { app.globalOpen = false }
         GlobalBoardScreen(app, onBack = { app.globalOpen = false })
     } else if (app.findOpen) {
@@ -87,39 +90,53 @@ private fun CircleList(app: AppController) {
         Modifier.fillMaxSize().background(Paper).statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Your circles", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(top = 8.dp))
-        Text("Move together with family, college friends or your office team.", style = MaterialTheme.typography.bodyLarge, color = Muted)
-        SavedCopyNote(app.offline, app.circlesSavedAt)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("Circles", style = MaterialTheme.typography.headlineLarge)
+                Text("Compete, climb the ranking, move together", style = MaterialTheme.typography.bodyMedium, color = Muted)
+            }
+            SavedCopyNote(app.offline, app.circlesSavedAt)
+        }
 
-        // Everyone is in the global circle
+        // 1. Competitions: the reason to open Circles every day
+        CompetitionsSection(app)
+
+        // 2. Where you stand in India
         GlobalCard(app)
         MyRequestsCard(app)
 
+        // 3. Your circles
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+            Text("Your circles", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            data?.let { Text("You own ${it.owned} of ${if (it.ownedLimit >= 999) "∞" else it.ownedLimit}", style = MaterialTheme.typography.labelMedium, color = Muted) }
+        }
         if (data == null || data.circles.isEmpty()) {
             AppCard {
                 Badge("👨‍👩‍👧", Color(0xFFFFF3C8), 72)
                 Text("Fitness is easier together", style = MaterialTheme.typography.titleLarge)
-                Text("Start a circle for your family, then share the invite on WhatsApp. You can be in up to 10 circles.",
+                Text("Start a circle for family or office, or find an open one. Share the invite on WhatsApp.",
                     style = MaterialTheme.typography.bodyMedium, color = Muted)
             }
         } else {
             data.circles.forEach { c -> CircleCard(c) { app.openCircle(c.id) } }
         }
-
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            BigButton("Start a circle", modifier = Modifier.weight(1f)) { creating = true }
+            BigButton("Start a circle", enabled = data?.canCreate ?: true, modifier = Modifier.weight(1f)) { creating = true }
             GhostButton("Join with code", modifier = Modifier.weight(1f)) { joining = true }
         }
-        BigButton("Find a circle to join", dark = false) { app.findOpen = true }
+        if (data != null && !data.canCreate) Text("You own ${data.owned} circles, the most you can. Delete one or hand it over to start another.",
+            style = MaterialTheme.typography.bodySmall, color = Muted)
+        GhostButton("Find an open circle") { app.findOpen = true }
         AppCard(title = "How points work") {
-            Text("One point for every day you reach your own step goal. Goals are personal, so Papa’s 4,000 steps can beat your 7,000 if that’s his goal. Only members who share their steps get points; others show as Private. Weeks reset every Monday.",
-                style = MaterialTheme.typography.bodyMedium, color = Muted)
+            Text("One point for every day you reach your own step goal, so Papa’s 4,000 steps can beat your 7,000. Only members who share their steps get points; others show as Private. Weeks reset every Monday.",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
         }
     }
 
     if (creating) {
         var name by remember { mutableStateOf("") }
         var kind by remember { mutableStateOf("family") }
+        var listed by remember { mutableStateOf(false) }
         val kinds = data?.kinds?.takeIf { it.isNotEmpty() }
             ?: listOf("family" to "Family", "friends" to "Friends", "college" to "College friends", "office" to "Office", "other" to "Other")
         AlertDialog(
@@ -136,13 +153,22 @@ private fun CircleList(app: AppController) {
                                     .clickable { kind = value }.padding(horizontal = 12.dp, vertical = 8.dp))
                         }
                     }
+                    Text("Who can find it?", style = MaterialTheme.typography.titleMedium)
+                    listOf(false to ("Private" to "Only people with your invite link"), true to ("Listed" to "Anyone can find it and ask to join. You approve each person.")).forEach { (v, txt) ->
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (listed == v) Color(0xFFFFF3C8) else Paper)
+                            .clickable { listed = v }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.RadioButton(selected = listed == v, onClick = { listed = v })
+                            Column { Text(txt.first, style = MaterialTheme.typography.titleMedium); Text(txt.second, style = MaterialTheme.typography.bodySmall, color = Muted) }
+                        }
+                    }
+                    Text("You can change this any time in the circle’s settings.", style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
             },
             confirmButton = {
                 TextButton(enabled = name.isNotBlank(), onClick = {
                     creating = false
                     app.launch {
-                        val res = app.repo.createCircle(name, kind)
+                        val res = app.repo.createCircle(name, kind, listed)
                         app.handle(res, "“$name” is ready. Invite people to start.") {
                             if (res is Res.Ok) app.openCircle(res.value.getJSONObject("circle").getInt("id"))
                         }

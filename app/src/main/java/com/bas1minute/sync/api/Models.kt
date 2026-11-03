@@ -68,11 +68,20 @@ data class CircleSummary(
     }
 }
 
-data class CirclesData(val circles: List<CircleSummary>, val kinds: List<Pair<String, String>>) {
+data class CirclesData(
+    val circles: List<CircleSummary>,
+    val kinds: List<Pair<String, String>>,
+    /** Circles you own, and how many you may own (3 unless the team raised it). */
+    val owned: Int = 0,
+    val ownedLimit: Int = 3,
+) {
+    val canCreate: Boolean get() = owned < ownedLimit && circles.size < 10
+
     companion object {
         fun from(j: JSONObject) = CirclesData(
             j.optJSONArray("circles").mapObjects { CircleSummary.from(it) },
             j.optJSONArray("kinds").mapObjects { it.optString("value") to it.optString("label") },
+            j.optInt("owned", 0), j.optInt("owned_limit", 3),
         )
     }
 }

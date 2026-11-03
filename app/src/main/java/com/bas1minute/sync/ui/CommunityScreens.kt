@@ -3,6 +3,7 @@ package com.bas1minute.sync.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -156,13 +157,13 @@ fun GlobalBoardScreen(app: AppController, onBack: () -> Unit) {
                     "One point for every day you reach your own step goal, so a 4,000-step goal counts the same as 10,000. " +
                     "Ties go to more steps. Weeks reset every Monday.",
                     style = MaterialTheme.typography.bodyMedium, color = Muted)
-                Text("Fair play: only steps your phone or watch measured count here, not typed ones. Names are shortened so nobody can be identified.",
+                Text("Fair play: only steps your phone or watch measured count here, not typed ones. Only names (and a city, if set) are shown.",
                     style = MaterialTheme.typography.bodySmall, color = Muted)
                 if (app.prefs.shareActivity) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Show me in the global ranking", style = MaterialTheme.typography.titleMedium)
-                            Text("As “${com.bas1minute.sync.api.Community.mask(app.prefs.name.ifBlank { app.prefs.firstName })}” to others", style = MaterialTheme.typography.bodySmall, color = Muted)
+                            Text("As “${app.prefs.name.ifBlank { app.prefs.firstName }}” to others", style = MaterialTheme.typography.bodySmall, color = Muted)
                         }
                         Switch(checked = b?.me?.visible ?: app.prefs.globalVisible, onCheckedChange = { app.setGlobalVisible(it) },
                             colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi))
@@ -242,7 +243,7 @@ private fun GlobalPodium(top: List<GlobalRow>) {
 }
 
 @Composable
-private fun GlobalLine(r: GlobalRow) {
+private fun GlobalLine(r: GlobalRow, trailing: String = "${r.points}", unit: String = " pts") {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (r.isMe) Color(0xFFFFF3C8) else Color.Transparent)
         .then(if (r.isMe) Modifier.border(1.dp, Haldi, RoundedCornerShape(14.dp)) else Modifier).padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
@@ -256,8 +257,8 @@ private fun GlobalLine(r: GlobalRow) {
             Text(listOfNotNull(r.city, "${nf.format(r.steps)} steps").joinToString(" · "), style = MaterialTheme.typography.bodySmall,
                 color = if (r.isMe) Ink else Muted, maxLines = 1)
         }
-        Text("${r.points}", style = MaterialTheme.typography.titleLarge, color = if (r.isMe) Ink else TextMain)
-        Text(" pts", style = MaterialTheme.typography.bodySmall, color = if (r.isMe) Ink else Muted)
+        Text(trailing, style = MaterialTheme.typography.titleLarge, color = if (r.isMe) Ink else TextMain)
+        Text(unit, style = MaterialTheme.typography.bodySmall, color = if (r.isMe) Ink else Muted)
     }
 }
 
@@ -320,7 +321,7 @@ fun FindCirclesScreen(app: AppController, onBack: () -> Unit) {
             title = { Text("Ask to join ${c.name}") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("The owner sees your shortened name and this note, and can approve or decline. If you share steps, they also see your points this week.",
+                    Text("The owner sees your name and this note, and can approve or decline. If you share steps, they also see your points this week.",
                         style = MaterialTheme.typography.bodySmall, color = Muted)
                     OutlinedTextField(value = msg, onValueChange = { msg = it.take(140) }, placeholder = { Text("Say hello (optional)") },
                         shape = RoundedCornerShape(14.dp), supportingText = { Text("${msg.length}/140") })
@@ -465,5 +466,102 @@ fun DiscoverableSetting(app: AppController, d: CircleDetail) {
             }) { Text("Show in search") } },
             dismissButton = { TextButton(onClick = { editing = false }) { Text(t("Cancel"), color = Muted) } },
         )
+    }
+}
+
+
+// ================================================================ Competitions
+
+private fun compStatus(c: com.bas1minute.sync.api.Competition) = when (c.status) {
+    "live" -> "● Live · ${c.daysLeft} day${if (c.daysLeft == 1) "" else "s"} left"
+    "upcoming" -> "Starts in ${c.daysToStart} day${if (c.daysToStart == 1) "" else "s"}"
+    else -> "Ended"
+}
+
+private fun score(c: com.bas1minute.sync.api.Competition, v: Long) = if (c.bySteps) "${nf.format(v)} steps" else "$v day${if (v == 1L) "" else "s"}"
+
+/** Live and upcoming challenges, first on Circles. */
+@Composable
+fun CompetitionsSection(app: AppController) {
+    LaunchedEffect(Unit) { app.loadCompetitions() }
+    val list = app.competitions
+    if (list.isEmpty()) return
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Competitions", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        Text("${list.count { it.status == "live" }} live", style = MaterialTheme.typography.labelMedium, color = Muted)
+    }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        list.forEach { c ->
+            val live = c.status == "live"
+            Column(
+                Modifier.width(280.dp).clip(RoundedCornerShape(24.dp)).background(if (live) Haldi else CardBg)
+                    .clickable { app.openCompetition(c.id) }.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(compStatus(c), style = MaterialTheme.typography.labelMedium, color = Ink)
+                Text(c.title, style = MaterialTheme.typography.titleLarge, color = Ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("${c.metricLabel} · ${nf.format(c.entrants)} joined", style = MaterialTheme.typography.bodySmall, color = Ink)
+                Text(when {
+                    c.myRank != null -> "You’re #${c.myRank} · ${score(c, c.myScore)}"
+                    c.joined && !c.shares -> "Joined · share steps to be scored"
+                    c.joined -> "Joined"
+                    c.status == "ended" -> "Ended"
+                    else -> "Tap to join →"
+                }, style = MaterialTheme.typography.titleMedium, color = Ink)
+            }
+        }
+    }
+}
+
+@Composable
+fun CompetitionScreen(app: AppController, onBack: () -> Unit) {
+    val c = app.competition
+    Column(Modifier.fillMaxSize().background(Paper).verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Ink, Ink2))).statusBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack) { Text("← Circles", color = MutedOnDark, style = MaterialTheme.typography.labelLarge) }
+                Spacer(Modifier.weight(1f)); SavedCopyNote(app.offline, c?.updatedAt)
+            }
+            if (c == null) { Text("Loading…", color = MutedOnDark); return@Column }
+            Text(compStatus(c), style = MaterialTheme.typography.labelMedium, color = Ink,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 10.dp, vertical = 4.dp))
+            Text(c.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
+            c.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MutedOnDark) }
+            Text("${c.metricLabel} · ${c.startsOn} → ${c.endsOn} · ${nf.format(c.entrants)} joined" + (c.prize?.let { " · 🎁 $it" } ?: ""),
+                style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Ink3).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when {
+                    c.myRank != null -> {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text("#${c.myRank}", style = MaterialTheme.typography.displayMedium, color = Haldi)
+                            Text("  of ${c.scored}", style = MaterialTheme.typography.titleMedium, color = MutedOnDark, modifier = Modifier.padding(bottom = 6.dp))
+                        }
+                        Text(score(c, c.myScore), style = MaterialTheme.typography.titleLarge, color = Color.White)
+                    }
+                    c.joined && !c.shares -> {
+                        Text("You’re in, but not scored yet", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        Text("Turn on sharing so your steps count: Profile → Your data.", style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
+                        SmallPill("Share my steps") { app.setSharing(true) }
+                    }
+                    c.joined -> Text("You’re in. Your score appears after your phone syncs.", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                    else -> Text("Anyone can join. Only steps your phone or watch measured count.", style = MaterialTheme.typography.bodyMedium, color = Color.White)
+                }
+                if (c.status != "ended") {
+                    if (c.joined) TextButton(onClick = { app.joinCompetition(c.id, false) }) { Text("Leave competition", color = MutedOnDark) }
+                    else BigButton("Join competition", dark = false) { app.joinCompetition(c.id, true) }
+                }
+            }
+        }
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val comp = c ?: return@Column
+            AppCard(title = "Leaderboard") {
+                if (comp.top.isEmpty()) Text("No scores yet. Be the first.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                comp.top.forEach { r ->
+                    GlobalLine(GlobalRow(r.rank, r.name, r.city, 0, r.steps, r.isMe), trailing = if (comp.bySteps) nf.format(r.score) else "${r.score}",
+                        unit = if (comp.bySteps) " steps" else " days")
+                }
+            }
+        }
     }
 }

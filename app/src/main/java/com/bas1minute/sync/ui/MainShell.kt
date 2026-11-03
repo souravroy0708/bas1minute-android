@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Home
@@ -31,13 +31,13 @@ private data class TabItem(val tab: Tab, val label: String, val icon: ImageVecto
 
 private val TABS = listOf(
     TabItem(Tab.Today, "Today", Icons.Filled.Home),
-    TabItem(Tab.Insights, "Insights", Icons.Filled.Insights),
+    TabItem(Tab.Move, "Move", Icons.Filled.DirectionsRun),
     TabItem(Tab.Circles, "Circles", Icons.Filled.Groups),
-    TabItem(Tab.Spin, "Spin", Icons.Filled.Casino),
+    TabItem(Tab.Insights, "Insights", Icons.Filled.Insights),
     TabItem(Tab.Profile, "Profile", Icons.Filled.Person),
 )
 
-/** Five tabs: Today (with Log a day), Insights, Circles, Calm, Profile. */
+/** Five tabs: Today, Move (walks and runs), Circles, Insights, Profile. */
 @Composable
 fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Unit, onCall: (String) -> Unit) {
     val snackbar = remember { SnackbarHostState() }
@@ -53,9 +53,8 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
             if (id != null) {
                 com.bas1minute.sync.track.LiveTrack.justFinished.value = null
                 app.trackVersion++
-                app.tab = Tab.Today
+                app.tab = Tab.Move
                 app.trackDetailId = id
-                app.trackOpen = true
             }
         }
     }
@@ -68,7 +67,8 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                         selected = app.tab == item.tab,
                         onClick = {
                             if (item.tab == Tab.Circles && app.tab == Tab.Circles) { app.closeCircle(); app.globalOpen = false; app.findOpen = false }
-                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.trackOpen = false }
+                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.spinOpen = false }
+                            if (item.tab == Tab.Move && app.tab == Tab.Move) app.trackDetailId = null
                             if (item.tab == Tab.Profile) app.aboutPage = null
                             if (item.tab == Tab.Insights) app.phoneCheckOpen = false
                             app.tab = item.tab
@@ -90,7 +90,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         ShareSheet(app, actions.onShareImage)
         WeekReviewStory(app)
         // Fade-through between tabs and their full screens (burst, calm, log, circle)
-        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.trackOpen}:${app.phoneCheckOpen}"
+        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}"
         androidx.compose.animation.AnimatedContent(
             targetState = screen,
             transitionSpec = {
@@ -106,7 +106,10 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         Box(Modifier.fillMaxSize()) {
             when (shownTab) {
                 Tab.Today -> when {
-                    part[6] == "true" -> TrackScreen(app, actions, onClose = { app.trackOpen = false; app.trackDetailId = null })
+                    part[6] == "true" -> {
+                        androidx.activity.compose.BackHandler { app.spinOpen = false }
+                        WheelScreen(app, onClose = { app.spinOpen = false })
+                    }
                     part[2] == "true" -> {
                         androidx.activity.compose.BackHandler { app.calmOpen = false }
                         CalmTab(app, onCall, onClose = { app.calmOpen = false })
@@ -123,7 +126,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                 }
                 Tab.Insights -> if (part[7] == "true") PhoneCheckScreen(app, actions, onClose = { app.phoneCheckOpen = false }) else InsightsTab(app)
                 Tab.Circles -> CirclesTab(app, onShare, actions.onShareWhatsApp)
-                Tab.Spin -> WheelScreen(app, onClose = null)
+                Tab.Move -> MoveTab(app, actions)
                 Tab.Profile -> app.aboutPage?.let { page ->
                     androidx.activity.compose.BackHandler { app.aboutPage = null }
                     if (page == "help") PhoneHelpScreen(app, actions, onBack = { app.aboutPage = null })

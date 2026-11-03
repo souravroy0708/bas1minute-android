@@ -48,6 +48,8 @@ object Lang {
         "Walk or run" to "पैदल या दौड़", "Walk or run with GPS" to "GPS से पैदल या दौड़", "Walk" to "पैदल", "Run" to "दौड़",
         "Ride" to "साइकिल", "Pause" to "रोकें", "Resume" to "फिर शुरू", "Finish" to "पूरा करें", "Your activities" to "आपकी गतिविधियाँ",
         "Auto-pause" to "अपने आप रुकें", "Voice every km" to "हर किमी पर आवाज़", "Show my name" to "मेरा नाम दिखाएँ",
+        // Move tab
+        "Move" to "चलें",
         // Website sign-in
         "Website" to "वेबसाइट", "Sign in on the website" to "वेबसाइट पर साइन इन करें",
         // Phone check

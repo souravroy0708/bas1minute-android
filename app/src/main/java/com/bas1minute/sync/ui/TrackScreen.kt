@@ -6,6 +6,8 @@ import android.os.Looper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -119,24 +121,21 @@ private fun icon(t: ActivityType): ImageVector = when (t) {
 private fun paceLabel(t: ActivityType) = if (t == ActivityType.Cycle) "Avg speed" else "Avg pace"
 private fun paceValue(t: ActivityType, speedMs: Double) = if (t == ActivityType.Cycle) "${Fmt.kmh(speedMs)} km/h" else "${Fmt.pace(speedMs)} /km"
 
-/** Walk / run with GPS: start screen and history, the live map, or a finished activity. */
+/** The Move tab: start a walk, run or ride; this week; personal bests; history; a finished activity. */
 @Composable
-fun TrackScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit) {
+fun MoveTab(app: AppController, actions: PhoneActions) {
     val live by LiveTrack.state.collectAsState()
     val detail = app.trackDetailId
     when {
         live.active -> {
-            BackHandler { onClose(); app.message = "Still recording. Open it from Today or the notification." }
-            LiveView(app, live, onClose)
+            BackHandler { app.tab = com.bas1minute.sync.Tab.Today; app.message = "Still recording. It’s on the Move tab and in the notification." }
+            LiveView(app, live, onClose = { app.tab = com.bas1minute.sync.Tab.Today })
         }
         detail != null -> {
             BackHandler { app.trackDetailId = null }
-            SummaryView(app, detail, actions, onBack = { app.trackDetailId = null })
+            ActivityDetail(app, detail, actions, onBack = { app.trackDetailId = null })
         }
-        else -> {
-            BackHandler { onClose() }
-            StartView(app, actions.track, onClose)
-        }
+        else -> MoveHome(app, actions.track)
     }
     if (app.trackCountdown) Countdown(onDone = {
         app.trackCountdown = false
@@ -144,104 +143,206 @@ fun TrackScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit) 
     }, onCancel = { app.trackCountdown = false })
 }
 
-// ------------------------------------------------------------------ Start + history
+/** Everything Move shows, read once from SQLite. */
+private data class MoveData(
+    val history: List<ActivityRow>,
+    val weekKm: Double, val weekMs: Long, val weekCount: Int, val activeDays: Set<Int>,
+    val bests: List<Pair<String, String>>, val totalKm: Double,
+    val unfinished: ActivityRow?,
+)
 
-@SuppressLint("MissingPermission")
+private fun loadMove(store: TrackStore): MoveData {
+    val all = store.list(500)
+    val zone = ZoneId.systemDefault()
+    val monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val week = all.filter { !Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate().isBefore(monday) }
+    val bests = buildList {
+        ActivityType.entries.forEach { t ->
+            all.filter { it.type == t }.maxByOrNull { it.distanceM }?.let { add("Longest ${t.label.lowercase()}" to "${Fmt.km(it.distanceM)} km") }
+        }
+        all.filter { it.type != ActivityType.Cycle && it.distanceM >= 1000 }.maxByOrNull { it.avgSpeedMs }
+            ?.let { add("Best pace (1 km+)" to "${Fmt.pace(it.avgSpeedMs)} /km") }
+        all.groupBy { Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
+            .maxByOrNull { (_, v) -> v.sumOf { it.distanceM } }?.let { (_, v) -> add("Biggest week" to "${Fmt.km(v.sumOf { it.distanceM })} km") }
+    }
+    return MoveData(
+        history = all.take(60),
+        weekKm = week.sumOf { it.distanceM } / 1000, weekMs = week.sumOf { it.movingMs }, weekCount = week.size,
+        activeDays = week.map { Instant.ofEpochMilli(it.startedAt).atZone(zone).dayOfWeek.value }.toSet(),
+        bests = bests, totalKm = all.sumOf { it.distanceM } / 1000,
+        unfinished = store.unfinished(),
+    )
+}
+
+private fun groupLabel(startedAt: Long): String {
+    val zone = ZoneId.systemDefault()
+    val d = Instant.ofEpochMilli(startedAt).atZone(zone).toLocalDate()
+    val monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    return when {
+        !d.isBefore(monday) -> "This week"
+        !d.isBefore(monday.minusWeeks(1)) -> "Last week"
+        else -> d.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH))
+    }
+}
+
 @Composable
-private fun StartView(app: AppController, actions: TrackActions, onClose: () -> Unit) {
+private fun MoveHome(app: AppController, actions: TrackActions) {
     val ctx = LocalContext.current
     val store = remember { TrackStore(ctx) }
+    var data by remember { mutableStateOf<MoveData?>(null) }
     var type by remember { mutableStateOf(ActivityType.of(app.prefs.trackType)) }
-    var autoPause by remember { mutableStateOf(app.prefs.trackAutoPause) }
-    var voice by remember { mutableStateOf(app.prefs.trackVoice) }
-    var here by remember { mutableStateOf<LatLng?>(null) }
-    var accuracy by remember { mutableStateOf<Float?>(null) }
-    var history by remember { mutableStateOf<List<ActivityRow>>(emptyList()) }
-    var week by remember { mutableStateOf(0 to 0.0) }
-    var unfinished by remember { mutableStateOf<ActivityRow?>(null) }
+    var settings by remember { mutableStateOf(false) }
+    var goalEdit by remember { mutableStateOf(false) }
+    LaunchedEffect(app.trackVersion) { data = withContext(Dispatchers.IO) { runCatching { loadMove(store) }.getOrNull() } }
+    val goalKm = app.prefs.weeklyKmGoal
 
-    LaunchedEffect(app.trackVersion) {
-        withContext(Dispatchers.IO) {
-            history = store.list()
-            val monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            week = store.totalsSince(monday)
-            unfinished = store.unfinished()
-        }
-    }
-
-    // Warm up GPS while the person gets ready, so the first metres are accurate
-    val granted = app.locationGranted
-    DisposableEffect(granted) {
-        if (!granted) return@DisposableEffect onDispose { }
-        val client = LocationServices.getFusedLocationProviderClient(ctx)
-        val cb = object : LocationCallback() {
-            override fun onLocationResult(r: LocationResult) {
-                r.lastLocation?.let { here = LatLng(it.latitude, it.longitude); accuracy = if (it.hasAccuracy()) it.accuracy else null }
+    Column(Modifier.fillMaxSize().background(Paper).statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(t("Move"), style = MaterialTheme.typography.headlineLarge)
+                Text("Walks, runs and rides, tracked with GPS", style = MaterialTheme.typography.bodyMedium, color = Muted)
             }
+            RoundIcon(Icons.Filled.Tune, "Tracking settings", light = true) { settings = true }
         }
-        try {
-            client.requestLocationUpdates(LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000L).build(), cb, Looper.getMainLooper())
-        } catch (e: SecurityException) { /* permission removed meanwhile */ }
-        onDispose { client.removeLocationUpdates(cb) }
-    }
+        val d = data
+        d?.unfinished?.let { u -> UnfinishedCard(app, store, u) { app.trackVersion++ } }
 
-    Column(Modifier.fillMaxSize().background(Paper).verticalScroll(rememberScrollState())) {
-        Box(Modifier.fillMaxWidth().height(320.dp)) {
-            if (granted) {
-                RouteMap(segments = emptyList(), current = here, follow = true, dark = ThemeState.dark, modifier = Modifier.fillMaxSize())
-            } else {
-                Box(Modifier.fillMaxSize().background(Ink2), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                        Icon(Icons.Filled.MyLocation, contentDescription = null, tint = Haldi, modifier = Modifier.size(44.dp))
-                        Spacer(Modifier.height(10.dp))
-                        Text("Your route appears here", color = Color.White, style = MaterialTheme.typography.titleLarge)
-                        Text("Tap Start and allow location. It stays on this phone.", color = MutedOnDark,
-                            style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+        // This week, against a weekly distance goal
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Ink).clickable { goalEdit = true }.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("This week", color = MutedOnDark, style = MaterialTheme.typography.labelLarge)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(String.format(Locale.US, "%.1f", d?.weekKm ?: 0.0), color = Color.White,
+                            style = MaterialTheme.typography.displayLarge.copy(fontSize = 52.sp, lineHeight = 52.sp))
+                        Text(" / $goalKm km", color = Haldi, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 6.dp))
                     }
                 }
+                val pct = (((d?.weekKm ?: 0.0) / goalKm).coerceIn(0.0, 1.0) * 100).toInt()
+                Text(if (pct >= 100) "Goal ✓" else "$pct%", color = Ink, style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 12.dp, vertical = 6.dp))
             }
-            Row(Modifier.statusBarsPadding().padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoundIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClose)
-                Spacer(Modifier.weight(1f))
-                if (granted) GpsChip(accuracy)
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)).background(Ink3)) {
+                Box(Modifier.fillMaxWidth((((d?.weekKm ?: 0.0) / goalKm).coerceIn(0.0, 1.0)).toFloat()).fillMaxHeight().clip(RoundedCornerShape(50)).background(Haldi))
             }
-        }
-
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            unfinished?.let { u -> UnfinishedCard(app, store, u) { app.trackVersion++ } }
-
-            AppCard(title = t("Walk or run")) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActivityType.entries.forEach { tp ->
-                        val on = tp == type
-                        Column(
-                            Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(if (on) Ink else Paper)
-                                .clickable { type = tp; app.prefs.trackType = tp.id }.padding(vertical = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(icon(tp), contentDescription = null, tint = if (on) Haldi else TextMain)
-                            Text(t(tp.label), color = if (on) Color.White else TextMain, style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                WeekStat("Activities", "${d?.weekCount ?: 0}", Modifier.weight(1f))
+                WeekStat("Time", Fmt.duration(d?.weekMs ?: 0), Modifier.weight(1f))
+                WeekStat("All time", "${Fmt.km((d?.totalKm ?: 0.0) * 1000)} km", Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { i, l ->
+                    val on = (i + 1) in (d?.activeDays ?: emptySet())
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(26.dp).clip(CircleShape).background(if (on) Haldi else Ink3), contentAlignment = Alignment.Center) {
+                            if (on) Text("✓", color = Ink, style = MaterialTheme.typography.labelMedium)
                         }
+                        Text(l, color = MutedOnDark, style = MaterialTheme.typography.labelMedium)
                     }
                 }
-                ToggleRow("Auto-pause", "Stops the clock at signals and crossings", autoPause) { autoPause = it; app.prefs.trackAutoPause = it }
-                ToggleRow("Voice every km", "Hear your distance and time without looking", voice) { voice = it; app.prefs.trackVoice = it }
-                BigButton(t("Start"), dark = false) { actions.onReadyToStart() }
-                Text("GPS works without internet. The map needs data to load; your route records either way.",
-                    style = MaterialTheme.typography.bodySmall, color = Muted)
             }
-
-            AppCard(title = t("Your activities"), trailing = {
-                if (week.first > 0) Text("This week ${Fmt.km(week.second)} km", style = MaterialTheme.typography.labelMedium, color = Muted)
-            }) {
-                if (history.isEmpty()) {
-                    Text("Your walks and runs will be listed here, with the map, splits and a picture to share.",
-                        style = MaterialTheme.typography.bodyMedium, color = Muted)
-                }
-                history.forEach { row -> HistoryRow(row) { app.trackDetailId = row.id } }
-            }
-            Spacer(Modifier.height(8.dp))
         }
+
+        // Start: one tap. Location and GPS checks, then 3-2-1.
+        AppCard {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActivityType.entries.forEach { tp ->
+                    val on = tp == type
+                    Column(
+                        Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(if (on) Ink else Paper)
+                            .clickable { type = tp; app.prefs.trackType = tp.id }.padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Icon(icon(tp), contentDescription = null, tint = if (on) Haldi else TextMain)
+                        Text(t(tp.label), color = if (on) Color.White else TextMain, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+            BigButton("Start ${type.label.lowercase()}", dark = false) { actions.onReadyToStart() }
+            Text(listOf(if (app.prefs.trackAutoPause) "Auto-pause on" else "Auto-pause off",
+                if (app.prefs.trackVoice) "voice every km" else "voice off", "works without internet").joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = Muted, modifier = Modifier.clickable { settings = true })
+        }
+
+        if (!d?.bests.isNullOrEmpty()) {
+            AppCard(title = "Personal bests") {
+                d!!.bests.chunked(2).forEach { pair ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        pair.forEach { (l, v) ->
+                            Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Paper).padding(12.dp)) {
+                                Text(l, style = MaterialTheme.typography.bodySmall, color = Muted)
+                                Text(v, style = MaterialTheme.typography.titleLarge)
+                            }
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+
+        when {
+            d == null -> Text("Loading…", color = Muted)
+            d.history.isEmpty() -> AppCard {
+                Text("🏃", style = MaterialTheme.typography.displayMedium)
+                Text("Your first walk is one tap away", style = MaterialTheme.typography.titleLarge)
+                Text("Tap Start. Your route, distance, pace and kilometre splits are saved here, ready to share.",
+                    style = MaterialTheme.typography.bodyMedium, color = Muted)
+            }
+            else -> d.history.groupBy { groupLabel(it.startedAt) }.forEach { (label, rows) ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    Text(label, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    Text("${Fmt.km(rows.sumOf { it.distanceM })} km", style = MaterialTheme.typography.labelLarge, color = Muted)
+                }
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(CardBg).padding(horizontal = 12.dp, vertical = 4.dp)) {
+                    rows.forEach { row -> HistoryRow(row) { app.trackDetailId = row.id } }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+
+    if (settings) {
+        var autoPause by remember { mutableStateOf(app.prefs.trackAutoPause) }
+        var voice by remember { mutableStateOf(app.prefs.trackVoice) }
+        AlertDialog(
+            onDismissRequest = { settings = false },
+            title = { Text("Tracking settings") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ToggleRow("Auto-pause", "Stops the clock at signals and crossings", autoPause) { autoPause = it; app.prefs.trackAutoPause = it }
+                    ToggleRow("Voice every km", "Hear distance and time without looking", voice) { voice = it; app.prefs.trackVoice = it }
+                }
+            },
+            confirmButton = { TextButton(onClick = { settings = false; app.trackVersion++ }) { Text("Done") } },
+        )
+    }
+    if (goalEdit) {
+        var goal by remember { mutableStateOf(goalKm) }
+        AlertDialog(
+            onDismissRequest = { goalEdit = false },
+            title = { Text("Weekly distance goal") },
+            text = {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    listOf(5, 10, 15, 20, 30, 50).forEach { g ->
+                        Text("$g km", style = MaterialTheme.typography.labelLarge, color = if (g == goal) Color.White else TextMain,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (g == goal) Ink else Paper)
+                                .clickable { goal = g }.padding(horizontal = 14.dp, vertical = 10.dp))
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { app.prefs.weeklyKmGoal = goal; goalEdit = false; app.trackVersion++ }) { Text(t("Save")) } },
+            dismissButton = { TextButton(onClick = { goalEdit = false }) { Text(t("Cancel"), color = Muted) } },
+        )
+    }
+}
+
+@Composable
+private fun WeekStat(label: String, value: String, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Ink2).padding(10.dp)) {
+        Text(label, color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+        Text(value, color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 1)
     }
 }
 
@@ -270,14 +371,18 @@ private fun UnfinishedCard(app: AppController, store: TrackStore, u: ActivityRow
 @Composable
 private fun HistoryRow(r: ActivityRow, onClick: () -> Unit) {
     val density = LocalDensity.current
-    val px = with(density) { 56.dp.roundToPx() }
+    val px = with(density) { 52.dp.roundToPx() }
     val thumb = remember(r.id, r.preview.size) { RouteCard.thumbnail(r.preview, px).asImageBitmap() }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 6.dp),
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(onClickLabel = "Open ${r.title}", onClick = onClick).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Image(thumb, contentDescription = null, modifier = Modifier.size(56.dp))
+        Image(thumb, contentDescription = null, modifier = Modifier.size(52.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(r.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon(r.type), contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(r.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             Text(Instant.ofEpochMilli(r.startedAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE d MMM · h:mm a", Locale.ENGLISH)),
                 style = MaterialTheme.typography.bodySmall, color = Muted)
         }
@@ -285,6 +390,7 @@ private fun HistoryRow(r: ActivityRow, onClick: () -> Unit) {
             Text("${Fmt.km(r.distanceM)} km", style = MaterialTheme.typography.titleMedium)
             Text("${Fmt.duration(r.movingMs)} · ${paceValue(r.type, r.avgSpeedMs)}", style = MaterialTheme.typography.bodySmall, color = Muted)
         }
+        Text("  ›", style = MaterialTheme.typography.titleLarge, color = Muted)
     }
 }
 
@@ -396,104 +502,144 @@ private fun BigRound(icon: ImageVector, label: String, bg: Color, modifier: Modi
     }
 }
 
-// ------------------------------------------------------------------ Summary
+// ------------------------------------------------------------------ Activity detail
+
+/** Loading → ready, missing or error: never a blank screen. */
+private sealed interface DetailState {
+    data object Loading : DetailState
+    data object Missing : DetailState
+    data class Failed(val message: String) : DetailState
+    data class Ready(val row: ActivityRow, val points: List<TrackPoint>, val best: Double) : DetailState
+}
 
 @Composable
-private fun SummaryView(app: AppController, id: Long, actions: PhoneActions, onBack: () -> Unit) {
+private fun ActivityDetail(app: AppController, id: Long, actions: PhoneActions, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val store = remember { TrackStore(ctx) }
-    var row by remember { mutableStateOf<ActivityRow?>(null) }
-    var points by remember { mutableStateOf<List<TrackPoint>>(emptyList()) }
-    var best by remember { mutableStateOf(0.0) }
-    var share by remember { mutableStateOf(false) }
-    var rename by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
-
+    var state by remember(id) { mutableStateOf<DetailState>(DetailState.Loading) }
     LaunchedEffect(id, app.trackVersion) {
-        withContext(Dispatchers.IO) {
-            row = store.row(id); points = store.points(id)
-            row?.let { best = store.longest(it.type) }
+        state = withContext(Dispatchers.IO) {
+            try {
+                val row = store.row(id)
+                if (row == null) DetailState.Missing else DetailState.Ready(row, store.points(id), store.longest(row.type))
+            } catch (e: Exception) {
+                DetailState.Failed(e.message ?: "Couldn’t read this activity.")
+            }
         }
     }
-    val r = row ?: run {
-        Box(Modifier.fillMaxSize().background(Paper), contentAlignment = Alignment.Center) { Text("Loading…", color = Muted) }
-        return
+    when (val s = state) {
+        DetailState.Loading -> Box(Modifier.fillMaxSize().background(Paper), contentAlignment = Alignment.Center) { Text("Loading…", color = Muted) }
+        DetailState.Missing -> DetailMessage("This activity was deleted.", onBack)
+        is DetailState.Failed -> DetailMessage("Couldn’t open this activity: ${s.message}", onBack)
+        is DetailState.Ready -> DetailContent(app, s, actions, store, onBack)
     }
+}
+
+@Composable
+private fun DetailMessage(text: String, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Paper).statusBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TextButton(onClick = onBack) { Text("← Move", color = Muted, style = MaterialTheme.typography.labelLarge) }
+        AppCard { Text(text, style = MaterialTheme.typography.titleMedium) }
+    }
+}
+
+@Composable
+private fun DetailContent(app: AppController, s: DetailState.Ready, actions: PhoneActions, store: TrackStore, onBack: () -> Unit) {
+    val r = s.row
+    val points = s.points
     val segments = remember(points) { TrackSummary.segments(points) }
     val loop = remember(points) { TrackSummary.isLoop(points) }
     val splits = remember(points) { TrackSummary.splits(points) }
+    // A route needs real movement to draw; a few metres would show an empty, over-zoomed map
+    val mappable = remember(points) {
+        points.size >= 2 && points.maxOf { it.lat } - points.minOf { it.lat } + points.maxOf { it.lng } - points.minOf { it.lng } > 0.0002
+    }
     val handle = remember { MapHandle() }
+    var share by remember { mutableStateOf(false) }
+    var rename by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val started = Instant.ofEpochMilli(r.startedAt).atZone(ZoneId.systemDefault())
 
-    Column(Modifier.fillMaxSize().background(Paper).verticalScroll(rememberScrollState())) {
-        Box(Modifier.fillMaxWidth().height(340.dp)) {
-            RouteMap(segments = segments, start = points.firstOrNull()?.let { LatLng(it.lat, it.lng) },
-                finish = points.lastOrNull()?.let { LatLng(it.lat, it.lng) }, loop = loop, fitRoute = true,
-                dark = ThemeState.dark, handle = handle, modifier = Modifier.fillMaxSize())
-            Row(Modifier.statusBarsPadding().padding(12.dp).fillMaxWidth()) {
-                RoundIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack)
-                Spacer(Modifier.weight(1f))
-                RoundIcon(Icons.Filled.MyLocation, "Show whole route") { handle.fit(segments.flatten()) }
+    Column(Modifier.fillMaxSize().background(Paper).statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("← Move", color = Muted, style = MaterialTheme.typography.labelLarge) }
+            Spacer(Modifier.weight(1f))
+            RoundIcon(Icons.Filled.Edit, "Rename", light = true) { rename = true }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(CircleShape).background(Ink), contentAlignment = Alignment.Center) {
+                Icon(icon(r.type), contentDescription = null, tint = Haldi)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(r.title, style = MaterialTheme.typography.headlineMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(started.format(DateTimeFormatter.ofPattern("EEEE d MMM yyyy · h:mm a", Locale.ENGLISH)), style = MaterialTheme.typography.bodySmall, color = Muted)
             }
         }
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            AppCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(r.title, style = MaterialTheme.typography.headlineMedium)
-                        Text(Instant.ofEpochMilli(r.startedAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEEE d MMM yyyy · h:mm a", Locale.ENGLISH)),
-                            style = MaterialTheme.typography.bodySmall, color = Muted)
-                    }
-                    RoundIcon(Icons.Filled.Edit, "Rename", light = true) { rename = true }
+
+        Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(24.dp)).background(CardBg)) {
+            if (mappable) {
+                RouteMap(segments = segments, start = points.first().let { LatLng(it.lat, it.lng) },
+                    finish = points.last().let { LatLng(it.lat, it.lng) }, loop = loop, fitRoute = true,
+                    dark = ThemeState.dark, handle = handle, modifier = Modifier.fillMaxSize())
+                Box(Modifier.align(Alignment.TopEnd).padding(10.dp)) { RoundIcon(Icons.Filled.MyLocation, "Show whole route") { handle.fit(segments.flatten()) } }
+            } else {
+                Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("📍", style = MaterialTheme.typography.displayMedium)
+                    Text("Too short to draw a route", style = MaterialTheme.typography.titleMedium)
+                    Text("Move at least 50 metres and your path appears here.", style = MaterialTheme.typography.bodySmall, color = Muted, textAlign = TextAlign.Center)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Tag(if (loop) "↻ Round trip" else "Start → Finish", Color(0xFFE9ECFF))
-                    if (r.distanceM >= 1000 && r.distanceM >= best - 1) Tag("🏅 Longest ${r.type.label.lowercase()}", Haldi)
-                }
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(Fmt.km(r.distanceM), style = MaterialTheme.typography.displayLarge)
-                    Spacer(Modifier.width(6.dp))
-                    Text("km", style = MaterialTheme.typography.headlineMedium, color = Blue, modifier = Modifier.padding(bottom = 6.dp))
-                }
-                val cells = listOf(
-                    "Moving time" to Fmt.duration(r.movingMs),
-                    paceLabel(r.type) to paceValue(r.type, r.avgSpeedMs),
-                    "Avg speed" to "${Fmt.kmh(r.avgSpeedMs)} km/h",
-                    "Max speed" to "${Fmt.kmh(r.maxSpeedMs)} km/h",
-                    "Elevation gain" to "${r.elevGainM.toInt()} m",
-                    "Energy (est.)" to (r.kcal?.let { "$it kcal" } ?: "–"),
-                    "Total time" to Fmt.duration(r.elapsedMs),
-                    "GPS points" to "${points.size}",
-                )
-                cells.chunked(2).forEach { pair ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        pair.forEach { (label, value) ->
-                            Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Paper).padding(12.dp)) {
-                                Text(label, style = MaterialTheme.typography.bodySmall, color = Muted)
-                                Text(value, style = MaterialTheme.typography.titleLarge)
-                            }
+            }
+        }
+
+        AppCard {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Tag(if (loop) "↻ Round trip" else "Start → Finish", Color(0xFFE9ECFF))
+                if (r.distanceM >= 1000 && r.distanceM >= s.best - 1) Tag("🏅 Longest ${r.type.label.lowercase()}", Haldi)
+            }
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(Fmt.km(r.distanceM), style = MaterialTheme.typography.displayLarge)
+                Spacer(Modifier.width(6.dp))
+                Text("km", style = MaterialTheme.typography.headlineMedium, color = Blue, modifier = Modifier.padding(bottom = 6.dp))
+            }
+            listOf(
+                "Moving time" to Fmt.duration(r.movingMs),
+                paceLabel(r.type) to paceValue(r.type, r.avgSpeedMs),
+                "Avg speed" to "${Fmt.kmh(r.avgSpeedMs)} km/h",
+                "Max speed" to "${Fmt.kmh(r.maxSpeedMs)} km/h",
+                "Elevation gain" to "${r.elevGainM.toInt()} m",
+                "Energy (est.)" to (r.kcal?.let { "$it kcal" } ?: "–"),
+            ).chunked(2).forEach { pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    pair.forEach { (label, value) ->
+                        Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Paper).padding(12.dp)) {
+                            Text(label, style = MaterialTheme.typography.bodySmall, color = Muted)
+                            Text(value, style = MaterialTheme.typography.titleLarge)
                         }
                     }
                 }
-                Text("Energy uses your latest weight if you log it (else 65 kg). Elevation from GPS is approximate.",
-                    style = MaterialTheme.typography.bodySmall, color = Muted)
             }
-
-            if (splits.isNotEmpty()) AppCard(title = "Splits") { Splits(splits, r.type) }
-
-            BigButton("Share or save picture", dark = false) { share = true }
-            GhostButton("Download GPS file (GPX)") {
-                val name = r.title.replace(Regex("[^A-Za-z0-9 ]"), "").trim().replace(' ', '-').ifBlank { "activity" }
-                val date = Instant.ofEpochMilli(r.startedAt).atZone(ZoneId.systemDefault()).toLocalDate()
-                actions.track.onSaveGpx("$name-$date.gpx", Gpx.write(r.title, r.type, points))
-            }
-            Text("GPX opens in Strava, Google Earth, Komoot and most map apps.", style = MaterialTheme.typography.bodySmall, color = Muted)
-            TextButton(onClick = { confirmDelete = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Icon(Icons.Filled.DeleteOutline, contentDescription = null, tint = Danger)
-                Spacer(Modifier.width(6.dp))
-                Text("Delete this activity", color = Danger)
-            }
-            Spacer(Modifier.height(8.dp))
+            Text("Total time ${Fmt.duration(r.elapsedMs)} · ${points.size} GPS points. Energy uses your latest weight (else 65 kg).",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
         }
+
+        if (splits.isNotEmpty()) AppCard(title = "Splits") { Splits(splits, r.type) }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            BigButton("Share", dark = false, modifier = Modifier.weight(1f)) { share = true }
+            GhostButton("GPX file", modifier = Modifier.weight(1f)) {
+                val name = r.title.replace(Regex("[^A-Za-z0-9 ]"), "").trim().replace(' ', '-').ifBlank { "activity" }
+                actions.track.onSaveGpx("$name-${started.toLocalDate()}.gpx", Gpx.write(r.title, r.type, points))
+            }
+        }
+        Text("GPX opens in Strava, Google Earth, Komoot and most map apps.", style = MaterialTheme.typography.bodySmall, color = Muted)
+        TextButton(onClick = { confirmDelete = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Icon(Icons.Filled.DeleteOutline, contentDescription = null, tint = Danger)
+            Spacer(Modifier.width(6.dp))
+            Text("Delete this activity", color = Danger)
+        }
+        Spacer(Modifier.height(8.dp))
     }
 
     if (share) RouteShareSheet(app, r, points, loop, actions, onDismiss = { share = false })
@@ -505,7 +651,7 @@ private fun SummaryView(app: AppController, id: Long, actions: PhoneActions, onB
             text = { OutlinedTextField(text, { text = it.take(60) }, singleLine = true) },
             confirmButton = { TextButton(onClick = {
                 rename = false
-                if (text.isNotBlank()) app.launch { withContext(Dispatchers.IO) { store.rename(id, text) }; app.trackVersion++ }
+                if (text.isNotBlank()) app.launch { withContext(Dispatchers.IO) { store.rename(r.id, text) }; app.trackVersion++ }
             }) { Text(t("Save")) } },
             dismissButton = { TextButton(onClick = { rename = false }) { Text(t("Cancel")) } },
         )
@@ -516,7 +662,7 @@ private fun SummaryView(app: AppController, id: Long, actions: PhoneActions, onB
         text = { Text("The route and stats are removed from this phone. This can’t be undone.") },
         confirmButton = { TextButton(onClick = {
             confirmDelete = false
-            app.launch { withContext(Dispatchers.IO) { store.delete(id) }; app.trackDetailId = null; app.trackVersion++; app.message = "Activity deleted." }
+            app.launch { withContext(Dispatchers.IO) { store.delete(r.id) }; app.trackDetailId = null; app.trackVersion++; app.message = "Activity deleted." }
         }) { Text(t("Remove"), color = Danger) } },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(t("Cancel")) } },
     )

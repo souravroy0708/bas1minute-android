@@ -12,8 +12,7 @@ Errors: `{"error": "Human message"}` with 4xx.
   Week = Monday to Sunday (Asia/Kolkata). Ties: more steps first, then earlier account.
 - **Fair play:** only `steps_source` in (`health_connect`, `phone_sensor`) counts for the global board; cap 50,000 steps/day.
   Manual / typed steps still count inside private circles.
-- **Masking (server does it, never send full names):** first 2 letters (1 if the first name has ≤ 3) + `***` + last-name initial,
-  e.g. "Sourav Kumar" → "So*** K.". The caller's own row uses their real first name and `is_me: true`.
+- **Names:** full names (and city, if set) are shown; nothing else about a member. The caller's row has `is_me: true`.
 - **Cache** the global board for 5 minutes per period; compute the caller's rank separately.
 - **Search:** only circles with `discoverable = true`. Case-insensitive on name, city and kind. Max 30 results; empty `q` = most team points this week.
   Rate limit 30 searches/min. Block offensive names on save (shared word list).
@@ -73,3 +72,15 @@ Show approved / declined for 7 days, then drop them.
 
 Codes: 8 characters, 5 minutes, single use, stored as HMAC hashes; rate limited (bucket `weblogin`, 20 per 10 min per IP).
 Only the browser that asked for the code can finish the sign-in.
+
+## Competitions
+
+- `competitions/` → `{"competitions": [<competition>]}` (live first, then upcoming, then ended in the last 30 days; top 3 each)
+- `competitions/<id>/` → `{"competition": <competition>}` (top 100)
+- `competitions/<id>/join/`, `competitions/<id>/leave/` → `{"competition": <competition>}`
+
+`<competition>`: `{"id", "title", "description", "prize", "metric": "steps"|"goal_days", "metric_label", "starts_on", "ends_on",
+"status": "live"|"upcoming"|"ended", "days_left", "days_to_start", "entrants", "scored",
+"top": [{"rank", "name", "city", "score", "steps", "is_me"}], "me": {"joined", "rank", "score", "steps", "shares"}}`
+
+Circles: `POST circles/ {"name", "kind", "discoverable", "about"}`; `circles/list/` adds `owned`, `owned_limit` (3 by default).

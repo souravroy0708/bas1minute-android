@@ -93,6 +93,24 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## v1.5: Move tab, competitions, redesigned Circles
+
+**Bottom tabs:** Today · **Move** · Circles · Insights · Profile. The health wheel moved to its card on Today.
+
+- **Move** (daily): this week's distance against a weekly goal (tap to set 5–50 km), activities, time, all-time
+  distance and Mon–Sun active days; one-tap **Start walk / run / ride** (location and GPS checks, 3-2-1, live
+  map); tracking settings behind the ⚙ button; **personal bests** (longest walk/run/ride, best pace over 1 km,
+  biggest week); history grouped by This week / Last week / month.
+- **Activity detail** rebuilt: loads defensively (Loading / Deleted / Error, never a blank screen); routes shorter
+  than ~50 m show "Too short to draw a route" instead of an empty, over-zoomed map; distance, time, pace, speeds,
+  elevation, energy, splits, Share, GPX, rename, delete.
+- **Circles:** competitions first (live ones in yellow, your rank, join), then your global rank, your requests,
+  your circles ("You own 1 of 3"), Start (disabled at the limit) / Join with code / Find. Creating a circle asks
+  **Private** (invite only) or **Listed** (anyone can find it and ask to join); change it any time in settings.
+- **Competition screen:** status and days left, metric, dates, prize, your place, Join / Leave, leaderboard.
+  Saved for offline like every circle.
+- **Full names** in the global ranking and competitions (names only, as the website returns them).
+
 ## Global ranking, Find a circle, website sign-in, offline circles (v1.4)
 
 All on the real server now (website v12; `docs/COMMUNITY_API.md`). No demo data.

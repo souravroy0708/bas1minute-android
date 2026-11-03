@@ -95,6 +95,38 @@ data class JoinRequest(val id: Int, val name: String, val message: String?, val 
     }
 }
 
+/** One row of a competition leaderboard. score = steps, or days at goal (see Competition.metric). */
+data class CompetitionRow(val rank: Int, val name: String, val city: String?, val score: Long, val steps: Long, val isMe: Boolean)
+
+/** A challenge published by the Bas 1 Minute team. status: live, upcoming, ended. */
+data class Competition(
+    val id: Int, val title: String, val description: String?, val prize: String?,
+    val metric: String, val metricLabel: String, val startsOn: String, val endsOn: String, val status: String,
+    val daysLeft: Int, val daysToStart: Int, val entrants: Int, val scored: Int, val top: List<CompetitionRow>,
+    val joined: Boolean, val myRank: Int?, val myScore: Long, val mySteps: Long, val shares: Boolean,
+    val updatedAt: Long,
+) {
+    val bySteps: Boolean get() = metric == "steps"
+
+    companion object {
+        fun from(j: JSONObject, at: Long = System.currentTimeMillis()): Competition {
+            val m = j.optJSONObject("me") ?: JSONObject()
+            fun txt(k: String) = j.optString(k).takeIf { it.isNotBlank() && it != "null" }
+            return Competition(
+                j.optInt("id"), j.optString("title"), txt("description"), txt("prize"), j.optString("metric", "steps"),
+                j.optString("metric_label"), j.optString("starts_on"), j.optString("ends_on"), j.optString("status"),
+                j.optInt("days_left"), j.optInt("days_to_start"), j.optInt("entrants"), j.optInt("scored"),
+                j.optJSONArray("top").objects().map {
+                    CompetitionRow(it.optInt("rank"), it.optString("name"), it.optString("city").takeIf { c -> c.isNotBlank() && c != "null" },
+                        it.optLong("score"), it.optLong("steps"), it.optBoolean("is_me"))
+                },
+                m.optBoolean("joined"), if (m.isNull("rank") || !m.has("rank")) null else m.optInt("rank"),
+                m.optLong("score"), m.optLong("steps"), m.optBoolean("shares"), at,
+            )
+        }
+    }
+}
+
 /** A request you sent. status: pending, approved, declined. */
 data class MyRequest(val circleId: Int, val name: String, val status: String, val ago: String) {
     companion object {
@@ -116,6 +148,9 @@ interface CommunitySource {
     suspend fun decide(circleId: Int, requestId: Int, approve: Boolean): Res<Unit>
     suspend fun discoverable(circleId: Int): Boolean
     suspend fun setDiscoverable(circleId: Int, on: Boolean, about: String?): Res<Unit>
+    suspend fun competitions(): Loaded<List<Competition>>
+    suspend fun competition(id: Int): Loaded<Competition>
+    suspend fun joinCompetition(id: Int, join: Boolean): Res<Competition>
 }
 
 object Community {
@@ -124,15 +159,6 @@ object Community {
         instance ?: HttpCommunity(ctx.applicationContext).also { instance = it }
     }
 
-    /** "Sourav Kumar" → "So*** K." (what the server does for everyone except you). */
-    fun mask(full: String): String {
-        val parts = full.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-        if (parts.isEmpty()) return "Member"
-        val first = parts[0]
-        val shown = first.take(if (first.length <= 3) 1 else 2)
-        val last = parts.getOrNull(1)?.take(1)?.uppercase()?.let { " $it." } ?: ""
-        return shown.replaceFirstChar { it.uppercase() } + "***" + last
-    }
 }
 
 // ---------------------------------------------------------------- real server (contract)
@@ -205,6 +231,36 @@ class HttpCommunity(private val ctx: Context) : CommunitySource {
 
     override suspend fun discoverable(circleId: Int): Boolean =
         db.getCache("circle:$circleId")?.let { runCatching { JSONObject(it).optJSONObject("circle")?.optBoolean("discoverable") }.getOrNull() } ?: false
+
+    override suspend fun competitions(): Loaded<List<Competition>> {
+        val key = "competitions"
+        val r = api.post("competitions/")
+        fun parse(j: JSONObject, at: Long) = j.optJSONArray("competitions").objects().map { Competition.from(it, at) }
+        if (r.ok && r.json != null) {
+            withContext(Dispatchers.IO) { db.putCache(key, r.json.toString()) }
+            return Loaded(parse(r.json, System.currentTimeMillis()), offline = false)
+        }
+        val saved = db.getCache(key)?.let { runCatching { parse(JSONObject(it), db.getCacheTime(key) ?: 0L) }.getOrNull() }
+        return Loaded(saved, offline = true, authLost = r.code == 401)
+    }
+
+    override suspend fun competition(id: Int): Loaded<Competition> {
+        val key = "competition:$id"
+        val r = api.post("competitions/$id/")
+        if (r.ok && r.json != null) {
+            withContext(Dispatchers.IO) { db.putCache(key, r.json.toString()) }
+            return Loaded(runCatching { Competition.from(r.json.getJSONObject("competition")) }.getOrNull(), offline = false)
+        }
+        val saved = db.getCache(key)?.let { runCatching { Competition.from(JSONObject(it).getJSONObject("competition"), db.getCacheTime(key) ?: 0L) }.getOrNull() }
+        return Loaded(saved, offline = r.code == null || r.code >= 500, authLost = r.code == 401)
+    }
+
+    override suspend fun joinCompetition(id: Int, join: Boolean): Res<Competition> {
+        val r = api.post("competitions/$id/${if (join) "join" else "leave"}/")
+        if (!r.ok || r.json == null) return fail(r, if (join) "Joining" else "Leaving")
+        withContext(Dispatchers.IO) { db.putCache("competition:$id", r.json.toString()) }
+        return Res.Ok(Competition.from(r.json.getJSONObject("competition")))
+    }
 
     override suspend fun setDiscoverable(circleId: Int, on: Boolean, about: String?): Res<Unit> {
         val r = api.post("circles/$circleId/visibility/", JSONObject().put("discoverable", on).put("about", about ?: ""))
