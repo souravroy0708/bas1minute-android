@@ -12,6 +12,14 @@
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <!-- Steps from the phone sensor via the Recording API (fallback) -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- GPS walk / run: precise location while recording (foreground service; no background location) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Map tiles: OpenStreetMap checks the connection before downloading -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <!-- Daily screen-time total. Granted by the user in Settings > Usage access. -->
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
@@ -72,6 +80,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="bas1minute.pythonanywhere.com" android:pathPrefix="/join/" />
+                <!-- Website sign-in QR codes open the approve screen -->
+                <data android:pathPrefix="/link/" />
             </intent-filter>
             <!-- From the invite web page's "Open in the app" button -->
             <intent-filter>
@@ -79,6 +89,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="bas1minute" android:host="join" />
+                <data android:host="link" />
             </intent-filter>
         </activity>
 
@@ -100,6 +111,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/share_paths" />
         </provider>
+
+        <!-- Records a walk or run with the screen off. Started only from the app. -->
+        <service
+            android:name=".track.TrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <!-- Motivation pushes from the admin (Firebase). Templates are filled on the phone. -->
         <service

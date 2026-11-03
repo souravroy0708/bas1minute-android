@@ -12,6 +12,9 @@ work = "2.10.1"
 healthConnect = "1.1.0"
 playFitness = "21.2.0"
 coroutines = "1.10.1"
+playLocation = "21.3.0"
+osmdroid = "6.1.20"
+junit = "4.13.2"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -30,6 +33,10 @@ lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtim
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 play-services-fitness = { group = "com.google.android.gms", name = "play-services-fitness", version.ref = "playFitness" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playLocation" }
+# OpenStreetMap maps: no API key needed
+osmdroid = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
 
 [plugins]

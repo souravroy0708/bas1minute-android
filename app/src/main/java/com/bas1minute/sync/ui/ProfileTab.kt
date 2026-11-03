@@ -55,6 +55,7 @@ data class PhoneActions(
     val onAskActivity: () -> Unit,
     val onOpenUsageAccess: () -> Unit,
     val onShareWhatsApp: (String) -> Unit,
+    val track: TrackActions = TrackActions(),
 )
 
 @Composable
@@ -184,6 +185,13 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 BigButton(if (app.home.syncing) "Syncing…" else "Back up now", enabled = !app.home.syncing) { app.fullSync() }
                 OfflineNote(snap.pendingDays + app.waiting, snap.savedDays)
                 app.fullSyncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Muted) }
+            }
+        }
+
+        // The website: approve a browser with a code from this phone (no password)
+        AppCard(title = t("Website")) {
+            LinkRow(t("Sign in on the website"), "See your steps, screen time and circles on a computer. Approve with a code; manage signed-in browsers") {
+                app.openWebSignIn()
             }
         }
 

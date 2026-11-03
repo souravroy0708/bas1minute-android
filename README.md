@@ -93,6 +93,82 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## Global ranking, Find a circle, website sign-in, offline circles (v1.4)
+
+All on the real server now (website v12; `docs/COMMUNITY_API.md`). No demo data.
+
+- **Global ranking:** Circles → Global card. Everyone sees the top 100 (week or today, masked names); you get a rank
+  when you share steps; your own rank shows even outside the top 100. One point per day at your own step goal;
+  only phone/watch-measured steps count. "Show me in the global ranking" switch.
+- **Find a circle:** search open circles, ask to join with a note, cancel; owners approve/decline in **Join
+  requests** and switch **Show in search** on with a one-line description. Invite codes still join instantly.
+- **Website sign-in:** Profile → Website → **Sign in on the website**. The website shows a code and a QR; scanning
+  the QR opens this screen with the code (App Link `https://<site>/link/CODE/`, or `bas1minute://link/CODE`).
+  The app shows the browser ("Chrome on Windows · 49.36.x.x") and you Approve or Deny. Signed-in browsers are
+  listed with Sign out / Sign out of every browser. No passwords anywhere.
+- **Offline circles (circle clone):** every time Circles opens online, and every background sync (~3 h), the app
+  saves the circles list, **every circle's leaderboard**, the global board (week + today), your requests and, for
+  circles you own, their join requests (`Repo.syncCommunity()`, SQLite `cache`). Offline, every screen shows the
+  last copy with "Offline · saved copy from 10:42". Shabash/Chalo made offline are queued and sent later; joining,
+  approving and search need the internet and say so.
+
+## Phone check: battery, data, background and permissions (v1.2)
+
+Insights → **Phone check**. One health score (0–100) for the last 24 hours, plain-language findings with a
+one-tap fix, and four lenses. Everything is worked out and stored on this phone; nothing is sent.
+
+| Lens | What you see | How it's measured |
+| --- | --- | --- |
+| **Battery** | Level chart (green = charging), % used, drain per hour with screen **on** vs **off**, hours left at today's pace, temperature, condition, charge cycles (Android 14+), current draw | `BatteryWorker` saves the level every ~15 min (`battery_samples`, DB v6, kept 8 days); screen on/off from usage events |
+| **Battery by app** (estimate) | Each app's share of today's drain, plus "Phone idle" | Screen time × 10%/h, background services × 3%/h, mobile 0.012%/MB, Wi-Fi 0.004%/MB, idle 0.6%/h — then **scaled to the real drop this phone measured** (0.4–2.5×). Labelled "estimate" on screen |
+| **Data** | Mobile / Wi-Fi per app, split **while open** vs **in background** | `NetworkStatsManager` (Usage access; per-app mobile needs Android 10+) |
+| **Background** | Apps that ran background tasks and for how long, flagged when you didn't open them; apps with **no battery limits** | Foreground-service events (Android 10+) minus on-screen time; `PowerManager.isIgnoringBatteryOptimizations` |
+| **Permissions** | Who can use location (incl. all the time), camera, mic, contacts, SMS, call logs, photos…, oldest-used first; **powerful access** (accessibility, notification reading, device admin); apps installed outside an app store | `PackageManager` granted flags, `AccessibilityManager`, enabled notification listeners, `DevicePolicyManager`, install source |
+
+**Findings** (`phone/PhoneCheck.kt`, unit tested in `PhoneCheckTest.kt`): screen-off drain ≥ 1.5%/h; battery ≥ 42°C;
+≥ 50 MB mobile data in the background (High if ≥ 200 MB or the app wasn't opened); background tasks ≥ 3 h
+(High if ≥ 8 h and not opened); "Unrestricted" apps busy in the background; accessibility / notification /
+device-admin access (High if sideloaded); sensitive permissions on apps not opened in 30+ days; location all
+the time; sideloaded apps with SMS / contacts / call-log access; 6+ unrestricted apps; 3+ charges a day.
+Each links to the app's Android settings page (battery, mobile data, permissions, uninstall).
+
+**Evening alert:** at most once a day after 7 pm, only High findings, never the same one twice (toggle on the screen).
+
+**Honest limits, shown in the app:** Android gives exact per-app battery only to system apps
+(`BATTERY_STATS`), so per-app battery is an estimate. Apps are visible if they have a home-screen icon (no
+`QUERY_ALL_PACKAGES`, which Play restricts); data from hidden apps shows as "Other apps". Background
+times and per-app mobile data need Android 10+. Network numbers update every hour or two.
+
+## GPS walk / run (v1.1)
+
+Today → **Walk or run with GPS** (or the card's Start). Pick Walk / Run / Ride, tap Start: precise location is
+asked once, Android's "Turn on location?" dialog appears if GPS is off, then 3-2-1 and it records.
+
+| Part | What it does | Files |
+| --- | --- | --- |
+| Live map | Your route draws on an OpenStreetMap map as you move, with a green start dot and your live position. Drag to look around; the locate button follows you again. GPS strength chip (±m). | `track/RouteMap.kt`, `ui/TrackScreen.kt` |
+| Live stats | Distance (km), moving time, pace now, average pace (rides show km/h), last km split, elevation | `ui/TrackScreen.kt` |
+| Screen off | Foreground service (type `location`) keeps recording; notification shows km · time · pace with **Pause / Finish** | `track/TrackingService.kt` |
+| Smart GPS | Drops inaccurate fixes (> 30 m), Kalman smoothing, teleport filter, auto-pause at signals, minimum step against drift. Tested within ~1–2% on simulated routes with corners | `track/TrackMath.kt`, `app/src/test/.../TrackMathTest.kt` |
+| Voice | Optional: "2 kilometres. Time 12 minutes 25 seconds…" every km (Android text-to-speech) | `TrackingService.kt` |
+| Summary | Map with start (green) and finish (red) markers, or one marker + **Round trip** badge when you end where you began. Distance, moving and total time, avg pace, avg/max speed, elevation gain, energy estimate, per-km split bars, longest-ever badge, rename, delete | `ui/TrackScreen.kt` |
+| Share picture | Map or Route-only style, Post 4:5 or Story 9:16, name on/off, **Hide exact start and finish** (on by default: drops first/last 200 m). Frame the map yourself; Share to WhatsApp/Instagram or **Save to phone** (Gallery → Pictures → Bas 1 Minute) | `track/RouteCard.kt` |
+| GPX download | Standard GPS file of the whole route (segments, time, elevation): opens in Strava, Google Earth, Komoot, Garmin | `TrackMath.kt` (`Gpx`) |
+| History | All activities with route thumbnails, this week's km on Today | `track/TrackStore.kt` |
+| Crash-safe | Every GPS point is saved as it arrives. If Android closes the app mid-run, Today offers **Resume / Save / Discard** | `TrackingService.kt` |
+
+**Privacy:** location is used only while recording, with the notification visible (no background location
+permission). Routes are in SQLite (`activities`, `activity_points`, DB v5) and never synced. Map tiles come from
+OpenStreetMap; the phone's position is never sent. "Delete everything" removes activities too.
+
+**Map tiles:** osmdroid + OpenStreetMap (no API key). OSM's free tile servers are fine for a pilot, but their
+usage policy doesn't allow heavy app traffic. Before a big Play Store launch, point `TileSourceFactory.MAPNIK` in
+`RouteMap.kt` at a hosted tile provider (MapTiler, Stadia, Thunderforest) or swap the file for Google Maps
+Compose with an API key; nothing else changes.
+
+**Tests:** `./gradlew test` runs the GPS engine checks (distance, corners, auto-pause, teleports, pause/resume,
+crash restore, loops, polyline, GPX).
+
 ## v1.0: love and retention
 
 - **Home-screen widget** (`StepsWidget.kt`, `res/layout/widget_steps.xml`): steps, goal bar, distance, streak;

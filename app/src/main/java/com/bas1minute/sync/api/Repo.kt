@@ -65,26 +65,6 @@ class Repo(context: Context) {
         }
     }
 
-    // ---------- legacy website accounts (not used by the app any more) ----------
-
-    suspend fun login(mobile: String, password: String): Res<Me> =
-        session(api.post("auth/login/", JSONObject().put("mobile", mobile).put("password", password).put("device", device())))
-
-    suspend fun signup(name: String, mobile: String, password: String, consent: Boolean): Res<Me> =
-        session(api.post("auth/signup/", JSONObject().put("name", name).put("mobile", mobile).put("password", password)
-            .put("consent", consent).put("device", device())))
-
-    private suspend fun session(r: ApiReply): Res<Me> = when {
-        r.code == null -> Res.Fail("Couldn’t reach Bas 1 Minute. Check your internet and try again.")
-        r.ok -> {
-            val me = Me.from(r.json!!.getJSONObject("me"))
-            prefs.token = r.json.optString("token")
-            saveMe(me)
-            Res.Ok(me)
-        }
-        else -> Res.Fail(r.error ?: "Something went wrong (${r.code}).", r.fields)
-    }
-
     suspend fun logout() {
         api.post("auth/logout/")  // best effort; the phone forgets the token either way
         prefs.clearSession()
@@ -234,6 +214,73 @@ class Repo(context: Context) {
     }
 
     fun waitingActions(): Int = db.queuedCount()
+
+    // ---------- circles clone: keep every circle, the global board and requests on the phone ----------
+
+    /** When the circles list was last downloaded (null = never). */
+    fun circlesSavedAt(): Long? = db.getCacheTime("circles")
+    fun circleSavedAt(id: Int): Long? = db.getCacheTime("circle:$id")
+
+    /**
+     * Download everything the Circles tab shows, so it all opens offline with the last synced data:
+     * the list, every circle's board, the global board (week and today), your requests and, for circles you
+     * own, their join requests. Best effort: stops quietly when offline. Returns true when it completed.
+     */
+    suspend fun syncCommunity(): Boolean {
+        if (prefs.token.isBlank()) return false
+        val list = circles()
+        if (list.offline) return false
+        val community = Community.get(ctx)
+        list.value?.circles?.forEach { c ->
+            if (circle(c.id).offline) return false
+            if (c.isOwner) community.joinRequests(c.id)
+        }
+        community.global("week")
+        community.global("today")
+        community.myRequests()
+        return true
+    }
+
+    // ---------- website sign-in, approved on this phone ----------
+
+    data class WebRequest(val browser: String, val ip: String, val ago: String)
+    data class WebSession(val id: Int, val browser: String, val ip: String, val since: String, val lastSeen: String)
+
+    private fun webFail(r: ApiReply): Res.Fail = when {
+        r.code == null -> Res.Fail("You’re offline. Connect to sign in on the website.")
+        r.code == 401 -> Res.Fail("Please try again in a moment.", authLost = r.error == "Please sign in again.")
+        r.code == 404 -> Res.Fail("Website sign-in needs the latest website update.")
+        r.code == 429 -> Res.Fail("Too many tries. Wait a few minutes.")
+        else -> Res.Fail(r.error ?: "Something went wrong (${r.code}).")
+    }
+
+    private fun webRequest(j: JSONObject?) = WebRequest(j?.optString("browser") ?: "A browser", j?.optString("ip") ?: "", j?.optString("ago") ?: "")
+
+    suspend fun webCheck(code: String): Res<WebRequest> {
+        if (!ensureAccount()) return Res.Fail("You’re offline. Connect to sign in on the website.")
+        val r = api.post("web-login/check/", JSONObject().put("code", code))
+        return if (r.ok) Res.Ok(webRequest(r.json?.optJSONObject("request"))) else webFail(r)
+    }
+
+    suspend fun webApprove(code: String, allow: Boolean): Res<WebRequest> {
+        val r = api.post("web-login/approve/", JSONObject().put("code", code).put("allow", allow))
+        return if (r.ok) Res.Ok(webRequest(r.json?.optJSONObject("request"))) else webFail(r)
+    }
+
+    suspend fun webSessions(): Res<List<WebSession>> {
+        if (!ensureAccount()) return Res.Fail("You’re offline.")
+        val r = api.post("web-login/sessions/")
+        if (!r.ok) return webFail(r)
+        val arr = r.json?.optJSONArray("sessions") ?: return Res.Ok(emptyList())
+        return Res.Ok((0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.map {
+            WebSession(it.optInt("id"), it.optString("browser"), it.optString("ip"), it.optString("since"), it.optString("last_seen"))
+        })
+    }
+
+    suspend fun webSignOut(id: Int?): Res<Int> {
+        val r = api.post(if (id == null) "web-login/sessions/signout-all/" else "web-login/sessions/$id/signout/")
+        return if (r.ok) Res.Ok(r.json?.optInt("signed_out") ?: 0) else webFail(r)
+    }
 
     /** Tell the server this phone's push token ("" turns pushes off). Needs the name-only account. */
     suspend fun registerPush(token: String): Boolean {

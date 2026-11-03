@@ -203,6 +203,9 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     onWater = { app.addWater() }, onLog = { app.logOpen = true },
                 )
 
+                // GPS walk / run: start one, or see the one in progress
+                TrackTodayCard(app)
+
                 // 4. One smart card: the most relevant thing today
                 val hasCheers = !server?.cheers.isNullOrEmpty()
                 when {

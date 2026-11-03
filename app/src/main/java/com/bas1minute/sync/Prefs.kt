@@ -83,6 +83,34 @@ class Prefs(context: Context) {
         get() = p.getInt("step_cm", 76)
         set(v) = p.edit().putInt("step_cm", v.coerceIn(40, 120)).apply()
 
+    // ---- GPS walk / run (phone only) ----
+    var trackType: String
+        get() = p.getString("track_type", "walk") ?: "walk"
+        set(v) = p.edit().putString("track_type", v).apply()
+
+    var trackAutoPause: Boolean
+        get() = p.getBoolean("track_autopause", true)
+        set(v) = p.edit().putBoolean("track_autopause", v).apply()
+
+    var trackVoice: Boolean
+        get() = p.getBoolean("track_voice", false)
+        set(v) = p.edit().putBoolean("track_voice", v).apply()
+
+    /** Shared pictures leave out the first and last 200 m by default (privacy first). */
+    var trackHideEnds: Boolean
+        get() = p.getBoolean("track_hide_ends", true)
+        set(v) = p.edit().putBoolean("track_hide_ends", v).apply()
+
+    /** Appear (masked) in the global ranking when sharing steps. Everyone can always see it. */
+    var globalVisible: Boolean
+        get() = p.getBoolean("global_visible", true)
+        set(v) = p.edit().putBoolean("global_visible", v).apply()
+
+    /** Phone check: one evening notification when something serious is found (read by BatteryWorker). */
+    var phoneAlerts: Boolean
+        get() = p.getBoolean("phone_alerts", true)
+        set(v) = p.edit().putBoolean("phone_alerts", v).apply()
+
     // ---- Health wheel (stays on this phone; not account data) ----
     var spinDay: String
         get() = p.getString("spin_day", "") ?: ""

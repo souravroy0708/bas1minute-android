@@ -15,6 +15,8 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     override suspend fun doWork(): Result {
         val outcome = Sync.run(applicationContext)
+        // Keep the offline copy of circles, the global board and requests fresh (best effort)
+        try { com.bas1minute.sync.api.Repo(applicationContext).syncCommunity() } catch (e: Exception) { }
         return if (outcome.retry) Result.retry() else Result.success()
     }
 

@@ -184,6 +184,9 @@ fun PrivacyContent() {
             "App names" to "Screen time is worked out on the phone. Which apps you used never leaves it.",
             "Your PIN" to "Saved on the phone in scrambled form. It’s a simple lock, not account security.",
             "Profile photo and bio" to "Kept in the app’s private storage on this phone. Never uploaded.",
+            "The website" to "You sign in by approving a code in this app (no password). It shows only what this phone shares: steps, screen time and circles.",
+            "Phone check" to "Battery level history, which apps used battery, data and background time, and their permissions are worked out and kept on this phone only.",
+            "Walks and runs (GPS)" to "Location is used only while you record, with a notification showing. Routes are saved on this phone and never sent. Map pictures are downloaded from OpenStreetMap; your position isn’t.",
         ))
     }
     AppCard(title = "Only if you choose to share") {

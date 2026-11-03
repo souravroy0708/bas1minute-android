@@ -51,7 +51,7 @@ data class DayRow(
  * display; they reach the website through the action outbox.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 4) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 6) {
 
     companion object {
         private const val KEEP_DAYS = 400L
@@ -83,6 +83,8 @@ class LocalDb private constructor(context: Context) :
         createV2(db)
         createV3(db)
         createV4(db)
+        createV5(db)
+        createV6(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -90,6 +92,8 @@ class LocalDb private constructor(context: Context) :
         if (oldVersion < 2) createV2(db)
         if (oldVersion < 3) createV3(db)
         if (oldVersion < 4) createV4(db)
+        if (oldVersion < 5) createV5(db)
+        if (oldVersion < 6) createV6(db)
     }
 
     private fun createV2(db: SQLiteDatabase) {
@@ -110,6 +114,36 @@ class LocalDb private constructor(context: Context) :
     private fun createV4(db: SQLiteDatabase) {
         for (col in listOf("bursts INTEGER NOT NULL DEFAULT 0", "calm_minutes INTEGER NOT NULL DEFAULT 0", "mood INTEGER"))
             db.execSQL("ALTER TABLE days ADD COLUMN $col")
+    }
+
+    /** v5: GPS walks and runs (phone only, never sent). See track/TrackStore.kt. */
+    private fun createV5(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS activities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                title TEXT,
+                started_at INTEGER NOT NULL,
+                ended_at INTEGER,
+                distance_m REAL NOT NULL DEFAULT 0,
+                moving_ms INTEGER NOT NULL DEFAULT 0,
+                elapsed_ms INTEGER NOT NULL DEFAULT 0,
+                elev_gain_m REAL NOT NULL DEFAULT 0,
+                max_speed REAL NOT NULL DEFAULT 0,
+                kcal INTEGER,
+                preview TEXT
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE TABLE IF NOT EXISTS activity_points (activity_id INTEGER NOT NULL, seq INTEGER NOT NULL, lat REAL NOT NULL, lng REAL NOT NULL, " +
+            "alt REAL, t INTEGER NOT NULL, moving_ms INTEGER NOT NULL, dist_m REAL NOT NULL, seg INTEGER NOT NULL, PRIMARY KEY (activity_id, seq))")
+        db.execSQL("CREATE INDEX IF NOT EXISTS activities_started ON activities(started_at)")
+    }
+
+    /** v6: battery level every ~15 minutes, for Phone check (phone only, kept 8 days). See phone/BatteryLog.kt. */
+    private fun createV6(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS battery_samples (t INTEGER PRIMARY KEY, level INTEGER NOT NULL, charging INTEGER NOT NULL, temp REAL)")
     }
 
     // ---------- days ----------
@@ -244,7 +278,7 @@ class LocalDb private constructor(context: Context) :
 
     /** Remove every saved day (used by "Delete everything"). */
     fun wipeAll() {
-        for (t in listOf("days", "app_usage", "outbox", "cache")) writableDatabase.delete(t, null, null)
+        for (t in listOf("days", "app_usage", "outbox", "cache", "activities", "activity_points", "battery_samples")) writableDatabase.delete(t, null, null)
     }
 
     fun days(from: LocalDate, to: LocalDate): List<DayRow> =
@@ -331,6 +365,10 @@ class LocalDb private constructor(context: Context) :
             put("key", key); put("body", body); put("fetched_at", System.currentTimeMillis())
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
+
+    /** When a saved screen copy was fetched (for "Saved copy from 10:42"). */
+    fun getCacheTime(key: String): Long? =
+        readableDatabase.rawQuery("SELECT fetched_at FROM cache WHERE key = ?", arrayOf(key)).use { c -> if (c.moveToFirst()) c.getLong(0) else null }
 
     fun getCache(key: String): String? =
         readableDatabase.rawQuery("SELECT body FROM cache WHERE key = ?", arrayOf(key)).use { c -> if (c.moveToFirst()) c.getString(0) else null }

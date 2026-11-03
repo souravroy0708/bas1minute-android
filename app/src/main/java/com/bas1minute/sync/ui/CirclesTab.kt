@@ -63,7 +63,13 @@ fun kindColor(kind: String): Color = when (kind) {
 @Composable
 fun CirclesTab(app: AppController, onShare: (String) -> Unit, onShareWhatsApp: (String) -> Unit) {
     LaunchedEffect(Unit) { app.refreshCircles() }
-    if (app.openCircleId != null) {
+    if (app.globalOpen) {
+        BackHandler { app.globalOpen = false }
+        GlobalBoardScreen(app, onBack = { app.globalOpen = false })
+    } else if (app.findOpen) {
+        BackHandler { app.findOpen = false }
+        FindCirclesScreen(app, onBack = { app.findOpen = false; app.refreshCircles() })
+    } else if (app.openCircleId != null) {
         BackHandler { app.closeCircle() }
         CircleScreen(app, onShare, onShareWhatsApp)
     } else {
@@ -83,7 +89,11 @@ private fun CircleList(app: AppController) {
     ) {
         Text("Your circles", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(top = 8.dp))
         Text("Move together with family, college friends or your office team.", style = MaterialTheme.typography.bodyLarge, color = Muted)
-        if (app.offline) Text("Offline: showing your last saved circles.", style = MaterialTheme.typography.bodySmall, color = Muted)
+        SavedCopyNote(app.offline, app.circlesSavedAt)
+
+        // Everyone is in the global circle
+        GlobalCard(app)
+        MyRequestsCard(app)
 
         if (data == null || data.circles.isEmpty()) {
             AppCard {
@@ -100,6 +110,7 @@ private fun CircleList(app: AppController) {
             BigButton("Start a circle", modifier = Modifier.weight(1f)) { creating = true }
             GhostButton("Join with code", modifier = Modifier.weight(1f)) { joining = true }
         }
+        BigButton("Find a circle to join", dark = false) { app.findOpen = true }
         AppCard(title = "How points work") {
             Text("One point for every day you reach your own step goal. Goals are personal, so Papa’s 4,000 steps can beat your 7,000 if that’s his goal. Only members who share their steps get points; others show as Private. Weeks reset every Monday.",
                 style = MaterialTheme.typography.bodyMedium, color = Muted)
@@ -205,7 +216,11 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
     val d = app.circle
     Column(Modifier.fillMaxSize().background(Paper).statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TextButton(onClick = { app.closeCircle() }) { Text("← Circles", color = Muted, style = MaterialTheme.typography.labelLarge) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { app.closeCircle() }) { Text("← Circles", color = Muted, style = MaterialTheme.typography.labelLarge) }
+            Spacer(Modifier.weight(1f))
+            d?.let { SavedCopyNote(app.offline, app.repo.circleSavedAt(it.id)) }
+        }
         if (d == null) {
             Text(if (app.offline) "You’re offline and this circle isn’t saved yet." else "Loading…", color = Muted)
             return@Column
@@ -233,7 +248,7 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
         // Leaderboard
         AppCard(title = "This week") {
             Podium(d.board)
-            Text("Up to ${d.pointsPerDay} points a day, against each person’s own goals.", style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text("${d.pointsPerDay} point a day at each person’s own step goal.", style = MaterialTheme.typography.bodySmall, color = Muted)
             d.board.forEach { row -> BoardLine(row, onCheer = { kind -> app.cheer(row.userId, kind) }) }
         }
 
@@ -261,13 +276,15 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
 
         // What I share
         AppCard(title = "What you share here") {
-            Text("Steps, bursts and calm are shared with your circles. Your mood is never shared.", style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text("If sharing is on, your circles see your daily steps. Bursts, calm, mood and everything else stay on your phone.", style = MaterialTheme.typography.bodySmall, color = Muted)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Also show my screen time", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Switch(checked = d.shareScreen, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
                     onCheckedChange = { on -> app.launch { app.handle(app.repo.shareScreen(d.id, on), "Sharing updated.") { app.openCircle(d.id) } } })
             }
         }
+
+        if (d.isOwner) JoinRequestsCard(app, d)
 
         if (d.isOwner) OwnerPanel(app, d)
 
@@ -312,7 +329,7 @@ private fun BoardLine(row: BoardRow, onCheer: (String) -> Unit) {
         if (!row.isMe) {
             Row(Modifier.padding(start = 80.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CheerChip(if (row.cheered) "Cheered" else "Shabash!", done = row.cheered) { onCheer("cheer") }
-                if (row.pointsToday < 3) CheerChip(if (row.nudged) "Nudged" else "Chalo!", done = row.nudged) { onCheer("nudge") }
+                if (row.pointsToday < 1) CheerChip(if (row.nudged) "Nudged" else "Chalo!", done = row.nudged) { onCheer("nudge") }
             }
         }
     }
@@ -332,6 +349,7 @@ private fun OwnerPanel(app: AppController, d: CircleDetail) {
     var removing by remember { mutableStateOf<BoardRow?>(null) }
     AppCard(title = "Manage circle") {
         StatusRow("Name and type", "${d.name} · ${d.kindLabel}", ok = true, action = "Edit") { renaming = true }
+        DiscoverableSetting(app, d)
         StatusRow("Invite link", "Make a new one if the old link spread too far", ok = true, action = "New link") {
             app.launch { app.handle(app.repo.manageCircle(d.id, "invite"), "New invite link made. The old one no longer works.") { app.openCircle(d.id) } }
         }

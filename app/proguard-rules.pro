@@ -4,3 +4,8 @@
 -keep class com.bas1minute.sync.MainActivity
 # Strip debug logging from release
 -assumenosideeffects class android.util.Log { public static int d(...); public static int v(...); }
+-keep class com.bas1minute.sync.phone.BatteryWorker { <init>(...); }
+# GPS walk / run: the tracking service is started by name from notifications
+-keep class com.bas1minute.sync.track.TrackingService
+# osmdroid references optional classes it doesn't need on Android
+-dontwarn org.osmdroid.**

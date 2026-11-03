@@ -44,6 +44,14 @@ object Lang {
         "System" to "सिस्टम", "Light" to "लाइट", "Dark" to "डार्क",
         "Add photo" to "फ़ोटो जोड़ें", "Change photo" to "फ़ोटो बदलें", "Remove" to "हटाएँ", "Bio" to "परिचय",
         "Your data" to "आपका डेटा", "App lock" to "ऐप लॉक", "Motivation notifications" to "प्रेरणा सूचनाएँ",
+        // GPS walk / run
+        "Walk or run" to "पैदल या दौड़", "Walk or run with GPS" to "GPS से पैदल या दौड़", "Walk" to "पैदल", "Run" to "दौड़",
+        "Ride" to "साइकिल", "Pause" to "रोकें", "Resume" to "फिर शुरू", "Finish" to "पूरा करें", "Your activities" to "आपकी गतिविधियाँ",
+        "Auto-pause" to "अपने आप रुकें", "Voice every km" to "हर किमी पर आवाज़", "Show my name" to "मेरा नाम दिखाएँ",
+        // Website sign-in
+        "Website" to "वेबसाइट", "Sign in on the website" to "वेबसाइट पर साइन इन करें",
+        // Phone check
+        "Phone check" to "फ़ोन जाँच",
         // Common
         "Save" to "सेव करें", "Cancel" to "रद्द करें", "Back up now" to "अभी बैकअप लें",
     )

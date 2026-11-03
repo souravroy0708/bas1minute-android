@@ -66,6 +66,8 @@ fun InsightsTab(app: AppController) {
         }
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Battery, data, background apps and permissions
+            PhoneCheckCard(app)
             GhostButton("Open my week in review") { app.openReview() }
             // ---------- Forecast ----------
             if (ins != null && ins.forecasts.isNotEmpty() && ins.socialAvg != null && ins.socialAvg > 0) {

@@ -31,3 +31,7 @@ website; it uses the server only through `/api/v1/`.
 water, weight), automatic steps / screen / social / sleep / water / weight, Samsung Health setup, offline mode.
 
 **Website only (not member features):** landing pages, waitlist and launch countdown, staff admin.
+
+**App only (v1.1): GPS walk / run** — Today → Walk or run with GPS: live map route, km, pace, splits, auto-pause, voice per km, round-trip detection, share picture (map or route, post or story, hide start/finish), save to Gallery, GPX download. Phone only, never synced.
+
+**App only (v1.2): Phone check** — Insights → Phone check: health score, battery level history and screen-on/off drain, estimated battery by app, mobile/Wi-Fi data per app (foreground vs background), apps running in the background, battery exemptions, permissions and powerful access, sideloaded apps, evening alert. Phone only, never synced.

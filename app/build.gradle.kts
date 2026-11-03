@@ -92,4 +92,8 @@ dependencies {
     implementation(libs.health.connect)
     implementation(libs.play.services.fitness)
     implementation(libs.coroutines.play.services)
+    // GPS walk / run
+    implementation(libs.play.services.location)
+    implementation(libs.osmdroid)
+    testImplementation(libs.junit)
 }

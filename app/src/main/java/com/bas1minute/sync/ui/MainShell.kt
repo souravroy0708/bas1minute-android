@@ -47,6 +47,18 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
             app.message = null
         }
     }
+    // A walk/run was just saved (from the screen or the notification): show its summary
+    LaunchedEffect(Unit) {
+        com.bas1minute.sync.track.LiveTrack.justFinished.collect { id ->
+            if (id != null) {
+                com.bas1minute.sync.track.LiveTrack.justFinished.value = null
+                app.trackVersion++
+                app.tab = Tab.Today
+                app.trackDetailId = id
+                app.trackOpen = true
+            }
+        }
+    }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
@@ -55,9 +67,10 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                     NavigationBarItem(
                         selected = app.tab == item.tab,
                         onClick = {
-                            if (item.tab == Tab.Circles && app.tab == Tab.Circles) app.closeCircle()
-                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false }
+                            if (item.tab == Tab.Circles && app.tab == Tab.Circles) { app.closeCircle(); app.globalOpen = false; app.findOpen = false }
+                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.trackOpen = false }
                             if (item.tab == Tab.Profile) app.aboutPage = null
+                            if (item.tab == Tab.Insights) app.phoneCheckOpen = false
                             app.tab = item.tab
                         },
                         icon = { Icon(item.icon, contentDescription = null) },
@@ -77,7 +90,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         ShareSheet(app, actions.onShareImage)
         WeekReviewStory(app)
         // Fade-through between tabs and their full screens (burst, calm, log, circle)
-        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}"
+        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.trackOpen}:${app.phoneCheckOpen}"
         androidx.compose.animation.AnimatedContent(
             targetState = screen,
             transitionSpec = {
@@ -93,6 +106,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         Box(Modifier.fillMaxSize()) {
             when (shownTab) {
                 Tab.Today -> when {
+                    part[6] == "true" -> TrackScreen(app, actions, onClose = { app.trackOpen = false; app.trackDetailId = null })
                     part[2] == "true" -> {
                         androidx.activity.compose.BackHandler { app.calmOpen = false }
                         CalmTab(app, onCall, onClose = { app.calmOpen = false })
@@ -107,12 +121,13 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                     }
                     else -> TodayTab(app, onCall, actions)
                 }
-                Tab.Insights -> InsightsTab(app)
+                Tab.Insights -> if (part[7] == "true") PhoneCheckScreen(app, actions, onClose = { app.phoneCheckOpen = false }) else InsightsTab(app)
                 Tab.Circles -> CirclesTab(app, onShare, actions.onShareWhatsApp)
                 Tab.Spin -> WheelScreen(app, onClose = null)
                 Tab.Profile -> app.aboutPage?.let { page ->
                     androidx.activity.compose.BackHandler { app.aboutPage = null }
                     if (page == "help") PhoneHelpScreen(app, actions, onBack = { app.aboutPage = null })
+                    else if (page == "web") WebSignInScreen(app, onBack = { app.aboutPage = null })
                     else AboutScreen(page, onBack = { app.aboutPage = null })
                 } ?: ProfileTab(app, actions)
             }

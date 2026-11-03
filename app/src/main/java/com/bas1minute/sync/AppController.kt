@@ -38,6 +38,54 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var burstOpen by mutableStateOf(false)
     /** Spin-the-health-wheel screen open on top of Today (legacy; Spin is now a tab). */
     var wheelOpen by mutableStateOf(false)
+    // ---- Global ranking, circle search, join requests (api/Community.kt) ----
+    val community: com.bas1minute.sync.api.CommunitySource get() = com.bas1minute.sync.api.Community.get(ctx)
+    var globalBoard by mutableStateOf<com.bas1minute.sync.api.GlobalBoard?>(null)
+    var globalPeriod by mutableStateOf("week")
+    var globalOpen by mutableStateOf(false)
+    var findOpen by mutableStateOf(false)
+    var myRequests by mutableStateOf<List<com.bas1minute.sync.api.MyRequest>>(emptyList())
+
+    fun loadGlobal() = launch {
+        if (!repo.ensureAccount()) offline = true
+        val l = community.global(globalPeriod)
+        l.value?.let { globalBoard = it }
+        offline = l.offline
+    }
+
+    /** "Sign in on the website": a code from a QR link (bas1minute://link/CODE or https://…/link/CODE/). */
+    var webCode by mutableStateOf("")
+    fun openWebSignIn(code: String = "") {
+        webCode = code
+        tab = Tab.Profile
+        aboutPage = "web"
+    }
+
+    fun loadMyRequests() = launch {
+        val r = community.myRequests()
+        if (r is com.bas1minute.sync.api.Res.Ok) myRequests = r.value
+    }
+
+    fun setGlobalVisible(on: Boolean) = launch {
+        val r = community.setGlobalVisible(on)
+        if (r is com.bas1minute.sync.api.Res.Ok) prefs.globalVisible = on
+        handle(r, if (on) "You’re back in the global ranking." else "Hidden from the global ranking. You can still see it.") { loadGlobal() }
+    }
+
+    /** Phone check (battery, data, background, permissions) open on top of Insights. */
+    var phoneCheckOpen by mutableStateOf(false)
+
+    /** GPS walk / run screen open on top of Today. */
+    var trackOpen by mutableStateOf(false)
+    /** A finished activity's summary (null = start screen and history). */
+    var trackDetailId by mutableStateOf<Long?>(null)
+    /** 3-2-1 before recording starts (set once location and GPS are ready). */
+    var trackCountdown by mutableStateOf(false)
+    /** Bumped when activities change so lists reload. */
+    var trackVersion by mutableIntStateOf(0)
+    var locationGranted by mutableStateOf(com.bas1minute.sync.track.TrackingService.hasLocationPermission(ctx))
+    fun refreshLocationPermission() { locationGranted = com.bas1minute.sync.track.TrackingService.hasLocationPermission(ctx) }
+
     /** Weekly story open. */
     var reviewOpen by mutableStateOf(false)
     fun openReview() { prefs.reviewSeenWeek = WeekReview.weekKey(); reviewOpen = true }
@@ -103,12 +151,22 @@ class AppController(private val ctx: android.content.Context, private val scope:
         refreshCounters()
     }
 
+    /** When the shown circles copy came from the server, for "Saved copy from …" offline. */
+    var circlesSavedAt by mutableStateOf<Long?>(repo.circlesSavedAt())
+
     fun refreshCircles() = launch {
-        if (!repo.ensureAccount()) { offline = true; message = "Circles need the internet the first time. Connect and try again."; return@launch }
+        if (!repo.ensureAccount()) {
+            offline = true
+            if (circles == null) message = "Circles need the internet the first time. Connect and try again."
+            return@launch
+        }
         val c = repo.circles()
         c.value?.let { circles = it }
         offline = c.offline
+        circlesSavedAt = repo.circlesSavedAt()
         openCircleId?.let { id -> loadCircle(id) }
+        // Keep a full copy (every circle, global board, requests) for offline use
+        if (!c.offline) launch { repo.syncCommunity() }
     }
 
     fun openCircle(id: Int) {
@@ -239,6 +297,9 @@ class AppController(private val ctx: android.content.Context, private val scope:
                 ProfilePhoto.remove(ctx); avatar = null
                 today = null; circles = null; circle = null; openCircleId = null
                 burstOpen = false; logOpen = false; aboutPage = null; wheelOpen = false
+                trackOpen = false; trackDetailId = null; trackVersion++
+                phoneCheckOpen = false; com.bas1minute.sync.phone.PhoneCheckReader.cached = null
+                globalOpen = false; findOpen = false; globalBoard = null; myRequests = emptyList()
                 phone = Snapshot()
                 setupDone = false; permissionsDone = false; unlocked = true
                 tab = Tab.Today
