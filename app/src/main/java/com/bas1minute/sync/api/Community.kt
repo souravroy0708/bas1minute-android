@@ -151,6 +151,8 @@ interface CommunitySource {
     suspend fun competitions(): Loaded<List<Competition>>
     suspend fun competition(id: Int): Loaded<Competition>
     suspend fun joinCompetition(id: Int, join: Boolean): Res<Competition>
+    /** Report a circle's name or description to the Bas 1 Minute team. */
+    suspend fun report(circleId: Int, reason: String): Res<Unit>
 }
 
 object Community {
@@ -231,6 +233,11 @@ class HttpCommunity(private val ctx: Context) : CommunitySource {
 
     override suspend fun discoverable(circleId: Int): Boolean =
         db.getCache("circle:$circleId")?.let { runCatching { JSONObject(it).optJSONObject("circle")?.optBoolean("discoverable") }.getOrNull() } ?: false
+
+    override suspend fun report(circleId: Int, reason: String): Res<Unit> {
+        val r = api.post("circles/$circleId/report/", JSONObject().put("reason", reason))
+        return if (r.ok) Res.Ok(Unit) else fail(r, "Reporting")
+    }
 
     override suspend fun competitions(): Loaded<List<Competition>> {
         val key = "competitions"

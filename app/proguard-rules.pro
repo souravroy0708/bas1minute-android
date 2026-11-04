@@ -9,3 +9,10 @@
 -keep class com.bas1minute.sync.track.TrackingService
 # osmdroid references optional classes it doesn't need on Android
 -dontwarn org.osmdroid.**
+
+# Release: drop debug/verbose/info logging (smaller, and nothing personal in logcat). Warnings and errors stay.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

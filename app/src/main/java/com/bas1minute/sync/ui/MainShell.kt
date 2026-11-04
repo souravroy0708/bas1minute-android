@@ -23,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.bas1minute.sync.AppController
 import com.bas1minute.sync.Tab
@@ -40,6 +42,12 @@ private val TABS = listOf(
 /** Five tabs: Today, Move (walks and runs), Circles, Insights, Profile. */
 @Composable
 fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Unit, onCall: (String) -> Unit) {
+    // A required update replaces the whole app until it's installed
+    val update by com.bas1minute.sync.AppUpdate.status.collectAsState()
+    if (update == com.bas1minute.sync.AppUpdate.Status.Required) {
+        UpdateRequiredScreen(onUpdate = actions.onUpdateApp)
+        return
+    }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(app.message) {
         app.message?.let {

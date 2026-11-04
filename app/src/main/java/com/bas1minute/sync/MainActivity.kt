@@ -43,6 +43,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    /** Google Play in-app updates (must be created before the activity starts). */
+    private val updater = PlayUpdater(this)
+
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (!granted) app.message = "Notifications are off. You can allow them in Android Settings."
@@ -196,6 +199,7 @@ class MainActivity : ComponentActivity() {
                 onSaveGpx = { name, gpx -> saveGpx(name, gpx) },
                 onOpenAppSettings = { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))) },
             ),
+            onUpdateApp = { updater.update() },
         )
 
         setContent {
@@ -267,6 +271,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Required or available update: ask the server (minimum version) and Google Play
+        updater.resumeIfNeeded()
+        updater.checkPlay()
+        app.launch { AppUpdate.checkServer(com.bas1minute.sync.api.Api(this@MainActivity)) }
         // After setup: ask for notifications once, and keep this phone's push token current.
         if (app.setupDone && app.permissionsDone && app.prefs.pushEnabled) {
             if (!app.prefs.notifAsked) askNotifications() else Push.refreshToken(applicationContext)

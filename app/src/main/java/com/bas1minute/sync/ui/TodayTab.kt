@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -202,6 +203,13 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     onBurst = { app.burstOpen = true }, onCalm = { app.calmOpen = true },
                     onWater = { app.addWater() }, onLog = { app.logOpen = true },
                 )
+
+                // Newer version on Google Play (dismiss hides it until the app restarts)
+                val update by com.bas1minute.sync.AppUpdate.status.collectAsState()
+                var updateLater by remember { mutableStateOf(false) }
+                if (update == com.bas1minute.sync.AppUpdate.Status.Available && !updateLater) {
+                    UpdateAvailableBanner(onUpdate = phoneActions.onUpdateApp, onLater = { updateLater = true })
+                }
 
                 // GPS walk / run: start one, or see the one in progress
                 TrackTodayCard(app)

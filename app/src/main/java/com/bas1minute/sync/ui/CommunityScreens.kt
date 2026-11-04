@@ -306,7 +306,7 @@ fun FindCirclesScreen(app: AppController, onBack: () -> Unit) {
             }
             else -> {
                 if (query.isBlank()) Text("Popular this week", style = MaterialTheme.typography.titleLarge)
-                list.forEach { c -> FoundCard(c, onAsk = { asking = c }, onCancel = {
+                list.forEach { c -> FoundCard(c, appRef = app, onAsk = { asking = c }, onCancel = {
                     app.launch { app.handle(app.community.cancelRequest(c.id), "Request cancelled.") { version++; app.loadMyRequests() } }
                 }) }
             }
@@ -337,7 +337,7 @@ fun FindCirclesScreen(app: AppController, onBack: () -> Unit) {
 }
 
 @Composable
-private fun FoundCard(c: FoundCircle, onAsk: () -> Unit, onCancel: () -> Unit) {
+private fun FoundCard(c: FoundCircle, onAsk: () -> Unit, onCancel: () -> Unit, appRef: AppController? = null) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(CardBg).padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(c.kindLabel, style = MaterialTheme.typography.labelMedium, color = Ink,
@@ -346,7 +346,10 @@ private fun FoundCard(c: FoundCircle, onAsk: () -> Unit, onCancel: () -> Unit) {
             Spacer(Modifier.weight(1f))
             Text("${c.size}/20", style = MaterialTheme.typography.bodySmall, color = Muted)
         }
-        Text(c.name, style = MaterialTheme.typography.titleLarge)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(c.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            appRef?.let { ReportCircleButton(it, c.id, c.name) }
+        }
         c.about?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Muted, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         Text("Owner ${c.owner} · ${c.weekPoints} team points this week", style = MaterialTheme.typography.bodySmall, color = Muted)
         when {
@@ -563,5 +566,33 @@ fun CompetitionScreen(app: AppController, onBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+
+/** "Report": the reasons a circle can break the rules. Reviewed by the team; abusive circles are hidden. */
+@Composable
+fun ReportCircleButton(app: AppController, circleId: Int, name: String) {
+    var open by remember { mutableStateOf(false) }
+    TextButton(onClick = { open = true }) { Text("Report", color = Muted, style = MaterialTheme.typography.labelMedium) }
+    if (open) {
+        val reasons = listOf("Offensive or hateful name", "Spam or advertising", "Pretends to be someone else", "Something else")
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text("Report “$name”?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Our team reviews every report. The owner isn’t told who reported it.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                    reasons.forEach { reason ->
+                        TextButton(onClick = {
+                            open = false
+                            app.launch { app.handle(app.community.report(circleId, reason), "Thanks. We’ll review “$name”.") }
+                        }) { Text(reason, color = Ink) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { open = false }) { Text(t("Cancel"), color = Muted) } },
+        )
     }
 }

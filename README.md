@@ -93,6 +93,18 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## v2.0: Google Play release
+
+Publishing guide with every Play Console value, Data safety answers and declarations: **`docs/PLAY_STORE.md`**.
+
+- **Updates:** "Update available" banner on Today and a blocking **"Time to update"** screen when this version is below
+  the minimum set in the website admin (App versions). Both use Google Play in-app updates (install without leaving the
+  app); phones that didn't install from Play get the Play listing. The API answers 426 to versions below the minimum.
+- **Report a circle** (search results and circle screens), reviewed in the admin (Play UGC policy).
+- **Smaller:** fonts subset to English + Hindi characters (−330 KB), only `en`/`hi` resources, debug logging stripped,
+  preview tooling removed, Play bundle split by density and language.
+- Version names are now `2.0.<build>`; the versionCode is still the GitHub build number.
+
 ## v1.5: Move tab, competitions, redesigned Circles
 
 **Bottom tabs:** Today · **Move** · Circles · Insights · Profile. The health wheel moved to its card on Today.

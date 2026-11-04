@@ -4,11 +4,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// Pilot builds on GitHub Actions are signed with YOUR key (from repository secrets), so every new
-// APK installs as an update over the previous one. Without the secrets it falls back to the debug key.
+// Release builds are signed with YOUR upload key (GitHub secrets); Google Play re-signs them with the app
+// signing key (Play App Signing). Without the secrets the build falls back to the debug key (not for Play).
 val releaseKeystore: String? = System.getenv("B1M_KEYSTORE_PATH")
-// Each GitHub build gets a higher version number, which Android needs to accept an update.
+// Every Play release needs a higher versionCode: the GitHub build number. Bump APP_VERSION for big releases.
 val buildNumber: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+val appVersion = "2.0"
 
 // Push notifications need app/google-services.json (from Firebase). Without it the app builds without pushes.
 if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
@@ -22,7 +23,7 @@ android {
         minSdk = 26          // Health Connect needs Android 8.0+
         targetSdk = 36
         versionCode = buildNumber
-        versionName = "1.0.$buildNumber"
+        versionName = "$appVersion.$buildNumber"
         // Your live site. Members can change it in the app (for local testing).
         buildConfigField("String", "DEFAULT_SERVER", "\"https://bas1minute.pythonanywhere.com\"")
         // Shown on the in-app privacy screen. Change to your real support address.
@@ -47,8 +48,8 @@ android {
         release {
             manifestPlaceholders["cleartext"] = "false"   // HTTPS only
             signingConfig = if (releaseKeystore != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
-            // Kept off during the pilot so crash reports stay readable. Turn on before the Play Store.
-            // Obfuscate and shrink: makes reverse engineering the release APK much harder.
+            // Shrink, optimise and obfuscate. Upload app/build/outputs/mapping/release/mapping.txt to Play
+            // (Play Console does this automatically for bundles) so crash reports stay readable.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -67,6 +68,22 @@ android {
         compose = true
         buildConfig = true
     }
+    // Only the languages the app speaks: drops ~80 translations Play services and AndroidX bring along.
+    androidResources {
+        localeFilters += listOf("en", "hi")
+    }
+    packaging {
+        resources {
+            excludes += listOf("/META-INF/{AL2.0,LGPL2.1}", "/META-INF/*.kotlin_module", "DebugProbesKt.bin",
+                "kotlin-tooling-metadata.json", "/META-INF/*.version")
+        }
+    }
+    bundle {
+        // Phones download only their own screen density and language from Play
+        density { enableSplit = true }
+        language { enableSplit = true }
+        abi { enableSplit = true }
+    }
 }
 
 kotlin {
@@ -82,7 +99,6 @@ dependencies {
     implementation(libs.compose.material.icons)
     implementation(libs.compose.material.icons.extended)   // R8 strips the icons we don't use
     implementation(libs.splashscreen)
-    implementation(libs.compose.ui.tooling.preview)
     implementation(libs.activity.compose)
     implementation(libs.fragment.ktx)
     implementation(platform(libs.firebase.bom))
@@ -95,5 +111,7 @@ dependencies {
     // GPS walk / run
     implementation(libs.play.services.location)
     implementation(libs.osmdroid)
+    // Google Play in-app updates (forced "Update required" and "Update available")
+    implementation(libs.play.app.update)
     testImplementation(libs.junit)
 }

@@ -59,6 +59,8 @@ class Api(context: Context) {
                 conn.connectTimeout = 12_000
                 conn.readTimeout = 20_000
                 conn.setRequestProperty("Accept", "application/json")
+                // The server answers 426 when this version is below the minimum (Admin → App versions)
+                conn.setRequestProperty("X-B1M-App-Version", com.bas1minute.sync.BuildConfig.VERSION_CODE.toString())
                 if (prefs.token.isNotBlank()) conn.setRequestProperty("Authorization", "Bearer ${prefs.token}")
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json")
@@ -67,6 +69,7 @@ class Api(context: Context) {
                 val stream = if (code in 200..299) conn.inputStream else conn.errorStream
                 val text = stream?.bufferedReader()?.use { it.readText() } ?: ""
                 val json = try { if (text.isBlank()) null else JSONObject(text) } catch (e: Exception) { null }
+                if (code == 426) com.bas1minute.sync.AppUpdate.requireFromServer(json)
                 ApiReply(code, json)
             } finally {
                 conn.disconnect()

@@ -313,6 +313,7 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
         if (d.isOwner) JoinRequestsCard(app, d)
 
         if (d.isOwner) OwnerPanel(app, d)
+        else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { ReportCircleButton(app, d.id, d.name) }
 
         LeaveButton(app, d)
     }

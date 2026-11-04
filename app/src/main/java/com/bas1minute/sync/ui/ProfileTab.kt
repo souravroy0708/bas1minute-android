@@ -56,6 +56,8 @@ data class PhoneActions(
     val onOpenUsageAccess: () -> Unit,
     val onShareWhatsApp: (String) -> Unit,
     val track: TrackActions = TrackActions(),
+    /** Google Play update flow (or the Play listing). */
+    val onUpdateApp: () -> Unit = {},
 )
 
 @Composable
