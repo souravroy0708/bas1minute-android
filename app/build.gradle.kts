@@ -10,6 +10,9 @@ val releaseKeystore: String? = System.getenv("B1M_KEYSTORE_PATH")
 // Every Play release needs a higher versionCode: the GitHub build number. Bump APP_VERSION for big releases.
 val buildNumber: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
 val appVersion = "2.0"
+// CI launch test: ./gradlew assembleRelease -Pb1m.noMinify=true builds the release APK without R8, so a crash
+// that only happens in the minified build can be told apart from a real bug. Normal builds are unaffected.
+val noMinify = project.hasProperty("b1m.noMinify")
 
 // Push notifications need app/google-services.json (from Firebase). Without it the app builds without pushes.
 if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
@@ -50,8 +53,8 @@ android {
             signingConfig = if (releaseKeystore != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
             // Shrink, optimise and obfuscate. Upload app/build/outputs/mapping/release/mapping.txt to Play
             // (Play Console does this automatically for bundles) so crash reports stay readable.
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = !noMinify
+            isShrinkResources = !noMinify
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
