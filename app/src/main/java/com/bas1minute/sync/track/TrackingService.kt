@@ -60,6 +60,9 @@ object LiveTrack {
 
     /** Id of the activity that was just saved, so the app can open its summary. Cleared by the UI. */
     val justFinished = MutableStateFlow<Long?>(null)
+
+    /** Why recording couldn't start, shown once by the Move tab. Cleared by the UI. */
+    val error = MutableStateFlow<String?>(null)
 }
 
 /**
@@ -159,8 +162,9 @@ class TrackingService : Service() {
             ServiceCompat.startForeground(this, NOTIF_ID, notification(), type)
             true
         } catch (e: Exception) {
-            // The activity stays in the database as unfinished; the Today card offers Resume / Save.
+            // The activity stays in the database as unfinished; the Move tab offers Resume / Save.
             tracker = null
+            LiveTrack.error.value = "Couldn’t start recording. Allow precise location for Bas 1 Minute and keep the app open when you tap Start."
             stopSelf()
             false
         }
@@ -168,7 +172,10 @@ class TrackingService : Service() {
 
     private fun begin(type: ActivityType, autoPause: Boolean, voice: Boolean) {
         if (tracker != null) return     // already recording
-        if (!hasLocationPermission(this)) { stopSelf(); return }
+        if (!hasLocationPermission(this)) {
+            LiveTrack.error.value = "Allow precise location to record your route, then tap Start again."
+            stopSelf(); return
+        }
         startedAt = System.currentTimeMillis()
         activityId = store.create(type, startedAt)
         savedSeq = 0

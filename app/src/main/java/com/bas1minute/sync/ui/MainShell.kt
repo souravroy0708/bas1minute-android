@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -53,6 +54,30 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         app.message?.let {
             snackbar.showSnackbar(it)
             app.message = null
+        }
+    }
+    // The app closed unexpectedly last time: offer to email the report (nothing is sent automatically)
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var crash by remember { androidx.compose.runtime.mutableStateOf(com.bas1minute.sync.CrashLog.pending(ctx)) }
+    crash?.let { report ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { com.bas1minute.sync.CrashLog.clear(ctx); crash = null },
+            title = { Text("Bas 1 Minute closed unexpectedly") },
+            text = { Text("Sorry about that. Sending the report helps us fix it quickly. You’ll see exactly what’s sent in your email app.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                com.bas1minute.sync.CrashLog.email(ctx, report); com.bas1minute.sync.CrashLog.clear(ctx); crash = null
+            }) { Text("Send report") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { com.bas1minute.sync.CrashLog.clear(ctx); crash = null }) { Text("Not now") } },
+        )
+    }
+    // Reinstalled on the same phone: say so, so nobody thinks their circles were lost
+    LaunchedEffect(Unit) {
+        com.bas1minute.sync.api.Welcome.back.collect { name ->
+            if (name != null) {
+                com.bas1minute.sync.api.Welcome.back.value = null
+                app.message = "Welcome back, $name. Your circles, ranking and shared history are back."
+                app.refreshCircles()
+            }
         }
     }
     // A walk/run was just saved (from the screen or the notification): show its summary

@@ -93,6 +93,22 @@ libraries). It works with no internet and when the website is down:
 3. Download the `bas1minute-sync-debug` artifact, unzip, copy the `.apk` to your phone and install
    (allow "install unknown apps" for your file manager).
 
+## v2.0.1: launch fix, one account per phone, Move fixes
+
+- **Fixed: the app closed on launch.** The Play update manager was created while `MainActivity` was being
+  constructed, before Android gives it a context; it's now created on first use and can never crash the app.
+- **Reinstalling keeps the same account.** Registration sends a SHA-256 of the app's Android ID (per app signing
+  key and phone; survives reinstalls, resets on factory reset). The server keeps only a keyed hash and gives the same
+  phone its account back: circles, ranking, history, name. The old install's login ends. "Welcome back" shows once.
+- **Uninstalled members disappear from circles.** Firebase reports uninstalled apps; those members are hidden from
+  circles, the global ranking and competitions at once, and their account is deleted after 30 days (server task
+  `check_installs`). Reinstalling within that time brings everything back. Deleting an account now hands each owned
+  circle to another member instead of leaving it without an owner.
+- **Move:** Finish (with Save / Discard) is always visible while recording, not only after Pause. If recording can't
+  start, the Move tab says why instead of silently doing nothing. Tapping the Today card opens your latest activity.
+- **Crash reports:** if the app ever closes unexpectedly, the next launch offers to email the report
+  (nothing sent automatically).
+
 ## v2.0: Google Play release
 
 Publishing guide with every Play Console value, Data safety answers and declarations: **`docs/PLAY_STORE.md`**.

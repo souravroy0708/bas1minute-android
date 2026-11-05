@@ -60,16 +60,20 @@ object AppUpdate {
     }
 }
 
-/** Runs Google Play's update flow for one activity. Create it as a property (it registers a result launcher). */
+/**
+ * Runs Google Play's update flow for one activity. Create it as an activity property: the result launcher must be
+ * registered before the activity starts. The Play manager itself is created on first use, because the activity has
+ * no context yet while its properties are being set up (creating it there crashed the app on launch).
+ */
 class PlayUpdater(private val activity: ComponentActivity) {
-    private val manager = AppUpdateManagerFactory.create(activity)
+    private val manager by lazy { AppUpdateManagerFactory.create(activity.applicationContext) }
     private val launcher = activity.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         // Cancelled a required update: the blocking screen stays and offers it again
         if (result.resultCode != Activity.RESULT_OK && AppUpdate.status.value == AppUpdate.Status.Required) Unit
     }
 
     /** Also asks Play directly, so a published update is noticed even before the server minimum is raised. */
-    fun checkPlay() {
+    fun checkPlay() = guard {
         manager.appUpdateInfo.addOnSuccessListener { info ->
             if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && AppUpdate.status.value == AppUpdate.Status.Current) {
                 AppUpdate.status.value = AppUpdate.Status.Available
@@ -82,20 +86,25 @@ class PlayUpdater(private val activity: ComponentActivity) {
     }
 
     /** On resume: an update started earlier must finish (Play shows its screen again). */
-    fun resumeIfNeeded() {
+    fun resumeIfNeeded() = guard {
         manager.appUpdateInfo.addOnSuccessListener { info ->
             if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) start(info)
         }
     }
 
     /** "Update now": Play's in-place update, or the Play listing when that isn't possible. */
-    fun update() {
+    fun update() = guard(orElse = { openStore() }) {
         manager.appUpdateInfo
             .addOnSuccessListener { info ->
                 if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) start(info)
                 else openStore()
             }
             .addOnFailureListener { openStore() }
+    }
+
+    /** Play services missing, old or busy must never crash the app: updates are a nice-to-have at runtime. */
+    private inline fun guard(orElse: () -> Unit = {}, block: () -> Unit) {
+        try { block() } catch (e: Exception) { orElse() }
     }
 
     private fun start(info: AppUpdateInfo) {

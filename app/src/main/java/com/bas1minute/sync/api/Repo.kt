@@ -38,11 +38,13 @@ class Repo(context: Context) {
             return secrets.secret.isNotBlank() || up.code == null
         }
         if (prefs.name.isBlank()) return false
-        val r = api.post("auth/device/", JSONObject().put("name", prefs.name).put("device", device()))
+        val r = api.post("auth/device/", JSONObject().put("name", prefs.name).put("device", device()).put("install_id", installId()))
         if (!r.ok || r.json == null) return false
         prefs.token = r.json.optString("token")
         secrets.secret = r.json.optString("secret")
         r.json.optJSONObject("me")?.let { saveMe(Me.from(it)) }
+        // Reinstalled on the same phone: the server gave back the same account (circles, ranking, history)
+        if (r.json.optBoolean("returning")) Welcome.back.value = prefs.name.substringBefore(' ').ifBlank { prefs.name }
         if (prefs.shareActivity) api.post("me/", JSONObject().put("share_activity", true))
         return true
     }
@@ -301,4 +303,23 @@ class Repo(context: Context) {
     }
 
     private fun device(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+
+    /**
+     * Identifies this phone across reinstalls, so uninstalling and reinstalling doesn't create a second member.
+     * Android ID is specific to this app's signing key and the phone's user, survives reinstalls and resets on
+     * factory reset. Only a SHA-256 of it is sent; the server stores a keyed hash of that.
+     */
+    @android.annotation.SuppressLint("HardwareIds")
+    private fun installId(): String {
+        val id = android.provider.Settings.Secure.getString(ctx.contentResolver, android.provider.Settings.Secure.ANDROID_ID).orEmpty()
+        if (id.isBlank() || id == "9774d56d682e549c") return ""   // missing, or the known broken emulator value
+        return java.security.MessageDigest.getInstance("SHA-256").digest("bas1minute:$id".toByteArray())
+            .joinToString("") { "%02x".format(it) }
+    }
+}
+
+
+/** Set when this phone signed back in to its earlier account after a reinstall (shown once as a greeting). */
+object Welcome {
+    val back = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 }

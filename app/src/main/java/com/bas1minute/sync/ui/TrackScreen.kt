@@ -137,9 +137,18 @@ fun MoveTab(app: AppController, actions: PhoneActions) {
         }
         else -> MoveHome(app, actions.track)
     }
+    // Recording couldn't start (permission removed, Android refused): say why instead of doing nothing
+    val trackError by LiveTrack.error.collectAsState()
+    LaunchedEffect(trackError) {
+        trackError?.let { app.message = it; LiveTrack.error.value = null }
+    }
     if (app.trackCountdown) Countdown(onDone = {
         app.trackCountdown = false
-        TrackingService.start(app.ctxForPush, ActivityType.of(app.prefs.trackType), app.prefs.trackAutoPause, app.prefs.trackVoice)
+        if (!TrackingService.hasLocationPermission(app.ctxForPush)) {
+            app.message = "Allow precise location to record your route, then tap Start again."
+        } else {
+            TrackingService.start(app.ctxForPush, ActivityType.of(app.prefs.trackType), app.prefs.trackAutoPause, app.prefs.trackVoice)
+        }
     }, onCancel = { app.trackCountdown = false })
 }
 
@@ -457,6 +466,8 @@ private fun LiveView(app: AppController, live: LiveTrack.State, onClose: () -> U
                         BigRound(Icons.Filled.Stop, "Finish", Coral, Modifier.weight(1f)) { confirmFinish = true }
                         BigRound(Icons.Filled.PlayArrow, "Resume", Haldi, Modifier.weight(1f)) { TrackingService.resume(ctx) }
                     } else {
+                        // Finish (with Save / Discard) is always one tap away, not hidden behind Pause
+                        BigRound(Icons.Filled.Stop, "Finish", Coral, Modifier.weight(1f)) { confirmFinish = true }
                         BigRound(Icons.Filled.Pause, "Pause", Haldi, Modifier.weight(1f)) { TrackingService.pause(ctx) }
                     }
                 }
@@ -862,7 +873,9 @@ fun TrackTodayCard(app: AppController) {
         }
         return
     }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg).clickable { app.trackOpen = true }.padding(16.dp),
+    // Tapping the card opens your latest activity (if this week has one); Start goes to Move
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg)
+        .clickable { app.trackOpen = true; if (week.first == 0) last?.let { app.trackDetailId = it.id } }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFE3F7EE)), contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.DirectionsRun, contentDescription = null, tint = MintDark)
@@ -873,7 +886,7 @@ fun TrackTodayCard(app: AppController) {
             Text(
                 when {
                     week.first > 0 -> "This week: ${week.first} · ${Fmt.km(week.second)} km"
-                    last != null -> "Last: ${last!!.title}, ${Fmt.km(last!!.distanceM)} km"
+                    last != null -> "Last: ${last!!.title}, ${Fmt.km(last!!.distanceM)} km · tap to open"
                     else -> "See your route on the map, km, pace and share it"
                 },
                 style = MaterialTheme.typography.bodySmall, color = Muted,

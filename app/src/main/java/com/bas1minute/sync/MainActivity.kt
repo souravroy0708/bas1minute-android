@@ -162,6 +162,7 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        CrashLog.install(this)   // first, so even a crash during startup is kept for the next launch
         installSplashScreen()
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),

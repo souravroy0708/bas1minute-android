@@ -79,7 +79,7 @@ Data "collected" = sent off the phone. Encrypted in transit: **Yes**. Users can 
 | Name | Yes | No | Required (can be any name) | App functionality, account |
 | Health and fitness → Fitness info (daily steps) | Yes | No | **Optional** (sharing switch, off by default) | App functionality (circles, ranking, competitions) |
 | App activity → Other (daily screen-time minutes) | Yes | No | **Optional** | App functionality |
-| Device or other IDs (push token) | Yes | No | Optional (notifications) | App functionality |
+| Device or other IDs (push token; a SHA-256 of the app's Android ID, so a reinstall on the same phone keeps the same account) | Yes | No | Required | App functionality, account management, fraud prevention (one person, one ranking entry) |
 | Location | **No** (GPS routes never leave the phone) | — | — | — |
 | Photos, contacts, messages, files, audio, financial | No | — | — | — |
 
