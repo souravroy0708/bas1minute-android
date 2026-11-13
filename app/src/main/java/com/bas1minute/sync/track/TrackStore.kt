@@ -19,23 +19,32 @@ data class ActivityRow(
     val maxSpeedMs: Double,
     val kcal: Int?,
     val preview: List<LatLng>,
+    /** gps (route and map), steps (distance from steps, no location) or timer (time only). */
+    val source: TrackSource = TrackSource.Gps,
+    val steps: Long? = null,
+    /** Kilometre splits for step activities (GPS ones are rebuilt from points). */
+    val splitsMs: List<Long> = emptyList(),
+    /** The distance was typed or corrected by the person. */
+    val distanceEdited: Boolean = false,
 ) {
     val avgSpeedMs: Double get() = if (movingMs <= 0) 0.0 else distanceM / (movingMs / 1000.0)
+    val avgCadence: Int? get() = steps?.takeIf { it > 0 && movingMs >= 30_000 }?.let { (it / (movingMs / 60_000.0)).toInt() }
 }
 
-/** GPS activities live in the app's own SQLite (bas1minute.db, v5). They never leave the phone unless shared. */
+/** Activities live in the app's own SQLite (bas1minute.db, v5 + v7). They never leave the phone unless shared. */
 class TrackStore(context: Context) {
     private val db: SQLiteDatabase get() = helper.writableDatabase
     private val helper = LocalDb.get(context)
 
     companion object {
-        private const val COLS = "id, type, title, started_at, ended_at, distance_m, moving_ms, elapsed_ms, elev_gain_m, max_speed, kcal, preview"
+        private const val COLS = "id, type, title, started_at, ended_at, distance_m, moving_ms, elapsed_ms, elev_gain_m, max_speed, kcal, preview, " +
+            "source, steps, splits, distance_edited"
         private const val DEFAULT_WEIGHT_KG = 65.0
     }
 
-    fun create(type: ActivityType, startedAt: Long): Long =
+    fun create(type: ActivityType, startedAt: Long, source: TrackSource = TrackSource.Gps): Long =
         db.insert("activities", null, ContentValues().apply {
-            put("type", type.id); put("started_at", startedAt)
+            put("type", type.id); put("started_at", startedAt); put("source", source.id)
         })
 
     fun addPoints(activityId: Long, firstSeq: Int, points: List<TrackPoint>) {
@@ -61,14 +70,22 @@ class TrackStore(context: Context) {
         db.update("activities", ContentValues().apply {
             put("distance_m", s.distanceM); put("moving_ms", s.movingMs); put("elapsed_ms", s.elapsedMs)
             put("elev_gain_m", s.elevGainM); put("max_speed", s.maxSpeedMs)
+            putStepTotals(s)
         }, "id = ?", arrayOf(id.toString()))
+    }
+
+    /** Steps and splits only exist on activities without a route (GPS ones keep them in their points). */
+    private fun ContentValues.putStepTotals(s: TrackStats) {
+        if (s.steps > 0) put("steps", s.steps)
+        SplitsText.write(s.splitsMs)?.let { put("splits", it) }
     }
 
     /** Mark finished: title, calories estimate and a small route preview for the list. */
     fun finish(id: Long, type: ActivityType, s: TrackStats?, endedAt: Long) {
         val pts = points(id)
-        val distance = s?.distanceM ?: pts.lastOrNull()?.distM ?: 0.0
-        val started = row(id)?.startedAt ?: endedAt
+        val saved = row(id)
+        val distance = s?.distanceM ?: pts.lastOrNull()?.distM ?: saved?.distanceM ?: 0.0
+        val started = saved?.startedAt ?: endedAt
         val hour = java.time.Instant.ofEpochMilli(started).atZone(java.time.ZoneId.systemDefault()).hour
         val preview = Polyline5.encode(Simplify.toMax(pts.map { LatLng(it.lat, it.lng) }, 80))
         db.update("activities", ContentValues().apply {
@@ -79,12 +96,27 @@ class TrackStore(context: Context) {
             if (s != null) {
                 put("distance_m", s.distanceM); put("moving_ms", s.movingMs); put("elapsed_ms", s.elapsedMs)
                 put("elev_gain_m", s.elevGainM); put("max_speed", s.maxSpeedMs)
+                putStepTotals(s)
+            } else if (pts.isEmpty()) {
+                // Recovered step or timer activity: the live totals saved every few seconds are already in the row
             } else {
                 // Recovered after the app was closed: rebuild totals from the saved points
                 put("distance_m", distance)
                 put("moving_ms", pts.lastOrNull()?.movingMs ?: 0L)
                 put("elapsed_ms", (pts.lastOrNull()?.timeMs ?: started) - started)
             }
+        }, "id = ?", arrayOf(id.toString()))
+    }
+
+    /**
+     * The person typed the real distance (a ride without GPS, or a corrected walk). Splits are dropped because
+     * they no longer match; calories follow the new distance.
+     */
+    fun editDistance(id: Long, distanceM: Double) {
+        val r = row(id) ?: return
+        db.update("activities", ContentValues().apply {
+            put("distance_m", distanceM); put("distance_edited", 1); putNull("splits")
+            put("kcal", TrackSummary.kcal(r.type, distanceM, latestWeightKg()))
         }, "id = ?", arrayOf(id.toString()))
     }
 
@@ -148,5 +180,9 @@ class TrackStore(context: Context) {
         distanceM = c.getDouble(5), movingMs = c.getLong(6), elapsedMs = c.getLong(7),
         elevGainM = c.getDouble(8), maxSpeedMs = c.getDouble(9), kcal = if (c.isNull(10)) null else c.getInt(10),
         preview = c.getString(11)?.let { Polyline5.decode(it) } ?: emptyList(),
+        source = TrackSource.of(c.getString(12)),
+        steps = if (c.isNull(13)) null else c.getLong(13),
+        splitsMs = SplitsText.read(c.getString(14)),
+        distanceEdited = c.getInt(15) == 1,
     )
 }

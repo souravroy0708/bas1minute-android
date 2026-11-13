@@ -66,17 +66,25 @@ class MainActivity : ComponentActivity() {
             app.refreshLocationPermission()
             when {
                 result[Manifest.permission.ACCESS_FINE_LOCATION] == true -> checkGpsThenCountdown()
+                // GPS is optional: record anyway, from steps
                 result[Manifest.permission.ACCESS_COARSE_LOCATION] == true ->
-                    app.message = "Choose “Precise” location so your route is accurate (Android Settings → Apps → Bas 1 Minute → Location)."
-                else -> app.message = "Location is needed to map your walk. It stays on this phone."
+                    readyWithoutGps("Without precise location there’s no map. Recording km from your steps instead.")
+                else -> readyWithoutGps("No GPS, no problem: recording km, time and pace from your steps.")
             }
         }
 
     /** Android's "Turn on location?" dialog. */
     private val gpsSwitch =
         registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
-            if (r.resultCode == RESULT_OK) app.trackCountdown = true
-            else app.message = "Turn on location (GPS) to record your route."
+            if (r.resultCode == RESULT_OK) countdownWith(com.bas1minute.sync.track.TrackSource.Gps)
+            else readyWithoutGps("GPS is off: recording km from your steps instead. Turn it on next time for a map.")
+        }
+
+    /** Physical activity: the step counter, for walks and runs without GPS. Denied still records (time only). */
+    private val trackActivityPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) app.message = "Without Physical activity only the time is recorded. You can add the distance when you finish."
+            countdownWith(com.bas1minute.sync.track.TrackSource.Steps)
         }
 
     private var pendingGpx: String? = null
@@ -101,29 +109,49 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) { "Couldn’t save the picture." }
         }
 
-    /** Start pressed: precise location → GPS switched on → (notifications, once) → 3-2-1. */
+    /**
+     * Start pressed. With "Map with GPS" on: precise location → GPS switched on → 3-2-1. If the person says no
+     * to either, it still records, from steps. With it off: Physical activity (for steps) → 3-2-1.
+     */
     private fun readyToTrack() {
+        if (!app.prefs.trackUseGps) { readyWithoutGps(); return }
         if (!com.bas1minute.sync.track.TrackingService.hasLocationPermission(this)) {
             locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             return
         }
+        checkGpsThenCountdown()
+    }
+
+    /** No GPS: steps for walks and runs (asks for Physical activity once), time for rides. */
+    private fun readyWithoutGps(message: String? = null) {
+        message?.let { app.message = it }
+        val type = com.bas1minute.sync.track.ActivityType.of(app.prefs.trackType)
+        if (type != com.bas1minute.sync.track.ActivityType.Cycle && !com.bas1minute.sync.track.TrackingService.hasActivityPermission(this)) {
+            trackActivityPermission.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+            return
+        }
+        countdownWith(com.bas1minute.sync.track.TrackSource.Steps)
+    }
+
+    private fun countdownWith(source: com.bas1minute.sync.track.TrackSource) {
         // Shows distance and the Pause / Finish buttons while the screen is off
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !app.prefs.notifAsked) askNotifications()
-        checkGpsThenCountdown()
+        app.trackSource = source
+        app.trackCountdown = true
     }
 
     private fun checkGpsThenCountdown() {
         val request = com.google.android.gms.location.LocationRequest.Builder(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, 1000L).build()
         val settings = com.google.android.gms.location.LocationSettingsRequest.Builder().addLocationRequest(request).setAlwaysShow(true).build()
         com.google.android.gms.location.LocationServices.getSettingsClient(this).checkLocationSettings(settings)
-            .addOnSuccessListener { app.trackCountdown = true }
+            .addOnSuccessListener { countdownWith(com.bas1minute.sync.track.TrackSource.Gps) }
             .addOnFailureListener { e ->
                 if (e is com.google.android.gms.common.api.ResolvableApiException) {
                     try { gpsSwitch.launch(androidx.activity.result.IntentSenderRequest.Builder(e.resolution).build()) }
-                    catch (x: Exception) { app.message = "Turn on location in quick settings, then tap Start." }
+                    catch (x: Exception) { readyWithoutGps("GPS is off: recording km from your steps instead.") }
                 } else {
                     // Can't check (no Play services settings): try anyway; the GPS chip shows if it works
-                    app.trackCountdown = true
+                    countdownWith(com.bas1minute.sync.track.TrackSource.Gps)
                 }
             }
     }
@@ -170,10 +198,14 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         app = AppController(applicationContext, lifecycleScope)
+        // Close a digital detox whose time is up, or restart its blocker if Android stopped it
+        com.bas1minute.sync.detox.DetoxController.reconcile(applicationContext)
         handleLink(intent)
         if (app.prefs.autoSync) SyncWorker.schedule(this)
         // Battery level every ~15 min for Phone check (phone only, no network)
         com.bas1minute.sync.phone.BatteryWorker.schedule(this)
+        // Three nudges a day (steps, screen time, detox), worked out on this phone
+        com.bas1minute.sync.nudge.NudgeWorker.schedule(this)
 
         val help = HelpActions(
             onSearch = { query -> searchGoogle(query) },
@@ -245,9 +277,16 @@ class MainActivity : ComponentActivity() {
         // Tapped the Phone check evening alert
         if (intent?.getBooleanExtra(com.bas1minute.sync.phone.BatteryWorker.EXTRA_OPEN, false) == true) {
             intent?.removeExtra(com.bas1minute.sync.phone.BatteryWorker.EXTRA_OPEN)
-            app.tab = Tab.Insights
+            app.tab = Tab.Detox
             app.phoneCheckOpen = true
         }
+        // Tapped a detox notification, "End detox early" on the pause screen, or one of the daily nudges
+        when (intent?.getStringExtra(com.bas1minute.sync.detox.DetoxService.EXTRA_OPEN)) {
+            com.bas1minute.sync.detox.DetoxService.OPEN_DETOX -> { app.tab = Tab.Detox; app.phoneCheckOpen = false; app.detoxView = "detox" }
+            "move" -> app.tab = Tab.Move
+            "today" -> app.tab = Tab.Today
+        }
+        intent?.removeExtra(com.bas1minute.sync.detox.DetoxService.EXTRA_OPEN)
         val uri = intent?.data ?: return
         // Website sign-in QR: https://<site>/link/CODE/ or bas1minute://link/CODE → approve screen with the code
         val webCode = when (uri.scheme) {

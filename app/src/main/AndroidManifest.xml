@@ -17,6 +17,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Walk / run without GPS: step counter in a "health" foreground service, CPU kept awake while recording -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
     <!-- Map tiles: OpenStreetMap checks the connection before downloading -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
@@ -24,6 +28,11 @@
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Digital detox: shows the pause screen over other apps while a detox the user started is on -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Digital detox: resumes a running detox after the phone restarts -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Lets the app check whether Health Connect is installed (Android 13 and older) -->
     <queries>
@@ -43,6 +52,11 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
+        </intent>
+        <!-- Digital detox: the messages app stays allowed (browsers are found with the https query above) -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_MESSAGING" />
         </intent>
         <!-- Apps with a launcher icon: to tell social apps apart and show their names (on this phone only) -->
         <intent>
@@ -112,11 +126,41 @@
                 android:resource="@xml/share_paths" />
         </provider>
 
-        <!-- Records a walk or run with the screen off. Started only from the app. -->
+        <!-- Records a walk, run or ride with the screen off. Started only from the app.
+             location: with GPS (map and route). health: without GPS (distance from the step counter, or time only). -->
         <service
             android:name=".track.TrackingService"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="location|health" />
+
+        <!-- Digital detox: runs only while a detox the user started is on; countdown notification always shown -->
+        <service
+            android:name=".detox.DetoxService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-started digital detox: pauses other apps for a time the user chooses and shows a countdown notification" />
+        </service>
+
+        <!-- Digital detox: the pause screen shown over a paused app -->
+        <activity
+            android:name=".detox.BlockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.bas1minute.sync.detox"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+
+        <!-- Digital detox: resume or close a running detox after a restart or app update -->
+        <receiver
+            android:name=".detox.DetoxBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Motivation pushes from the admin (Firebase). Templates are filled on the phone. -->
         <service

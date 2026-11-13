@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -36,11 +36,11 @@ private val TABS = listOf(
     TabItem(Tab.Today, "Today", Icons.Filled.Home),
     TabItem(Tab.Move, "Move", Icons.Filled.DirectionsRun),
     TabItem(Tab.Circles, "Circles", Icons.Filled.Groups),
-    TabItem(Tab.Insights, "Insights", Icons.Filled.Insights),
+    TabItem(Tab.Detox, "Detox", Icons.Filled.HourglassBottom),
     TabItem(Tab.Profile, "Profile", Icons.Filled.Person),
 )
 
-/** Five tabs: Today, Move (walks and runs), Circles, Insights, Profile. */
+/** Five tabs: Today, Move (walks and runs), Circles, Detox (digital detox + screen-time insights), Profile. */
 @Composable
 fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Unit, onCall: (String) -> Unit) {
     // A required update replaces the whole app until it's installed
@@ -70,6 +70,18 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
             dismissButton = { androidx.compose.material3.TextButton(onClick = { com.bas1minute.sync.CrashLog.clear(ctx); crash = null }) { Text("Not now") } },
         )
     }
+    // Members from before everyone was in the global circle, who weren't sharing: invite once, one tap to join
+    var invite by remember { androidx.compose.runtime.mutableStateOf(crash == null && !app.prefs.shareActivity && !app.prefs.globalInviteShown) }
+    if (invite) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { app.prefs.globalInviteShown = true; invite = false },
+        title = { Text("Everyone’s in Bas 1 Minute India now 🇮🇳") },
+        text = { Text("All members are now in the all-India step ranking and its monthly challenges, no joining needed. " +
+            "To be ranked, your daily step and screen-time totals are shared (never app names or location). You can leave any time in Circles.") },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = {
+            app.prefs.globalInviteShown = true; invite = false; app.setSharing(true); app.setGlobalVisible(true)
+        }) { Text("Count me in") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { app.prefs.globalInviteShown = true; invite = false }) { Text("Not now") } },
+    )
     // Reinstalled on the same phone: say so, so nobody thinks their circles were lost
     LaunchedEffect(Unit) {
         com.bas1minute.sync.api.Welcome.back.collect { name ->
@@ -103,7 +115,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                             if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.spinOpen = false }
                             if (item.tab == Tab.Move && app.tab == Tab.Move) app.trackDetailId = null
                             if (item.tab == Tab.Profile) app.aboutPage = null
-                            if (item.tab == Tab.Insights) app.phoneCheckOpen = false
+                            if (item.tab == Tab.Detox) app.phoneCheckOpen = false
                             app.tab = item.tab
                         },
                         icon = { Icon(item.icon, contentDescription = null) },
@@ -123,7 +135,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         ShareSheet(app, actions.onShareImage)
         WeekReviewStory(app)
         // Fade-through between tabs and their full screens (burst, calm, log, circle)
-        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}"
+        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}:${app.detoxView}"
         androidx.compose.animation.AnimatedContent(
             targetState = screen,
             transitionSpec = {
@@ -157,7 +169,8 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                     }
                     else -> TodayTab(app, onCall, actions)
                 }
-                Tab.Insights -> if (part[7] == "true") PhoneCheckScreen(app, actions, onClose = { app.phoneCheckOpen = false }) else InsightsTab(app)
+                Tab.Detox -> if (part[7] == "true") PhoneCheckScreen(app, actions, onClose = { app.phoneCheckOpen = false })
+                    else DetoxHub(app, actions, part[8])
                 Tab.Circles -> CirclesTab(app, onShare, actions.onShareWhatsApp)
                 Tab.Move -> MoveTab(app, actions)
                 Tab.Profile -> app.aboutPage?.let { page ->

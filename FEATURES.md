@@ -35,3 +35,28 @@ water, weight), automatic steps / screen / social / sleep / water / weight, Sams
 **App only (v1.1): GPS walk / run** — Today → Walk or run with GPS: live map route, km, pace, splits, auto-pause, voice per km, round-trip detection, share picture (map or route, post or story, hide start/finish), save to Gallery, GPX download. Phone only, never synced.
 
 **App only (v1.2): Phone check** — Insights → Phone check: health score, battery level history and screen-on/off drain, estimated battery by app, mobile/Wi-Fi data per app (foreground vs background), apps running in the background, battery exemptions, permissions and powerful access, sideloaded apps, evening alert. Phone only, never synced.
+
+**v1.5: Everyone in the global circle, daily nudges, Detox tab**
+- **Bas 1 Minute India** (global circle): new members are in from setup (stated on the name screen); earlier members who
+  weren't sharing get one "Count me in" invite. Periods: Today, Week, Month, All time. Every published challenge
+  includes everyone in the global circle: no Join button, just Leave and Rejoin. Leave the whole ranking (and rejoin)
+  any time from Circles → Bas 1 Minute India.
+- **Daily nudges** (Profile → Daily nudges, on by default): ~8:30, 13:30 and 19:30, written on the phone from today's
+  steps, screen time and detox: a walk when behind, a detox challenge when screen time is over the limit, a cheer when
+  the goal is done. Silent during a detox; one notification replaces the last. NudgeWorker + Nudges.kt (unit tested).
+- **Detox tab** replaces Insights in the bottom bar: *Focus* (Digital detox, clean hours, promises) by default and
+  *Insights* (screen time, forecast, Phone check) beside it. A Digital detox card on Today starts one in a tap.
+
+**App only (v1.4): Move without GPS** — Move → **Map with GPS** on or off. Off (or if location or GPS is refused at
+Start), walks and runs still record: distance from the step counter × your step length (longer steps when running
+faster), moving time, pace, speed, km splits, steps and cadence, with auto-pause when you stop. Rides, or phones
+without Physical activity / a step counter, record time only. After finishing, the distance can be added or corrected;
+for a walk, that can also set your step length. No map, route or GPX for these; the share picture shows steps and
+time instead. Phone only, never synced.
+
+**App only (v1.3): Digital detox** — Insights → Digital detox: promise 30 min to 4 h (or custom, up to 12 h) with only
+calls, messages, contacts, camera and alarms; WhatsApp, browsers, social media and every other app show a pause screen.
+Up to 3 extra apps can be allowed (Maps, UPI). Ending early (after a 10-second "Keep my promise" dialog), turning off a
+needed permission, or really using a paused app (checked against Android's usage history) is recorded as **Guilty**.
+Clean hours: each full hour from 6 AM with no social media or browser use; today's hour grid, 7-day chart, promises kept
+vs guilty, and a streak. Needs Usage access and "Display over other apps". Phone only, never synced.

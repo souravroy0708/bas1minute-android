@@ -186,12 +186,14 @@ fun PrivacyContent() {
             "Profile photo and bio" to "Kept in the app’s private storage on this phone. Never uploaded.",
             "The website" to "You sign in by approving a code in this app (no password). It shows only what this phone shares: steps, screen time and circles.",
             "Phone check" to "Battery level history, which apps used battery, data and background time, and their permissions are worked out and kept on this phone only.",
+            "Digital detox" to "While a detox you started is on, the app checks which app is open and shows a pause screen over the others. Your promises and clean hours are kept on this phone only.",
             "Walks and runs (GPS)" to "Location is used only while you record, with a notification showing. Routes are saved on this phone and never sent. Map pictures are downloaded from OpenStreetMap; your position isn’t.",
+            "Walks and runs without GPS" to "With “Map with GPS” off, no location is used: km, time and pace come from your phone’s step counter, kept on this phone only.",
         ))
     }
-    AppCard(title = "Only if you choose to share") {
+    AppCard(title = "What you share, and how to stop") {
         Points(listOf(
-            "Off by default" to "Profile → Your data → Share my steps and screen time.",
+            "On when you join" to "New members are in Bas 1 Minute India (the all-India ranking) from the start; the first screen says so. Stop any time: Circles → Bas 1 Minute India, or Profile → Your data.",
             "Exactly two numbers" to "Your daily steps and daily screen time. Nothing else, ever.",
             "Why share" to "Your circles can rank you, and you get a backup if you change phones.",
             "Stop anytime" to "Turn it off, and delete what you shared, in one tap.",

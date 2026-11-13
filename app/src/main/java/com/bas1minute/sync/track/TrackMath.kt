@@ -54,6 +54,9 @@ data class TrackStats(
     val currentSpeedMs: Double = 0.0,
     val splitsMs: List<Long> = emptyList(),
     val autoPaused: Boolean = false,
+    /** Without GPS: steps counted and steps per minute (0 when recording with GPS). */
+    val steps: Long = 0,
+    val cadenceSpm: Int = 0,
 ) {
     val avgSpeedMs: Double get() = if (movingMs <= 0) 0.0 else distanceM / (movingMs / 1000.0)
 }

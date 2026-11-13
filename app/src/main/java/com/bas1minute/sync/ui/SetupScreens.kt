@@ -117,9 +117,13 @@ fun NameAndPin(title: String, onBack: (() -> Unit)?, askName: Boolean, askPin: B
         if (onBack != null) TextButton(onClick = onBack) { Text("← Back", color = Muted, style = MaterialTheme.typography.labelLarge) }
         Text(title, style = MaterialTheme.typography.headlineLarge)
         if (askName) {
-            Text("Just a name, shown only to circles you join. No phone number, no email, no password.",
+            Text("Just a name. No phone number, no email, no password.",
                 style = MaterialTheme.typography.bodyLarge, color = Muted)
             AppField(t("Your name"), name, { name = it.take(40) }, null, placeholder = "Sourav")
+            // Joining is the default; saying so here is what makes it fair
+            Text("You’ll be in Bas 1 Minute India, our all-India step ranking, and its monthly challenges. Only your " +
+                "daily step and screen-time totals are shared for it, never app names or location. Leave any time in Circles.",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         if (askPin) {
             Text("Choose a 4-digit PIN to open the app. Forgot it? You can set a new one anytime.",

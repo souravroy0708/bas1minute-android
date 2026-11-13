@@ -166,7 +166,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
         }
 
         SectionHeader(t("Privacy and security"))
-        // Privacy: sharing is off by default
+        // Privacy: sharing is on for new members (it puts them in the global ranking); off any time here
         AppCard(title = t("Your data")) {
             Text("Everything is stored on this phone. No phone number, email or password. We don’t sell your data.",
                 style = MaterialTheme.typography.bodyMedium, color = Muted)
@@ -240,6 +240,23 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                     Switch(checked = prefs.allowTaunts, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
                         onCheckedChange = { on -> prefs.allowTaunts = on; app.home = app.homeState() })
                 }
+            }
+        }
+
+        // Three nudges a day, worked out on the phone (NudgeWorker)
+        AppCard(title = t("Daily nudges")) {
+            var nudges by remember { mutableStateOf(prefs.dailyNudges) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Morning, afternoon and evening", style = MaterialTheme.typography.titleMedium)
+                    Text("A walk when you’re behind, a detox challenge when screen time runs high, a cheer when you’re done. Never during a detox.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = nudges, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on ->
+                        nudges = on; prefs.dailyNudges = on
+                        if (on) { actions.onAskNotifications(); com.bas1minute.sync.nudge.NudgeWorker.schedule(app.ctxForPush) }
+                    })
             }
         }
 

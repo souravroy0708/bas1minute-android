@@ -213,6 +213,8 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
 
                 // GPS walk / run: start one, or see the one in progress
                 TrackTodayCard(app)
+                // Digital detox: the focus half of Bas 1 Minute, one tap from Today
+                DetoxCard(app)
 
                 // 4. One smart card: the most relevant thing today
                 val hasCheers = !server?.cheers.isNullOrEmpty()

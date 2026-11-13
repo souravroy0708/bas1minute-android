@@ -84,6 +84,11 @@ class Prefs(context: Context) {
         set(v) = p.edit().putInt("step_cm", v.coerceIn(40, 120)).apply()
 
     // ---- GPS walk / run (phone only) ----
+    /** Use GPS for a map of the route. Off: km, time and pace from steps, no location used. */
+    var trackUseGps: Boolean
+        get() = p.getBoolean("track_use_gps", true)
+        set(v) = p.edit().putBoolean("track_use_gps", v).apply()
+
     var trackType: String
         get() = p.getString("track_type", "walk") ?: "walk"
         set(v) = p.edit().putString("track_type", v).apply()
@@ -155,7 +160,10 @@ class Prefs(context: Context) {
         get() = p.getBoolean("app_lock", false)
         set(v) = p.edit().putBoolean("app_lock", v).apply()
 
-    /** Off by default: when on, only daily steps and screen time are sent (circles and backup). */
+    /**
+     * When on, only daily steps and screen time are sent (global ranking, challenges, circles, backup).
+     * Set on at setup for new members (they're told on the name screen); stored off for older installs until they join.
+     */
     var shareActivity: Boolean
         get() = p.getBoolean("share_activity", false)
         set(v) = p.edit().putBoolean("share_activity", v).apply()
@@ -174,6 +182,21 @@ class Prefs(context: Context) {
     var allowTaunts: Boolean
         get() = p.getBoolean("allow_taunts", true)
         set(v) = p.edit().putBoolean("allow_taunts", v).apply()
+
+    /** Three nudges a day (morning, afternoon, evening) built on the phone from steps, screen time and detox. */
+    var dailyNudges: Boolean
+        get() = p.getBoolean("daily_nudges", true)
+        set(v) = p.edit().putBoolean("daily_nudges", v).apply()
+
+    /** "2026-11-13:evening": the last nudge sent, so a slot is never sent twice. */
+    var lastNudge: String
+        get() = p.getString("last_nudge", "") ?: ""
+        set(v) = p.edit().putString("last_nudge", v).apply()
+
+    /** Members from before the global circle was opt-out have been invited once (they weren't sharing). */
+    var globalInviteShown: Boolean
+        get() = p.getBoolean("global_invite_shown", false)
+        set(v) = p.edit().putBoolean("global_invite_shown", v).apply()
 
     /** Asked for the notification permission once already. */
     var notifAsked: Boolean

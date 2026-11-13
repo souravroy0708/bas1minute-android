@@ -73,7 +73,11 @@ object RouteCard {
         y += 100f
         val who = inp.name?.takeIf { it.isNotBlank() }
         text(if (who != null) "$who · ${r.title}" else r.title, pad, y, 58f, WHITE, display)
-        val badge = if (inp.loop) "↻ Round trip" else "Start → Finish"
+        val badge = when (r.source) {
+            TrackSource.Gps -> if (inp.loop) "↻ Round trip" else "Start → Finish"
+            TrackSource.Steps -> "No GPS · from steps"
+            TrackSource.Timer -> "No GPS · time"
+        }
         y += 54f
         text("${r.type.label}  ·  $badge", pad, y, 36f, HALDI, bold)
 
@@ -93,7 +97,14 @@ object RouteCard {
             val g = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = LINE; strokeWidth = 2f; alpha = 90 }
             var gx = area.left; while (gx < area.right) { c.drawLine(gx, area.top, gx, area.bottom, g); gx += 72f }
             var gy = area.top; while (gy < area.bottom) { c.drawLine(area.left, gy, area.right, gy, g); gy += 72f }
-            drawRoute(c, inp.segments, RectF(area.left + 70f, area.top + 70f, area.right - 70f, area.bottom - 70f), inp.loop)
+            if (r.source.hasMap) drawRoute(c, inp.segments, RectF(area.left + 70f, area.top + 70f, area.right - 70f, area.bottom - 70f), inp.loop)
+            else {
+                // No route without GPS: what was counted instead, large in the middle
+                val main = r.steps?.takeIf { it > 0 }?.let { String.format(Locale.US, "%,d", it) } ?: Fmt.duration(r.movingMs)
+                val sub = if ((r.steps ?: 0) > 0) "steps" else r.type.label.lowercase(Locale.ENGLISH)
+                text(main, area.centerX(), area.centerY() + 40f, if (inp.story) 190f else 150f, WHITE, display, Paint.Align.CENTER)
+                text(sub, area.centerX(), area.centerY() + 110f, 44f, HALDI, display, Paint.Align.CENTER)
+            }
         }
         c.restore()
         c.drawRoundRect(area, 44f, 44f, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 3f; color = LINE })
@@ -102,17 +113,19 @@ object RouteCard {
 
         // Stats: big distance, then a 3 x 2 grid
         y = area.bottom + if (inp.story) 150f else 118f
-        val km = Fmt.km(r.distanceM)
+        // Time only (no distance known): the time is the big number
+        val km = if (r.distanceM > 0) Fmt.km(r.distanceM) else Fmt.duration(r.movingMs)
         text(km, pad, y, if (inp.story) 160f else 128f, WHITE, display)
         val kmW = Paint().apply { textSize = if (inp.story) 160f else 128f; typeface = display }.measureText(km)
-        text("km", pad + kmW + 16f, y, 52f, HALDI, display)
+        text(if (r.distanceM > 0) "km" else "time", pad + kmW + 16f, y, 52f, HALDI, display)
 
         val paceOrSpeed = if (r.type == ActivityType.Cycle) "Avg speed" to "${Fmt.kmh(r.avgSpeedMs)} km/h" else "Avg pace" to "${Fmt.pace(r.avgSpeedMs)} /km"
         val cells = listOf(
             "Time" to Fmt.duration(r.movingMs),
             paceOrSpeed,
             (if (r.type == ActivityType.Cycle) "Max speed" to "${Fmt.kmh(r.maxSpeedMs)} km/h" else "Avg speed" to "${Fmt.kmh(r.avgSpeedMs)} km/h"),
-            "Elevation" to "${r.elevGainM.toInt()} m",
+            if (r.source.hasMap) "Elevation" to "${r.elevGainM.toInt()} m"
+            else "Steps" to (r.steps?.takeIf { it > 0 }?.let { String.format(Locale.US, "%,d", it) } ?: "–"),
             "Energy" to (r.kcal?.let { "≈ $it kcal" } ?: "–"),
             "Total time" to Fmt.duration(r.elapsedMs),
         )

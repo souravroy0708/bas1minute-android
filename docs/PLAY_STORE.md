@@ -65,8 +65,10 @@ Everything to fill in, in the order Play Console asks. Values in **bold** are re
 | News app | No |
 | Health apps | Declare: fitness/activity tracking, wellbeing; **not** a medical device |
 | Health Connect | Declare read access: Steps, Sleep, Hydration, Weight and **background read** — justification: "Shows today's steps, sleep, water and weight on the home screen and keeps the step ring current when the app is closed. Read only, never written, kept on the phone unless the user turns on sharing (steps only)." |
+| Foreground service (health) | Declare **health** type for Move without GPS: "Records a walk or run the user starts with GPS turned off: the step counter gives distance, time and pace with the screen off, until they stop it. A notification is always shown." Video: Move → Map with GPS off → Start → lock screen → notification → Finish. |
 | Foreground service (location) | Declare **location** type: "Records a walk or run the user starts, with the screen off, until they stop it. A notification is always shown." Attach a 30-second screen recording: Move → Start → lock screen → notification → Finish. |
-| Usage access (screen time, Phone check) | Not a declared permission, but explain in the listing; the app shows a full-screen disclosure before asking |
+| Foreground service (special use) | Declare **specialUse** for Digital detox: "User-started digital detox. The user chooses a time and taps I promise. While it runs, the app shows an ongoing countdown notification and, when the user opens an app other than calls, messages or apps they allowed, shows a pause screen over it. It stops when the time ends or the user ends it, never starts on its own, and nothing it sees leaves the phone." Impact if deferred: "The apps the user chose to pause would open normally, so the detox they started would not work." Video: Insights → Digital detox → 30 min → I promise → open WhatsApp and Chrome (pause screen) → notification → End early. |
+| Usage access (screen time, Phone check, Digital detox) | Not a declared permission, but explain in the listing; the app shows a full-screen disclosure before asking |
 | Account deletion | **App:** Profile → Your data → Delete. **Web URL:** https://bas1minute.pythonanywhere.com/delete-account/ |
 | Government app / financial features | No |
 

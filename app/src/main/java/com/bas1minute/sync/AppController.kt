@@ -15,7 +15,8 @@ import org.json.JSONObject
 import java.time.LocalDate
 
 /** Bottom tabs. Move (walks, runs, rides) is a daily tab; the health wheel opens from a card on Today. */
-enum class Tab { Today, Move, Circles, Insights, Profile }
+/** Bottom bar. Detox holds Digital detox (focus, the product's second pillar next to fitness) and the screen-time Insights. */
+enum class Tab { Today, Move, Circles, Detox, Profile }
 
 /** Holds what the screens show. Reads phone data and the website; falls back to saved copies offline. */
 class AppController(private val ctx: android.content.Context, private val scope: CoroutineScope) {
@@ -70,11 +71,14 @@ class AppController(private val ctx: android.content.Context, private val scope:
     fun setGlobalVisible(on: Boolean) = launch {
         val r = community.setGlobalVisible(on)
         if (r is com.bas1minute.sync.api.Res.Ok) prefs.globalVisible = on
-        handle(r, if (on) "You’re back in the global ranking." else "Hidden from the global ranking. You can still see it.") { loadGlobal() }
+        handle(r, if (on) "You’re back in Bas 1 Minute India and this month’s challenges." else "You left the global ranking and challenges. Rejoin any time.") { loadGlobal(); loadCompetitions() }
     }
 
     /** Phone check (battery, data, background, permissions) open on top of Insights. */
     var phoneCheckOpen by mutableStateOf(false)
+
+    /** Which part of the Detox tab is showing: "detox" (start a detox, clean hours) or "insights" (screen time). */
+    var detoxView by mutableStateOf("detox")
 
     /** GPS walk / run screen open on top of Today. */
     var trackOpen: Boolean
@@ -109,6 +113,8 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var trackDetailId by mutableStateOf<Long?>(null)
     /** 3-2-1 before recording starts (set once location and GPS are ready). */
     var trackCountdown by mutableStateOf(false)
+    /** How the next walk/run/ride records: decided when Start is tapped (GPS, steps, or time only). */
+    var trackSource by mutableStateOf(com.bas1minute.sync.track.TrackSource.Gps)
     /** Bumped when activities change so lists reload. */
     var trackVersion by mutableIntStateOf(0)
     var locationGranted by mutableStateOf(com.bas1minute.sync.track.TrackingService.hasLocationPermission(ctx))
@@ -268,6 +274,10 @@ class AppController(private val ctx: android.content.Context, private val scope:
         prefs.firstName = name.trim().split(" ").first()
         if (pin != null && pin.length == 4) prefs.pinHash = prefs.hashPin(pin)
         prefs.setupDone = true
+        // Everyone starts in the Bas 1 Minute India ranking (told on the name screen); Profile or Circles opts out
+        prefs.shareActivity = true
+        prefs.globalVisible = true
+        prefs.globalInviteShown = true
         setupDone = true
         // Permissions are asked just in time from Home ("Finish setting up"), not as a separate step.
         prefs.onboardingDone = true

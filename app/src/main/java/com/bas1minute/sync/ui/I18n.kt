@@ -45,7 +45,7 @@ object Lang {
         "Add photo" to "फ़ोटो जोड़ें", "Change photo" to "फ़ोटो बदलें", "Remove" to "हटाएँ", "Bio" to "परिचय",
         "Your data" to "आपका डेटा", "App lock" to "ऐप लॉक", "Motivation notifications" to "प्रेरणा सूचनाएँ",
         // GPS walk / run
-        "Walk or run" to "पैदल या दौड़", "Walk or run with GPS" to "GPS से पैदल या दौड़", "Walk" to "पैदल", "Run" to "दौड़",
+        "Walk or run" to "पैदल या दौड़", "Walk or run with GPS" to "GPS से पैदल या दौड़", "Walk, run or ride" to "पैदल, दौड़ या साइकिल", "Map with GPS" to "GPS से मैप", "Walk" to "पैदल", "Run" to "दौड़",
         "Ride" to "साइकिल", "Pause" to "रोकें", "Resume" to "फिर शुरू", "Finish" to "पूरा करें", "Your activities" to "आपकी गतिविधियाँ",
         "Auto-pause" to "अपने आप रुकें", "Voice every km" to "हर किमी पर आवाज़", "Show my name" to "मेरा नाम दिखाएँ",
         // Move tab
@@ -54,6 +54,26 @@ object Lang {
         "Website" to "वेबसाइट", "Sign in on the website" to "वेबसाइट पर साइन इन करें",
         // Phone check
         "Phone check" to "फ़ोन जाँच",
+        // Digital detox
+        "Digital detox" to "डिजिटल डिटॉक्स", "Detox" to "डिटॉक्स", "Daily nudges" to "रोज़ के संदेश", "Focus" to "फ़ोकस", "left" to "बाकी", "Time left" to "बाकी समय",
+        "Only calls and messages until the timer ends" to "टाइमर ख़त्म होने तक सिर्फ़ कॉल और मैसेज",
+        "Only calls and messages, for as long as you promise" to "जितनी देर का वादा, उतनी देर सिर्फ़ कॉल और मैसेज",
+        "Your promise" to "आपका वादा", "ends at" to "ख़त्म", "paused" to "रोका",
+        "clean hours today" to "आज के साफ़ घंटे", "clean hours" to "साफ़ घंटे",
+        "A clean hour is a full hour without social media or a browser." to "साफ़ घंटा यानी पूरा एक घंटा बिना सोशल मीडिया या ब्राउज़र के।",
+        "Detox is on" to "डिटॉक्स चालू है", "End early" to "पहले ख़त्म करें", "Break your promise?" to "वादा तोड़ें?",
+        "End anyway" to "फिर भी ख़त्म करें", "Keep my promise" to "वादा निभाऊँगा", "Start a detox" to "डिटॉक्स शुरू करें",
+        "Usage access" to "उपयोग की अनुमति", "Display over other apps" to "दूसरे ऐप्स के ऊपर दिखाएँ",
+        "How long?" to "कितनी देर?", "Or a custom time" to "या अपना समय", "Custom" to "अपना समय",
+        "Always allowed" to "हमेशा खुले", "Allow up to 3 more apps (maps, UPI…)" to "3 और ऐप्स खुले रखें (मैप, UPI…)",
+        "Change allowed apps" to "खुले ऐप्स बदलें", "I promise" to "मेरा वादा", "Also allow" to "ये भी खुले रखें",
+        "with social media or browser" to "सोशल मीडिया या ब्राउज़र के साथ", "Detox kept today" to "आज निभाया डिटॉक्स",
+        "Guilty" to "वादा टूटा", "guilty" to "वादे टूटे", "Clean" to "साफ़", "Used" to "इस्तेमाल", "Still to come" to "अभी बाकी",
+        "This week" to "इस हफ़्ते", "promises kept" to "वादे निभाए", "day streak" to "दिन लगातार",
+        "of detox kept this week" to "डिटॉक्स इस हफ़्ते", "Clean hours per day" to "हर दिन के साफ़ घंटे",
+        "Your promises" to "आपके वादे", "Kept" to "निभाया", "Ended early" to "पहले ख़त्म किया",
+        "used during detox" to "डिटॉक्स में खोला", "Permission turned off" to "अनुमति बंद की",
+        "Resisted" to "रोका", "No slips" to "कोई चूक नहीं",
         // Common
         "Save" to "सेव करें", "Cancel" to "रद्द करें", "Back up now" to "अभी बैकअप लें",
     )

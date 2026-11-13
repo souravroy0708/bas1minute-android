@@ -92,8 +92,8 @@ fun GlobalCard(app: AppController) {
             when {
                 b == null -> "See the top 100 this week."
                 b.me.rank != null -> "You’re #${nf.format(b.me.rank)} of ${nf.format(b.ranked)} this week" + (b.topPercent?.takeIf { b.me.rank!! > 100 }?.let { " · top $it%" } ?: "")
-                !b.me.shares -> "You can see the top 100. Share your steps to get a rank."
-                else -> "You’re hidden from the ranking. You can still see it."
+                !b.me.shares -> "You left the ranking. Tap to rejoin any time."
+                else -> "You left the ranking. Tap to rejoin any time."
             },
             style = MaterialTheme.typography.bodyMedium, color = MutedOnDark,
         )
@@ -132,9 +132,11 @@ fun GlobalBoardScreen(app: AppController, onBack: () -> Unit) {
             }
             Text(b?.name ?: "Bas 1 Minute India", style = MaterialTheme.typography.headlineLarge, color = Color.White)
             Text(b?.let { "${nf.format(it.members)} members · ${nf.format(it.ranked)} ranked" +
-                if (app.globalPeriod == "week") " · resets in ${it.daysLeft} day${if (it.daysLeft == 1) "" else "s"}" else "" } ?: "Loading…",
+                if (app.globalPeriod == "week" || app.globalPeriod == "month") " · resets in ${it.daysLeft} day${if (it.daysLeft == 1) "" else "s"}" else "" } ?: "Loading…",
                 style = MaterialTheme.typography.bodyMedium, color = MutedOnDark)
-            Segmented(listOf("This week", "Today"), if (app.globalPeriod == "today") 1 else 0) { app.globalPeriod = if (it == 1) "today" else "week" }
+            // Today, this week, this month, or since the start: everyone is in all four
+            val periods = listOf("today", "week", "month", "all")
+            Segmented(listOf("Today", "Week", "Month", "All time"), periods.indexOf(app.globalPeriod).coerceAtLeast(0)) { app.globalPeriod = periods[it] }
             b?.let { MyRankBanner(app, it) { confirmShare = true } }
         }
 
@@ -153,21 +155,24 @@ fun GlobalBoardScreen(app: AppController, onBack: () -> Unit) {
                 }
             }
             AppCard(title = "How the global ranking works") {
-                Text("Everyone with the app is in this circle and can see the top 100. You get a rank when you share your steps. " +
+                Text("Everyone with the app is in this circle automatically, and in every monthly challenge too. No need to join. " +
                     "One point for every day you reach your own step goal, so a 4,000-step goal counts the same as 10,000. " +
-                    "Ties go to more steps. Weeks reset every Monday.",
+                    "Ties go to more steps. Weeks reset every Monday, months on the 1st; All time never resets.",
                     style = MaterialTheme.typography.bodyMedium, color = Muted)
                 Text("Fair play: only steps your phone or watch measured count here, not typed ones. Only names (and a city, if set) are shown.",
                     style = MaterialTheme.typography.bodySmall, color = Muted)
-                if (app.prefs.shareActivity) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Show me in the global ranking", style = MaterialTheme.typography.titleMedium)
-                            Text("As “${app.prefs.name.ifBlank { app.prefs.firstName }}” to others", style = MaterialTheme.typography.bodySmall, color = Muted)
-                        }
-                        Switch(checked = b?.me?.visible ?: app.prefs.globalVisible, onCheckedChange = { app.setGlobalVisible(it) },
-                            colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi))
+                // Opt out (or back in) any time
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val inIt = app.prefs.shareActivity && (b?.me?.visible ?: app.prefs.globalVisible)
+                    Column(Modifier.weight(1f)) {
+                        Text("I’m in Bas 1 Minute India", style = MaterialTheme.typography.titleMedium)
+                        Text(if (inIt) "Shown as “${app.prefs.name.ifBlank { app.prefs.firstName }}”. Switch off to leave; you can rejoin any time."
+                            else "You’re out. Switch on to rejoin the ranking and monthly challenges.",
+                            style = MaterialTheme.typography.bodySmall, color = Muted)
                     }
+                    Switch(checked = inIt, onCheckedChange = { on ->
+                        if (on && !app.prefs.shareActivity) confirmShare = true else app.setGlobalVisible(on)
+                    }, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi))
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -176,9 +181,9 @@ fun GlobalBoardScreen(app: AppController, onBack: () -> Unit) {
 
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false },
-        title = { Text("Share your steps?") },
-        text = { Text("Your daily steps and screen time go to the server, so you get a rank here and in your circles. Nothing else leaves your phone. You can stop any time in Profile.") },
-        confirmButton = { TextButton(onClick = { confirmShare = false; app.setSharing(true); app.launch { delay(1500); app.loadGlobal() } }) { Text("Share and get my rank") } },
+        title = { Text("Rejoin Bas 1 Minute India?") },
+        text = { Text("Your daily step and screen-time totals go to the server, so you get a rank here, in challenges and in your circles. Nothing else leaves your phone. Leave any time.") },
+        confirmButton = { TextButton(onClick = { confirmShare = false; app.setSharing(true); app.setGlobalVisible(true); app.launch { delay(1500); app.loadGlobal() } }) { Text("Rejoin") } },
         dismissButton = { TextButton(onClick = { confirmShare = false }) { Text(t("Cancel"), color = Muted) } },
     )
 }
@@ -208,15 +213,15 @@ private fun MyRankBanner(app: AppController, b: GlobalBoard, onShare: () -> Unit
                 }, style = MaterialTheme.typography.bodyMedium, color = Color.White)
             }
             !me.shares -> {
-                Text("You’re not ranked yet", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                Text("Your steps stay on your phone, so there’s nothing to rank. Share them to see where you stand.",
+                Text("You’re not in the ranking", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text("Your steps stay on your phone, so there’s nothing to rank. Rejoin to see where you stand.",
                     style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
-                SmallPill("Share my steps", onShare)
+                SmallPill("Rejoin", onShare)
             }
             else -> {
-                Text("You’re hidden from the ranking", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                Text("Others can’t see you here. Your circles still can.", style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
-                SmallPill("Show me") { app.setGlobalVisible(true) }
+                Text("You left the ranking", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text("Others can’t see you here or in challenges. Your circles still can.", style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
+                SmallPill("Rejoin") { app.setGlobalVisible(true) }
             }
         }
     }
@@ -503,13 +508,13 @@ fun CompetitionsSection(app: AppController) {
             ) {
                 Text(compStatus(c), style = MaterialTheme.typography.labelMedium, color = Ink)
                 Text(c.title, style = MaterialTheme.typography.titleLarge, color = Ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text("${c.metricLabel} · ${nf.format(c.entrants)} joined", style = MaterialTheme.typography.bodySmall, color = Ink)
+                Text("${c.metricLabel} · ${nf.format(c.entrants)} taking part", style = MaterialTheme.typography.bodySmall, color = Ink)
                 Text(when {
                     c.myRank != null -> "You’re #${c.myRank} · ${score(c, c.myScore)}"
-                    c.joined && !c.shares -> "Joined · share steps to be scored"
-                    c.joined -> "Joined"
+                    c.joined && !c.shares -> "You’re in · share steps to be scored"
+                    c.joined -> "You’re in"
                     c.status == "ended" -> "Ended"
-                    else -> "Tap to join →"
+                    else -> "You left · tap to rejoin →"
                 }, style = MaterialTheme.typography.titleMedium, color = Ink)
             }
         }
@@ -531,7 +536,7 @@ fun CompetitionScreen(app: AppController, onBack: () -> Unit) {
                 modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 10.dp, vertical = 4.dp))
             Text(c.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
             c.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MutedOnDark) }
-            Text("${c.metricLabel} · ${c.startsOn} → ${c.endsOn} · ${nf.format(c.entrants)} joined" + (c.prize?.let { " · 🎁 $it" } ?: ""),
+            Text("${c.metricLabel} · ${c.startsOn} → ${c.endsOn} · ${nf.format(c.entrants)} taking part" + (c.prize?.let { " · 🎁 $it" } ?: ""),
                 style = MaterialTheme.typography.bodySmall, color = MutedOnDark)
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Ink3).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
@@ -548,11 +553,12 @@ fun CompetitionScreen(app: AppController, onBack: () -> Unit) {
                         SmallPill("Share my steps") { app.setSharing(true) }
                     }
                     c.joined -> Text("You’re in. Your score appears after your phone syncs.", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                    else -> Text("Anyone can join. Only steps your phone or watch measured count.", style = MaterialTheme.typography.bodyMedium, color = Color.White)
+                    else -> Text("You left this one. Everyone takes part automatically, and you can rejoin until it ends.",
+                        style = MaterialTheme.typography.bodyMedium, color = Color.White)
                 }
                 if (c.status != "ended") {
                     if (c.joined) TextButton(onClick = { app.joinCompetition(c.id, false) }) { Text("Leave competition", color = MutedOnDark) }
-                    else BigButton("Join competition", dark = false) { app.joinCompetition(c.id, true) }
+                    else BigButton("Rejoin", dark = false) { app.joinCompetition(c.id, true) }
                 }
             }
         }

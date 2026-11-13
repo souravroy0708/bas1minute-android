@@ -39,6 +39,9 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -85,6 +88,8 @@ import com.bas1minute.sync.track.RouteCard
 import com.bas1minute.sync.track.RouteMap
 import com.bas1minute.sync.track.TrackPoint
 import com.bas1minute.sync.track.TrackStore
+import com.bas1minute.sync.track.TrackSource
+import com.bas1minute.sync.track.Stride
 import com.bas1minute.sync.track.TrackSummary
 import com.bas1minute.sync.track.TrackingService
 import com.google.android.gms.location.LocationCallback
@@ -105,7 +110,7 @@ import java.util.Locale
 
 /** Phone-side actions the walk/run screens need (permissions, GPS switch, files). Wired in MainActivity. */
 data class TrackActions(
-    /** Checks location permission and GPS, then sets app.trackCountdown = true. */
+    /** Decides how to record (GPS if chosen and allowed, else steps, else time), then sets app.trackCountdown. */
     val onReadyToStart: () -> Unit = {},
     val onSaveImage: (Bitmap, String) -> Unit = { _, _ -> },
     val onSaveGpx: (String, String) -> Unit = { _, _ -> },
@@ -144,11 +149,8 @@ fun MoveTab(app: AppController, actions: PhoneActions) {
     }
     if (app.trackCountdown) Countdown(onDone = {
         app.trackCountdown = false
-        if (!TrackingService.hasLocationPermission(app.ctxForPush)) {
-            app.message = "Allow precise location to record your route, then tap Start again."
-        } else {
-            TrackingService.start(app.ctxForPush, ActivityType.of(app.prefs.trackType), app.prefs.trackAutoPause, app.prefs.trackVoice)
-        }
+        // GPS, steps or time: the service uses the best one that's actually possible right now
+        TrackingService.start(app.ctxForPush, ActivityType.of(app.prefs.trackType), app.prefs.trackAutoPause, app.prefs.trackVoice, app.trackSource)
     }, onCancel = { app.trackCountdown = false })
 }
 
@@ -202,6 +204,7 @@ private fun MoveHome(app: AppController, actions: TrackActions) {
     var type by remember { mutableStateOf(ActivityType.of(app.prefs.trackType)) }
     var settings by remember { mutableStateOf(false) }
     var goalEdit by remember { mutableStateOf(false) }
+    var useGps by remember { mutableStateOf(app.prefs.trackUseGps) }
     LaunchedEffect(app.trackVersion) { data = withContext(Dispatchers.IO) { runCatching { loadMove(store) }.getOrNull() } }
     val goalKm = app.prefs.weeklyKmGoal
 
@@ -210,7 +213,7 @@ private fun MoveHome(app: AppController, actions: TrackActions) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(t("Move"), style = MaterialTheme.typography.headlineLarge)
-                Text("Walks, runs and rides, tracked with GPS", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                Text("Walks, runs and rides, with or without GPS", style = MaterialTheme.typography.bodyMedium, color = Muted)
             }
             RoundIcon(Icons.Filled.Tune, "Tracking settings", light = true) { settings = true }
         }
@@ -269,6 +272,16 @@ private fun MoveHome(app: AppController, actions: TrackActions) {
                     }
                 }
             }
+            // GPS is a choice, not a requirement: without it, km, time and pace come from steps
+            ToggleRow(
+                "Map with GPS",
+                when {
+                    useGps -> "Your route on a map. Uses location only while recording."
+                    type == ActivityType.Cycle -> "No location used. Records your time; add the distance when you finish."
+                    else -> "No location used. Km, time and pace from your steps."
+                },
+                useGps,
+            ) { useGps = it; app.prefs.trackUseGps = it }
             BigButton("Start ${type.label.lowercase()}", dark = false) { actions.onReadyToStart() }
             Text(listOf(if (app.prefs.trackAutoPause) "Auto-pause on" else "Auto-pause off",
                 if (app.prefs.trackVoice) "voice every km" else "voice off", "works without internet").joinToString(" · "),
@@ -296,7 +309,7 @@ private fun MoveHome(app: AppController, actions: TrackActions) {
             d.history.isEmpty() -> AppCard {
                 Text("🏃", style = MaterialTheme.typography.displayMedium)
                 Text("Your first walk is one tap away", style = MaterialTheme.typography.titleLarge)
-                Text("Tap Start. Your route, distance, pace and kilometre splits are saved here, ready to share.",
+                Text("Tap Start. Distance, time, pace and kilometre splits are saved here, with your route on a map when GPS is on.",
                     style = MaterialTheme.typography.bodyMedium, color = Muted)
             }
             else -> d.history.groupBy { groupLabel(it.startedAt) }.forEach { (label, rows) ->
@@ -364,10 +377,13 @@ private fun UnfinishedCard(app: AppController, store: TrackStore, u: ActivityRow
         Text("Android closed the app while it was recording. ${Fmt.km(u.distanceM)} km is saved.",
             style = MaterialTheme.typography.bodySmall, color = Ink)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallPill("Resume") { TrackingService.recover(ctx, u.id, app.prefs.trackVoice) }
+            SmallPill("Resume") { TrackingService.recover(ctx, u.id, app.prefs.trackVoice, u.source) }
             SmallPill("Save") {
                 app.launch {
-                    withContext(Dispatchers.IO) { if (store.points(u.id).size >= 2) store.finish(u.id, u.type, null, System.currentTimeMillis()) else store.delete(u.id) }
+                    withContext(Dispatchers.IO) {
+                        val worth = if (u.source.hasMap) store.points(u.id).size >= 2 else u.movingMs >= 30_000
+                        if (worth) store.finish(u.id, u.type, null, System.currentTimeMillis()) else store.delete(u.id)
+                    }
                     changed(); app.trackDetailId = u.id
                 }
             }
@@ -384,7 +400,8 @@ private fun HistoryRow(r: ActivityRow, onClick: () -> Unit) {
     val thumb = remember(r.id, r.preview.size) { RouteCard.thumbnail(r.preview, px).asImageBitmap() }
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(onClickLabel = "Open ${r.title}", onClick = onClick).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Image(thumb, contentDescription = null, modifier = Modifier.size(52.dp))
+        if (r.source.hasMap) Image(thumb, contentDescription = null, modifier = Modifier.size(52.dp))
+        else NoRouteThumb(r, Modifier.size(52.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -396,11 +413,27 @@ private fun HistoryRow(r: ActivityRow, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("${Fmt.km(r.distanceM)} km", style = MaterialTheme.typography.titleMedium)
-            Text("${Fmt.duration(r.movingMs)} · ${paceValue(r.type, r.avgSpeedMs)}", style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text(if (r.distanceM > 0) "${Fmt.km(r.distanceM)} km" else Fmt.duration(r.movingMs), style = MaterialTheme.typography.titleMedium)
+            Text(if (r.distanceM > 0) "${Fmt.duration(r.movingMs)} · ${paceValue(r.type, r.avgSpeedMs)}" else "time only",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         Text("  ›", style = MaterialTheme.typography.titleLarge, color = Muted)
     }
+}
+
+/** In place of a route thumbnail: the activity icon, and a footprint or a clock for how it was recorded. */
+@Composable
+private fun NoRouteThumb(r: ActivityRow, modifier: Modifier) {
+    Box(modifier.clip(RoundedCornerShape(12.dp)).background(Ink), contentAlignment = Alignment.Center) {
+        Icon(if (r.source == TrackSource.Timer) Icons.Filled.Timer else icon(r.type), contentDescription = null, tint = Haldi, modifier = Modifier.size(26.dp))
+    }
+}
+
+/** How an activity was recorded, in words. */
+private fun sourceLabel(s: TrackSource) = when (s) {
+    TrackSource.Gps -> "GPS"
+    TrackSource.Steps -> "No GPS · km from steps"
+    TrackSource.Timer -> "No GPS · time only"
 }
 
 // ------------------------------------------------------------------ Live
@@ -413,11 +446,14 @@ private fun LiveView(app: AppController, live: LiveTrack.State, onClose: () -> U
     val s = live.stats
     val paused = live.status == LiveTrack.Status.Paused
 
+    val withMap = live.source.hasMap
+    val timeOnly = live.source == TrackSource.Timer
+
     Box(Modifier.fillMaxSize().background(Paper)) {
-        RouteMap(
+        if (withMap) RouteMap(
             segments = live.segments, current = live.current, start = live.start, follow = follow,
             dark = ThemeState.dark, modifier = Modifier.fillMaxSize(), onUserMoved = { follow = false },
-        )
+        ) else NoMapBackdrop(live, Modifier.fillMaxSize())
         Row(Modifier.statusBarsPadding().padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             RoundIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back, keeps recording", onClose)
             Spacer(Modifier.width(8.dp))
@@ -427,11 +463,11 @@ private fun LiveView(app: AppController, live: LiveTrack.State, onClose: () -> U
                 else -> StatusPill("● Recording", Ink, Color.White)
             }
             Spacer(Modifier.weight(1f))
-            GpsChip(live.accuracyM)
+            if (withMap) GpsChip(live.accuracyM) else StatusPill(sourceLabel(live.source), Ink, Color.White)
         }
 
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
-            if (!follow) {
+            if (withMap && !follow) {
                 Box(Modifier.align(Alignment.End).padding(12.dp)) {
                     RoundIcon(Icons.Filled.MyLocation, "Back to my position") { follow = true }
                 }
@@ -441,21 +477,48 @@ private fun LiveView(app: AppController, live: LiveTrack.State, onClose: () -> U
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                // Time only: the clock is the big number. Otherwise distance (from GPS or from steps).
+                val bigValue = if (timeOnly) Fmt.duration(s.movingMs) else Fmt.km(s.distanceM)
+                val bigUnit = if (timeOnly) "time" else "km"
                 Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.semantics(mergeDescendants = true) {
-                    contentDescription = "${Fmt.km(s.distanceM)} kilometres"
+                    contentDescription = if (timeOnly) "Time ${Fmt.duration(s.movingMs)}" else "${Fmt.km(s.distanceM)} kilometres"
                 }) {
-                    Text(Fmt.km(s.distanceM), color = Color.White, style = MaterialTheme.typography.displayLarge.copy(fontSize = 64.sp, lineHeight = 64.sp))
+                    Text(bigValue, color = Color.White, style = MaterialTheme.typography.displayLarge.copy(fontSize = 64.sp, lineHeight = 64.sp))
                     Spacer(Modifier.width(8.dp))
-                    Text("km", color = Haldi, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(bigUnit, color = Haldi, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 8.dp))
                     Spacer(Modifier.weight(1f))
                     Icon(icon(live.type), contentDescription = live.type.label, tint = MutedOnDark, modifier = Modifier.size(30.dp).padding(bottom = 8.dp))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    LiveStat("Time", Fmt.duration(s.movingMs), Modifier.weight(1f))
-                    if (live.type == ActivityType.Cycle) LiveStat("Speed", "${Fmt.kmh(s.currentSpeedMs)}", Modifier.weight(1f))
-                    else LiveStat("Pace now", Fmt.pace(s.currentSpeedMs), Modifier.weight(1f))
-                    LiveStat(if (live.type == ActivityType.Cycle) "Avg km/h" else "Avg pace", if (live.type == ActivityType.Cycle) Fmt.kmh(s.avgSpeedMs) else Fmt.pace(s.avgSpeedMs), Modifier.weight(1f))
+                    when {
+                        timeOnly -> {
+                            LiveStat("Total", Fmt.duration(s.elapsedMs), Modifier.weight(1f))
+                            LiveStat("Started", java.time.Instant.ofEpochMilli(live.startedAt).atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)), Modifier.weight(1f))
+                        }
+                        live.source == TrackSource.Steps -> {
+                            LiveStat("Time", Fmt.duration(s.movingMs), Modifier.weight(1f))
+                            LiveStat("Pace now", Fmt.pace(s.currentSpeedMs), Modifier.weight(1f))
+                            LiveStat("Steps", String.format(Locale.US, "%,d", s.steps), Modifier.weight(1f))
+                        }
+                        else -> {
+                            LiveStat("Time", Fmt.duration(s.movingMs), Modifier.weight(1f))
+                            if (live.type == ActivityType.Cycle) LiveStat("Speed", "${Fmt.kmh(s.currentSpeedMs)}", Modifier.weight(1f))
+                            else LiveStat("Pace now", Fmt.pace(s.currentSpeedMs), Modifier.weight(1f))
+                            LiveStat(if (live.type == ActivityType.Cycle) "Avg km/h" else "Avg pace", if (live.type == ActivityType.Cycle) Fmt.kmh(s.avgSpeedMs) else Fmt.pace(s.avgSpeedMs), Modifier.weight(1f))
+                        }
+                    }
                 }
+                when {
+                    timeOnly -> Text(if (live.type == ActivityType.Cycle) "Rides without GPS record time. Add the distance when you finish."
+                        else "Allow Physical activity next time to count km from your steps. You can add the distance when you finish.",
+                        color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+                    live.source == TrackSource.Steps -> Text(
+                        listOfNotNull(s.cadenceSpm.takeIf { it > 0 }?.let { "$it steps/min" }, "avg ${Fmt.pace(s.avgSpeedMs)} /km",
+                            "estimated from steps").joinToString(" · "),
+                        color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+                }
+                live.warning?.let { Text(it, color = Haldi, style = MaterialTheme.typography.bodySmall) }
                 if (s.splitsMs.isNotEmpty()) {
                     Text("Last km ${Fmt.paceOfSplit(s.splitsMs.last())} · ${s.splitsMs.size} km done · ↑ ${s.elevGainM.toInt()} m",
                         color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
@@ -479,8 +542,14 @@ private fun LiveView(app: AppController, live: LiveTrack.State, onClose: () -> U
         onDismissRequest = { confirmFinish = false },
         title = { Text("Finish this ${live.type.label.lowercase()}?") },
         text = {
-            Text(if (s.distanceM < 50) "It’s very short (${s.distanceM.toInt()} m). Save it anyway, or discard?"
-                else "${Fmt.km(s.distanceM)} km in ${Fmt.duration(s.movingMs)}. Save it to see your map, splits and a picture to share.")
+            Text(when {
+                timeOnly && s.movingMs < 30_000 -> "It’s very short (${s.movingMs / 1000} s). Discard, or keep going?"
+                timeOnly -> "${Fmt.duration(s.movingMs)} recorded. Save it, then add the distance if you know it."
+                !withMap && s.movingMs < 30_000 -> "It’s very short. Discard, or keep going?"
+                !withMap -> "${Fmt.km(s.distanceM)} km in ${Fmt.duration(s.movingMs)}. Save it to see your pace, splits and a picture to share."
+                s.distanceM < 50 -> "It’s very short (${s.distanceM.toInt()} m). Save it anyway, or discard?"
+                else -> "${Fmt.km(s.distanceM)} km in ${Fmt.duration(s.movingMs)}. Save it to see your map, splits and a picture to share."
+            })
         },
         confirmButton = { TextButton(onClick = { confirmFinish = false; TrackingService.finish(ctx) }) { Text(t("Save")) } },
         dismissButton = {
@@ -490,6 +559,28 @@ private fun LiveView(app: AppController, live: LiveTrack.State, onClose: () -> U
             }
         },
     )
+}
+
+/** Without GPS there's no map to watch: a calm screen with the activity, and what's being counted. */
+@Composable
+private fun NoMapBackdrop(live: LiveTrack.State, modifier: Modifier) {
+    val s = live.stats
+    Column(
+        modifier.background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Ink2, Ink))).statusBarsPadding().padding(top = 72.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.size(132.dp).clip(CircleShape).background(Ink3), contentAlignment = Alignment.Center) {
+            Icon(if (live.source == TrackSource.Timer) Icons.Filled.Timer else icon(live.type), contentDescription = null,
+                tint = if (s.autoPaused || live.status == LiveTrack.Status.Paused) MutedOnDark else Haldi, modifier = Modifier.size(64.dp))
+        }
+        if (live.source == TrackSource.Steps) {
+            Text(String.format(Locale.US, "%,d", s.steps), color = Color.White, style = MaterialTheme.typography.displayMedium)
+            Text("steps", color = MutedOnDark, style = MaterialTheme.typography.bodyMedium)
+        } else {
+            Text(Fmt.duration(s.movingMs), color = Color.White, style = MaterialTheme.typography.displayMedium)
+        }
+        Text("No map: recording without GPS", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+    }
 }
 
 @Composable
@@ -560,7 +651,8 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
     val points = s.points
     val segments = remember(points) { TrackSummary.segments(points) }
     val loop = remember(points) { TrackSummary.isLoop(points) }
-    val splits = remember(points) { TrackSummary.splits(points) }
+    // GPS splits come from the route; without GPS they were saved while recording
+    val splits = remember(points, r.splitsMs) { if (r.source.hasMap) TrackSummary.splits(points) else r.splitsMs }
     // A route needs real movement to draw; a few metres would show an empty, over-zoomed map
     val mappable = remember(points) {
         points.size >= 2 && points.maxOf { it.lat } - points.minOf { it.lat } + points.maxOf { it.lng } - points.minOf { it.lng } > 0.0002
@@ -569,6 +661,7 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
     var share by remember { mutableStateOf(false) }
     var rename by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var editDistance by remember { mutableStateOf(false) }
     val started = Instant.ofEpochMilli(r.startedAt).atZone(ZoneId.systemDefault())
 
     Column(Modifier.fillMaxSize().background(Paper).statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -589,7 +682,8 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
             }
         }
 
-        Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(24.dp)).background(CardBg)) {
+        if (!r.source.hasMap) NoRouteCard(r, app.prefs.stepLengthCm) { editDistance = true }
+        else Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(24.dp)).background(CardBg)) {
             if (mappable) {
                 RouteMap(segments = segments, start = points.first().let { LatLng(it.lat, it.lng) },
                     finish = points.last().let { LatLng(it.lat, it.lng) }, loop = loop, fitRoute = true,
@@ -606,7 +700,8 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
 
         AppCard {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Tag(if (loop) "↻ Round trip" else "Start → Finish", Color(0xFFE9ECFF))
+                if (r.source.hasMap) Tag(if (loop) "↻ Round trip" else "Start → Finish", Color(0xFFE9ECFF))
+                else Tag(if (r.distanceEdited) "Distance entered by you" else sourceLabel(r.source), Color(0xFFE9ECFF))
                 if (r.distanceM >= 1000 && r.distanceM >= s.best - 1) Tag("🏅 Longest ${r.type.label.lowercase()}", Haldi)
             }
             Row(verticalAlignment = Alignment.Bottom) {
@@ -614,14 +709,18 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
                 Spacer(Modifier.width(6.dp))
                 Text("km", style = MaterialTheme.typography.headlineMedium, color = Blue, modifier = Modifier.padding(bottom = 6.dp))
             }
-            listOf(
-                "Moving time" to Fmt.duration(r.movingMs),
-                paceLabel(r.type) to paceValue(r.type, r.avgSpeedMs),
-                "Avg speed" to "${Fmt.kmh(r.avgSpeedMs)} km/h",
-                "Max speed" to "${Fmt.kmh(r.maxSpeedMs)} km/h",
-                "Elevation gain" to "${r.elevGainM.toInt()} m",
-                "Energy (est.)" to (r.kcal?.let { "$it kcal" } ?: "–"),
-            ).chunked(2).forEach { pair ->
+            val hasDistance = r.distanceM > 0
+            buildList {
+                add("Moving time" to Fmt.duration(r.movingMs))
+                if (hasDistance) add(paceLabel(r.type) to paceValue(r.type, r.avgSpeedMs))
+                if (hasDistance) add("Avg speed" to "${Fmt.kmh(r.avgSpeedMs)} km/h")
+                // Max speed and climb need GPS; steps and cadence need the step counter
+                if (r.source.hasMap) { add("Max speed" to "${Fmt.kmh(r.maxSpeedMs)} km/h"); add("Elevation gain" to "${r.elevGainM.toInt()} m") }
+                r.steps?.takeIf { it > 0 }?.let { add("Steps" to String.format(Locale.US, "%,d", it)) }
+                r.avgCadence?.let { add("Cadence" to "$it steps/min") }
+                if (hasDistance) add("Energy (est.)" to (r.kcal?.let { "$it kcal" } ?: "–"))
+                if (!r.source.hasMap) add("Total time" to Fmt.duration(r.elapsedMs))
+            }.chunked(2).forEach { pair ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     pair.forEach { (label, value) ->
                         Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(Paper).padding(12.dp)) {
@@ -629,22 +728,30 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
                             Text(value, style = MaterialTheme.typography.titleLarge)
                         }
                     }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
-            Text("Total time ${Fmt.duration(r.elapsedMs)} · ${points.size} GPS points. Energy uses your latest weight (else 65 kg).",
+            Text(
+                if (r.source.hasMap) "Total time ${Fmt.duration(r.elapsedMs)} · ${points.size} GPS points. Energy uses your latest weight (else 65 kg)."
+                else "Recorded without GPS. Energy uses your latest weight (else 65 kg).",
                 style = MaterialTheme.typography.bodySmall, color = Muted)
         }
 
         if (splits.isNotEmpty()) AppCard(title = "Splits") { Splits(splits, r.type) }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            BigButton("Share", dark = false, modifier = Modifier.weight(1f)) { share = true }
-            GhostButton("GPX file", modifier = Modifier.weight(1f)) {
-                val name = r.title.replace(Regex("[^A-Za-z0-9 ]"), "").trim().replace(' ', '-').ifBlank { "activity" }
-                actions.track.onSaveGpx("$name-${started.toLocalDate()}.gpx", Gpx.write(r.title, r.type, points))
+        if (r.source.hasMap) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                BigButton("Share", dark = false, modifier = Modifier.weight(1f)) { share = true }
+                GhostButton("GPX file", modifier = Modifier.weight(1f)) {
+                    val name = r.title.replace(Regex("[^A-Za-z0-9 ]"), "").trim().replace(' ', '-').ifBlank { "activity" }
+                    actions.track.onSaveGpx("$name-${started.toLocalDate()}.gpx", Gpx.write(r.title, r.type, points))
+                }
             }
+            Text("GPX opens in Strava, Google Earth, Komoot and most map apps.", style = MaterialTheme.typography.bodySmall, color = Muted)
+        } else {
+            // No route, so no GPX: the picture shows distance, time and pace
+            BigButton("Share", dark = false) { share = true }
         }
-        Text("GPX opens in Strava, Google Earth, Komoot and most map apps.", style = MaterialTheme.typography.bodySmall, color = Muted)
         TextButton(onClick = { confirmDelete = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Icon(Icons.Filled.DeleteOutline, contentDescription = null, tint = Danger)
             Spacer(Modifier.width(6.dp))
@@ -654,6 +761,7 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
     }
 
     if (share) RouteShareSheet(app, r, points, loop, actions, onDismiss = { share = false })
+    if (editDistance) EditDistanceDialog(app, r, store, onDone = { editDistance = false })
     if (rename) {
         var text by remember { mutableStateOf(r.title) }
         AlertDialog(
@@ -676,6 +784,78 @@ private fun DetailContent(app: AppController, s: DetailState.Ready, actions: Pho
             app.launch { withContext(Dispatchers.IO) { store.delete(r.id) }; app.trackDetailId = null; app.trackVersion++; app.message = "Activity deleted." }
         }) { Text(t("Remove"), color = Danger) } },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(t("Cancel")) } },
+    )
+}
+
+/** Where the map would be, for an activity recorded without GPS: how the distance was worked out, and a fix. */
+@Composable
+private fun NoRouteCard(r: ActivityRow, stepCm: Int, onEditDistance: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Ink).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(48.dp).clip(CircleShape).background(Ink3), contentAlignment = Alignment.Center) {
+                Icon(if (r.source == TrackSource.Timer) Icons.Filled.Timer else icon(r.type), contentDescription = null, tint = Haldi)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("No map for this one", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                Text("Recorded without GPS, so no location was used.", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Text(
+            when {
+                r.distanceEdited -> "You entered the distance."
+                r.source == TrackSource.Steps && (r.steps ?: 0) > 0 ->
+                    "Distance is an estimate: ${String.format(Locale.US, "%,d", r.steps)} steps using your $stepCm cm step length" +
+                        (if (r.type == ActivityType.Run) ", longer when you run faster." else ".")
+                r.type == ActivityType.Cycle -> "Rides without GPS record time only. Know the distance? Add it."
+                else -> "Only the time was recorded. Know the distance? Add it."
+            },
+            color = Color.White, style = MaterialTheme.typography.bodyMedium,
+        )
+        SmallPill(if (r.distanceM > 0) "Correct the distance" else "Add the distance", onEditDistance)
+        Text("Turn on “Map with GPS” on Move to see your route next time.", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/**
+ * Type the real distance (from a treadmill, a known route, a bike computer). For a walk with steps it can also
+ * set the step length, so every later walk and the daily km are closer to the truth.
+ */
+@Composable
+private fun EditDistanceDialog(app: AppController, r: ActivityRow, store: TrackStore, onDone: () -> Unit) {
+    var text by remember { mutableStateOf(if (r.distanceM > 0) String.format(Locale.US, "%.2f", r.distanceM / 1000) else "") }
+    val km = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && it <= 300 }
+    val calibrated = km?.let { k -> r.steps?.let { Stride.calibratedCm(k * 1000, it) } }
+        ?.takeIf { r.type == ActivityType.Walk && r.source == TrackSource.Steps }
+    var setStepLength by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDone,
+        title = { Text(if (r.distanceM > 0) "Correct the distance" else "Add the distance") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(text, { text = it.take(7) }, singleLine = true, label = { Text("Kilometres") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                if (text.isNotBlank() && km == null) Text("Enter a distance like 3.5", color = Danger, style = MaterialTheme.typography.bodySmall)
+                calibrated?.let { cm ->
+                    ToggleRow("Use it for my step length", "Sets your step length to $cm cm (now ${app.prefs.stepLengthCm} cm) for future walks and daily km", setStepLength) { setStepLength = it }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = km != null, onClick = {
+                val meters = (km ?: return@TextButton) * 1000
+                val cm = calibrated.takeIf { setStepLength }
+                app.launch {
+                    withContext(Dispatchers.IO) { store.editDistance(r.id, meters) }
+                    cm?.let { app.prefs.stepLengthCm = it }
+                    app.trackVersion++
+                    app.message = if (cm != null) "Distance saved. Step length is now $cm cm." else "Distance saved."
+                }
+                onDone()
+            }) { Text(t("Save")) }
+        },
+        dismissButton = { TextButton(onClick = onDone) { Text(t("Cancel")) } },
     )
 }
 
@@ -702,7 +882,7 @@ private fun Splits(splits: List<Long>, type: ActivityType) {
 @Composable
 private fun RouteShareSheet(app: AppController, r: ActivityRow, points: List<TrackPoint>, loop: Boolean, actions: PhoneActions, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
-    var mapStyle by remember { mutableStateOf(true) }
+    var mapStyle by remember { mutableStateOf(r.source.hasMap) }
     var story by remember { mutableStateOf(false) }
     var showName by remember { mutableStateOf(true) }
     var hideEnds by remember { mutableStateOf(app.prefs.trackHideEnds) }
@@ -726,7 +906,8 @@ private fun RouteShareSheet(app: AppController, r: ActivityRow, points: List<Tra
             name = app.prefs.firstName.takeIf { showName }, story = story, hideEnds = hideEnds,
         ))
     }
-    val caption = "${Fmt.km(r.distanceM)} km ${r.type.verb} in ${Fmt.duration(r.movingMs)} · ${paceValue(r.type, r.avgSpeedMs)} on Bas 1 Minute 🏃 #Bas1Minute"
+    val caption = if (r.distanceM > 0) "${Fmt.km(r.distanceM)} km ${r.type.verb} in ${Fmt.duration(r.movingMs)} · ${paceValue(r.type, r.avgSpeedMs)} on Bas 1 Minute 🏃 #Bas1Minute"
+        else "${Fmt.duration(r.movingMs)} ${r.type.label.lowercase()} on Bas 1 Minute 🏃 #Bas1Minute"
     val fileName = "bas1minute-${r.type.id}-${Instant.ofEpochMilli(r.startedAt).atZone(ZoneId.systemDefault()).toLocalDate()}.png"
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -736,7 +917,7 @@ private fun RouteShareSheet(app: AppController, r: ActivityRow, points: List<Tra
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Share your ${r.type.label.lowercase()}", style = MaterialTheme.typography.titleLarge)
-            ChoiceRow(listOf("map" to "Map", "route" to "Route only"), if (mapStyle) "map" else "route") { mapStyle = it == "map" }
+            if (r.source.hasMap) ChoiceRow(listOf("map" to "Map", "route" to "Route only"), if (mapStyle) "map" else "route") { mapStyle = it == "map" }
             ChoiceRow(listOf("post" to "Post 4:5", "story" to "Story 9:16"), if (story) "story" else "post") { story = it == "story" }
             if (mapStyle) {
                 Text("Move or zoom the map to frame your picture", style = MaterialTheme.typography.bodySmall, color = Muted)
@@ -750,12 +931,13 @@ private fun RouteShareSheet(app: AppController, r: ActivityRow, points: List<Tra
             Image(card.asImageBitmap(), contentDescription = "Preview of the picture", contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp).clip(RoundedCornerShape(18.dp)))
             ToggleRow("Show my name", null, showName) { showName = it }
-            ToggleRow("Hide exact start and finish", "Leaves out the first and last 200 m, so your home isn’t shown", hideEnds) {
+            if (r.source.hasMap) ToggleRow("Hide exact start and finish", "Leaves out the first and last 200 m, so your home isn’t shown", hideEnds) {
                 hideEnds = it; app.prefs.trackHideEnds = it
             }
             BigButton("Share", dark = false) { actions.onShareImage(card, caption) }
             GhostButton("Save to phone") { actions.track.onSaveImage(card, fileName) }
-            Text("Only this picture is shared. Your saved route stays on this phone.", style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text(if (r.source.hasMap) "Only this picture is shared. Your saved route stays on this phone." else "Only this picture is shared.",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t("Close"), color = Muted) }
         }
     }
@@ -882,12 +1064,12 @@ fun TrackTodayCard(app: AppController) {
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(t("Walk or run with GPS"), style = MaterialTheme.typography.titleMedium)
+            Text(t("Walk, run or ride"), style = MaterialTheme.typography.titleMedium)
             Text(
                 when {
                     week.first > 0 -> "This week: ${week.first} · ${Fmt.km(week.second)} km"
                     last != null -> "Last: ${last!!.title}, ${Fmt.km(last!!.distanceM)} km · tap to open"
-                    else -> "See your route on the map, km, pace and share it"
+                    else -> "Km, time and pace, with or without GPS. Share it when you’re done"
                 },
                 style = MaterialTheme.typography.bodySmall, color = Muted,
             )

@@ -51,7 +51,7 @@ data class DayRow(
  * display; they reach the website through the action outbox.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 6) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 7) {
 
     companion object {
         private const val KEEP_DAYS = 400L
@@ -85,6 +85,7 @@ class LocalDb private constructor(context: Context) :
         createV4(db)
         createV5(db)
         createV6(db)
+        createV7(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -94,6 +95,7 @@ class LocalDb private constructor(context: Context) :
         if (oldVersion < 4) createV4(db)
         if (oldVersion < 5) createV5(db)
         if (oldVersion < 6) createV6(db)
+        if (oldVersion < 7) createV7(db)
     }
 
     private fun createV2(db: SQLiteDatabase) {
@@ -139,6 +141,15 @@ class LocalDb private constructor(context: Context) :
         db.execSQL("CREATE TABLE IF NOT EXISTS activity_points (activity_id INTEGER NOT NULL, seq INTEGER NOT NULL, lat REAL NOT NULL, lng REAL NOT NULL, " +
             "alt REAL, t INTEGER NOT NULL, moving_ms INTEGER NOT NULL, dist_m REAL NOT NULL, seg INTEGER NOT NULL, PRIMARY KEY (activity_id, seq))")
         db.execSQL("CREATE INDEX IF NOT EXISTS activities_started ON activities(started_at)")
+    }
+
+    /**
+     * v7: walks, runs and rides without GPS. source = gps | steps | timer; steps and splits ("ms,ms,…") for
+     * activities that have no route points; distance_edited = the person typed or corrected the distance.
+     */
+    private fun createV7(db: SQLiteDatabase) {
+        for (col in listOf("source TEXT NOT NULL DEFAULT 'gps'", "steps INTEGER", "splits TEXT", "distance_edited INTEGER NOT NULL DEFAULT 0"))
+            db.execSQL("ALTER TABLE activities ADD COLUMN $col")
     }
 
     /** v6: battery level every ~15 minutes, for Phone check (phone only, kept 8 days). See phone/BatteryLog.kt. */
