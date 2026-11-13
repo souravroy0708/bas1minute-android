@@ -47,6 +47,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -277,7 +278,7 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
 @Composable
 private fun ActiveCard(s: DetoxSession, now: Long, streak: Int, store: DetoxStore, onEndEarly: () -> Unit) {
     var showFlow by remember { mutableStateOf(false) }
-    val failure by com.bas1minute.sync.detox.BlockOverlay.lastFailure.collectAsState()
+    val failure by com.bas1minute.sync.detox.BlockOverlay.lastFailure.collectAsState(initial = null)
     AppCard(title = t("Detox is on")) {
         Text("WhatsApp, browsers, social media and every other app are paused. Calls, messages, camera and alarms still work.",
             style = MaterialTheme.typography.bodyMedium, color = Muted)
