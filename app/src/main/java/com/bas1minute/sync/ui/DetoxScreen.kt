@@ -277,9 +277,12 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
 @Composable
 private fun ActiveCard(s: DetoxSession, now: Long, streak: Int, store: DetoxStore, onEndEarly: () -> Unit) {
     var showFlow by remember { mutableStateOf(false) }
+    val failure by com.bas1minute.sync.detox.BlockOverlay.lastFailure.collectAsState()
     AppCard(title = t("Detox is on")) {
         Text("WhatsApp, browsers, social media and every other app are paused. Calls, messages, camera and alarms still work.",
             style = MaterialTheme.typography.bodyMedium, color = Muted)
+        // Shown the moment the pause screen fails to appear, instead of silently letting the app through.
+        failure?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Danger) }
         // Visible and reachable at all times — the person's own choice, not hidden behind a maze.
         GhostButton(t("End early")) { showFlow = true }
     }
@@ -309,6 +312,14 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
                 if (overlayOk) null else t("Allow")) {
                 runCatching { ctx.startActivity(DetoxController.overlayIntent(ctx).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
+            if (!overlayOk) Text(
+                "If the switch for “Display over other apps” won't turn on: open App info for Bas 1 Minute \u2192 \u22ee (top right) " +
+                    "\u2192 Allow restricted settings, then try again. Android does this for apps installed outside the Play Store.",
+                style = MaterialTheme.typography.bodySmall, color = Muted,
+            )
+        }
+        if (usageOk && overlayOk) GhostButton(t("Preview the pause screen")) {
+            com.bas1minute.sync.detox.BlockOverlay.show(ctx, ctx.packageName)
         }
         Text(t("How long?"), style = MaterialTheme.typography.labelLarge)
         val choices = DetoxLogic.DURATION_CHOICES_MIN

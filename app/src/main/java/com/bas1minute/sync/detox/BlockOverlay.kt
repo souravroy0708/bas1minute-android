@@ -46,11 +46,23 @@ object BlockOverlay {
 
     val isShowing: Boolean get() = root != null
 
-    /** Shows (or keeps showing) the block screen for [pkg]. A no-op if it's already showing for this package. */
-    fun show(context: Context, pkg: String) {
-        if (pkg == shownPkg && root != null) return
+    /**
+     * Why the block screen couldn't be shown the last time [show] was tried, in plain words — or null when
+     * the last attempt worked (or none has been made). The service surfaces this on the Detox screen instead
+     * of silently letting the app through, which is what used to happen on every failure.
+     */
+    val lastFailure = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
+    /** Shows (or keeps showing) the block screen for [pkg]. Returns false if it couldn't — see [lastFailure]. */
+    fun show(context: Context, pkg: String): Boolean {
+        if (pkg == shownPkg && root != null) return true
         val ctx = context.applicationContext
-        if (!DetoxController.canDrawOverlays(ctx)) return
+        if (!DetoxController.canDrawOverlays(ctx)) {
+            lastFailure.value = "Bas 1 Minute doesn't have \u201cDisplay over other apps\u201d, so it can't cover $pkg. " +
+                "Turn it on in Settings \u2192 Apps \u2192 Bas 1 Minute \u2192 Display over other apps. If the switch won't turn on, " +
+                "open App info \u2192 \u22ee \u2192 Allow restricted settings first (Android does this for apps installed outside Play Store)."
+            return false
+        }
         hide()
         val rules = AppRules(ctx, DetoxStore.get(ctx).extraAllowed)
         val view = buildUi(ctx, rules.label(pkg))
@@ -62,14 +74,19 @@ object BlockOverlay {
             PixelFormat.TRANSLUCENT,
         ).apply { gravity = Gravity.TOP or Gravity.START }
         val manager = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        try {
+        return try {
             manager.addView(view, params)
             wm = manager; root = view; shownPkg = pkg; appCtx = ctx
             view.isFocusableInTouchMode = true
             view.requestFocus()
             startTicking(ctx)
+            lastFailure.value = null
+            true
         } catch (e: Exception) {
             wm = null; root = null; shownPkg = null
+            lastFailure.value = "Couldn't show the pause screen over $pkg (${e.javaClass.simpleName}). " +
+                "Try turning \u201cDisplay over other apps\u201d off and back on for Bas 1 Minute, then start the detox again."
+            false
         }
     }
 
@@ -86,7 +103,14 @@ object BlockOverlay {
         val r = object : Runnable {
             override fun run() {
                 val s = DetoxStore.get(ctx).active()
-                if (s == null) { hide(); return }
+                if (s == null) {
+                    // No session running: this is the "Preview the pause screen" self-test, not a real block.
+                    // Stays up until the person dismisses it themselves, rather than vanishing mid-preview.
+                    countdown?.text = "--:--"
+                    attempts?.text = "Preview only \u2014 no detox is running. This is what the real pause screen looks like."
+                    h.postDelayed(this, 1000)
+                    return
+                }
                 val now = System.currentTimeMillis()
                 countdown?.text = DetoxLogic.formatDuration(s.remainingMs(now))
                 attempts?.text = when (s.blockedAttempts) {

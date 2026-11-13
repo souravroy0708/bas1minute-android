@@ -40,6 +40,11 @@ water, weight), automatic steps / screen / social / sleep / water / weight, Sams
 to a phone, "Time to update" replaces the app and Play's update opens by itself (waits for a running walk or detox).
 Server *Minimum version code* stays as a kill switch; *Latest* forces non-Play installs. See docs/PLAY_STORE.md §5.
 
+**v2.1.1: Detox diagnostics** — when the pause screen can't be shown (most often: "Display over other apps" was
+never actually granted, or Android's restricted-settings block for apps installed outside Play Store is silently
+preventing it), Bas 1 Minute now says so on screen instead of quietly letting the blocked app through. A "Preview
+the pause screen" button in Start a detox lets you confirm the permission actually works before relying on it.
+
 **v2.1: Diary** — Today → Diary: a slam book of your own life (first school, a daughter's birth, the first job,
 a college memory — any milestone, dated whenever it happened, with a free-text story, a category and an optional
 photo) plus a one-a-day reflection — how hard you worked toward your goals and how satisfied you feel about today,

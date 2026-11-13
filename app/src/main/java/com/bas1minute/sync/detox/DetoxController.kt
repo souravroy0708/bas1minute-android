@@ -39,6 +39,7 @@ object DetoxController {
         val store = DetoxStore.get(ctx)
         store.lastMinutes = minutes
         if (why.isNotBlank()) store.recentWhys = (listOf(why.trim()) + store.recentWhys).distinct()
+        BlockOverlay.lastFailure.value = null   // clear any stale warning from a previous session or preview
         val s = store.start(System.currentTimeMillis(), minutes, why)
         startService(ctx)
         return s
