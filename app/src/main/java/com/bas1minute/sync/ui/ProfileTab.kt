@@ -60,6 +60,8 @@ data class PhoneActions(
     val onUpdateApp: () -> Unit = {},
     /** Opens the photo picker for the life goal with this id (see goal/LifeGoalPhoto.kt). */
     val onPickGoalPhoto: (Long) -> Unit = {},
+    /** Opens the photo picker for the diary entry with this id (see diary/DiaryPhoto.kt). */
+    val onPickDiaryPhoto: (Long) -> Unit = {},
 )
 
 @Composable

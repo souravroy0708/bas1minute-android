@@ -90,6 +90,8 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var phoneCheckOpen by mutableStateOf(false)
     /** Goals screen (the fourth pillar) open on top of Today. */
     var goalsOpen by mutableStateOf(false)
+    /** Diary screen (life milestones + daily reflection) open on top of Today. */
+    var diaryOpen by mutableStateOf(false)
 
     /** Which part of the Detox tab is showing: "detox" (start a detox, clean hours) or "insights" (screen time). */
     var detoxView by mutableStateOf("detox")

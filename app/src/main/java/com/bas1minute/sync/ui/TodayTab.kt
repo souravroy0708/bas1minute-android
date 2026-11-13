@@ -213,6 +213,8 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
 
                 // Goals: the thread tying steps, sleep, screen time and detox to what the person actually wants
                 GoalsCard(app)
+                // Diary: today's reflection, and the life story behind the goals
+                DiaryCard(app)
 
                 // GPS walk / run: start one, or see the one in progress
                 TrackTodayCard(app)

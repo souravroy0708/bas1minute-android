@@ -51,7 +51,7 @@ data class DayRow(
  * display; they reach the website through the action outbox.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 9) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 10) {
 
     companion object {
         private const val KEEP_DAYS = 400L
@@ -88,6 +88,7 @@ class LocalDb private constructor(context: Context) :
         createV7(db)
         createV8(db)
         createV9(db)
+        createV10(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -100,6 +101,7 @@ class LocalDb private constructor(context: Context) :
         if (oldVersion < 7) createV7(db)
         if (oldVersion < 8) createV8(db)
         if (oldVersion < 9) createV9(db)
+        if (oldVersion < 10) createV10(db)
     }
 
     private fun createV2(db: SQLiteDatabase) {
@@ -214,6 +216,31 @@ class LocalDb private constructor(context: Context) :
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS life_goal_milestones_goal ON life_goal_milestones(goal_id)")
+    }
+
+    /**
+     * v10: the diary — life milestones (a slam book of your own life: first school, a daughter's birth, the
+     * first job, a college memory) and daily reflections (effort and satisfaction toward your goals).
+     * Phone only, never synced. See diary/DiaryStore.kt.
+     */
+    private fun createV10(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS diary_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                date TEXT NOT NULL,
+                title TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'other',
+                story TEXT NOT NULL DEFAULT '',
+                effort INTEGER,
+                satisfaction INTEGER,
+                has_photo INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS diary_entries_date ON diary_entries(date)")
     }
 
     // ---------- days ----------
@@ -348,7 +375,7 @@ class LocalDb private constructor(context: Context) :
 
     /** Remove every saved day (used by "Delete everything"). */
     fun wipeAll() {
-        for (t in listOf("days", "app_usage", "outbox", "cache", "activities", "activity_points", "battery_samples", "goals", "goal_checkins", "life_goals", "life_goal_milestones")) writableDatabase.delete(t, null, null)
+        for (t in listOf("days", "app_usage", "outbox", "cache", "activities", "activity_points", "battery_samples", "goals", "goal_checkins", "life_goals", "life_goal_milestones", "diary_entries")) writableDatabase.delete(t, null, null)
     }
 
     fun days(from: LocalDate, to: LocalDate): List<DayRow> =

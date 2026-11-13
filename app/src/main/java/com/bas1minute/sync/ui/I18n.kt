@@ -85,6 +85,13 @@ object Lang {
         "Add a photo — who or what this is for" to "एक फ़ोटो जोड़ें — यह किसके लिए है",
         "The plan" to "योजना", "If it gets hard" to "अगर मुश्किल हो तो", "Milestones" to "पड़ाव",
         "Why does this matter to you?" to "यह आपके लिए क्यों मायने रखता है?", "What's the plan?" to "योजना क्या है?",
+        // Diary
+        "Diary" to "डायरी", "Today's reflection" to "आज का सोच-विचार",
+        "How hard did you work toward your goals today?" to "आज आपने अपने लक्ष्यों के लिए कितनी मेहनत की?",
+        "How satisfied are you with today?" to "आज से आप कितने संतुष्ट हैं?",
+        "Update today's reflection" to "आज का सोच-विचार अपडेट करें", "Save today's reflection" to "आज का सोच-विचार सेव करें",
+        "Add a life milestone" to "जीवन का पड़ाव जोड़ें", "What kind of moment is this?" to "यह किस तरह का पल है?",
+        "When did it happen?" to "यह कब हुआ?", "Tell the story" to "कहानी बताएँ", "Reflect" to "सोच-विचार करें",
         // Common
         "Save" to "सेव करें", "Cancel" to "रद्द करें", "Back up now" to "अभी बैकअप लें",
     )

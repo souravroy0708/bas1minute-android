@@ -57,6 +57,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    /** Which diary entry the next photo picked is for (set just before launching diaryPhotoPicker). */
+    private var pendingDiaryPhotoId: Long? = null
+    private val diaryPhotoPicker =
+        registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            val id = pendingDiaryPhotoId; pendingDiaryPhotoId = null
+            if (uri == null || id == null) return@registerForActivityResult
+            lifecycleScope.launch {
+                val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.bas1minute.sync.diary.DiaryPhoto.save(applicationContext, id, uri)
+                }
+                app.message = if (ok) "Photo added." else "Couldn’t use that photo. Try another."
+            }
+        }
+
     /** Google Play in-app updates (must be created before the activity starts). */
     private val updater = PlayUpdater(this)
 
@@ -252,6 +266,10 @@ class MainActivity : ComponentActivity() {
             onPickGoalPhoto = { id ->
                 pendingGoalPhotoId = id
                 goalPhotoPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onPickDiaryPhoto = { id ->
+                pendingDiaryPhotoId = id
+                diaryPhotoPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             },
         )
 

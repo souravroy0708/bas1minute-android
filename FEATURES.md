@@ -40,6 +40,12 @@ water, weight), automatic steps / screen / social / sleep / water / weight, Sams
 to a phone, "Time to update" replaces the app and Play's update opens by itself (waits for a running walk or detox).
 Server *Minimum version code* stays as a kill switch; *Latest* forces non-Play installs. See docs/PLAY_STORE.md §5.
 
+**v2.1: Diary** — Today → Diary: a slam book of your own life (first school, a daughter's birth, the first job,
+a college memory — any milestone, dated whenever it happened, with a free-text story, a category and an optional
+photo) plus a one-a-day reflection — how hard you worked toward your goals and how satisfied you feel about today,
+on two 1-5 scales, with a note. "On this day" resurfaces a milestone from a past year automatically. A reflection
+streak, and an honest effort-vs-satisfaction read-out over time. All phone only, never synced, even with sharing on.
+
 **v2.0: Mandatory first-run tour** — right after setup, before the tabs appear, a short page-per-feature tour
 (Today, Move, Circles, Detox, Goals, privacy) that can't be skipped, only moved through. Shown once per account;
 members who already existed when this shipped are not retroactively forced through it. See ui/TourScreen.kt.

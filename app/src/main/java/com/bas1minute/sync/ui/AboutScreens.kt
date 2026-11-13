@@ -189,6 +189,7 @@ fun PrivacyContent() {
             "Digital detox" to "While a detox you started is on, the app checks which app is open and shows a pause screen over the others. Your promises and clean hours are kept on this phone only.",
             "Goals" to "The goals you set, your daily check-offs, and whether you met them are worked out from this phone's own data and kept here only.",
             "Life goals" to "Your short, mid and long-term goals — the plan, why it matters, any obstacle and plan for it, milestones, and any photo you add — are kept only on this phone, never sent anywhere.",
+            "Diary" to "Your life's milestones, your daily effort and satisfaction reflections, your notes, and any photo you add are kept only on this phone, never sent anywhere, even when sharing is on.",
             "Walks and runs (GPS)" to "Location is used only while you record, with a notification showing. Routes are saved on this phone and never sent. Map pictures are downloaded from OpenStreetMap; your position isn’t.",
             "Walks and runs without GPS" to "With “Map with GPS” off, no location is used: km, time and pace come from your phone’s step counter, kept on this phone only.",
         ))
