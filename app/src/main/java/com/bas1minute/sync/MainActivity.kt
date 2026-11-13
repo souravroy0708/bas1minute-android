@@ -43,6 +43,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    /** Which life goal the next photo picked is for (set just before launching goalPhotoPicker). */
+    private var pendingGoalPhotoId: Long? = null
+    private val goalPhotoPicker =
+        registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            val id = pendingGoalPhotoId; pendingGoalPhotoId = null
+            if (uri == null || id == null) return@registerForActivityResult
+            lifecycleScope.launch {
+                val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.bas1minute.sync.goal.LifeGoalPhoto.save(applicationContext, id, uri)
+                }
+                app.message = if (ok) "Photo added." else "Couldn’t use that photo. Try another."
+            }
+        }
+
     /** Google Play in-app updates (must be created before the activity starts). */
     private val updater = PlayUpdater(this)
 
@@ -207,6 +221,7 @@ class MainActivity : ComponentActivity() {
         com.bas1minute.sync.phone.BatteryWorker.schedule(this)
         // Three nudges a day (steps, screen time, detox), worked out on this phone
         com.bas1minute.sync.nudge.NudgeWorker.schedule(this)
+        if (app.prefs.dailyUsageAlert) com.bas1minute.sync.nudge.UsageAlertWorker.schedule(this)
 
         val help = HelpActions(
             onSearch = { query -> searchGoogle(query) },
@@ -234,6 +249,10 @@ class MainActivity : ComponentActivity() {
                 onOpenAppSettings = { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))) },
             ),
             onUpdateApp = { updater.update() },
+            onPickGoalPhoto = { id ->
+                pendingGoalPhotoId = id
+                goalPhotoPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
         )
 
         setContent {
@@ -245,6 +264,7 @@ class MainActivity : ComponentActivity() {
                 when {
                     !app.setupDone -> SetupScreen(app)
                     !app.unlocked -> LockScreen(app)
+                    app.tourOpen -> com.bas1minute.sync.ui.TourScreen(onFinish = { app.finishTour() })
                     false -> PermissionsScreen(
                         snapshot = app.phone,
                         actions = OnboardingActions(

@@ -35,6 +35,8 @@ data class DetoxSession(
     val blockedAttempts: Int = 0,
     /** Package that broke the promise, when reason is USED_BLOCKED_APP. */
     val brokenBy: String? = null,
+    /** The person's own reason for starting, typed before the timer began. Shown back to them if they try to end early. */
+    val why: String = "",
 ) {
     val plannedMinutes: Int get() = ((plannedEndMs - startMs) / DetoxLogic.MINUTE).toInt()
 
@@ -70,6 +72,15 @@ object DetoxLogic {
     const val MINUTE = 60_000L
     const val HOUR = 60 * MINUTE
     const val DAY = 24 * HOUR
+
+    /** A "focus day" needs at least this much kept, unbroken detox inside the window below. */
+    const val FOCUS_MINUTES = 180
+    const val WINDOW_START_HOUR = 10
+    const val WINDOW_END_HOUR = 22
+    /** Streak lengths that earn a badge, shortest first. */
+    val BADGE_DAYS = listOf(3, 7, 21, 50, 100)
+    /** Sharing is offered from the first badge onward, not before — nothing to brag about at day 1 or 2. */
+    const val BADGE_DAYS_FIRST_SHAREABLE = 3
 
     /**
      * A blocked app is on screen for a moment before the block screen covers it. Anything shorter than this

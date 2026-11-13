@@ -40,6 +40,30 @@ water, weight), automatic steps / screen / social / sleep / water / weight, Sams
 to a phone, "Time to update" replaces the app and Play's update opens by itself (waits for a running walk or detox).
 Server *Minimum version code* stays as a kill switch; *Latest* forces non-Play installs. See docs/PLAY_STORE.md §5.
 
+**v2.0: Mandatory first-run tour** — right after setup, before the tabs appear, a short page-per-feature tour
+(Today, Move, Circles, Detox, Goals, privacy) that can't be skipped, only moved through. Shown once per account;
+members who already existed when this shipped are not retroactively forced through it. See ui/TourScreen.kt.
+
+**v1.9: Life goals — short, mid and long term, with a why and a photo** — Today → Your goals → Life goals:
+three honest horizons (1–3 months, 1–3 years, 5–10 years), up to 3 goals each. Each goal has a free-text plan,
+a "why it matters" shown with a photo of who or what it's for (a daughter, a mother, a grandfather — whatever
+the reason is), a named obstacle and an "if X then I will Y" plan for it (implementation intentions), and a
+milestone checklist with a time-vs-progress pace indicator (ahead / on track / behind). Pausing a goal shows the
+why and progress first, then keeps everything if the person changes their mind later. Photos are stored only on
+this phone; everything is phone-only, never synced.
+
+**v1.8: Goals — the fourth pillar** — Today → Your goals: up to 5 at once, from presets (step goal, 7+ hours
+sleep, stay under your screen limit, a 2-hour kept detox) or write-your-own (study, read, no phone after 10, anything
+the phone can't measure, checked off by hand each day). Each goal gets its own streak and "X/7 this week" from data
+the app already has — steps, sleep, screen time, detox — so Goals never introduces new tracking, only gives the
+existing numbers a reason. Phone only, never synced.
+
+**v1.7: Real blocking on Android 14+, searchable allowed-apps picker** — the block screen is now a system
+overlay window (TYPE_APPLICATION_OVERLAY), not a launched Activity: Android 14 tightened background-activity-start
+rules so holding "Display over other apps" alone no longer let a plain Activity launch from the detox service
+succeed on many phones, which meant blocked apps could silently stay reachable. An overlay window sidesteps this
+entirely. Picking the 3 always-allowed apps now has a search box.
+
 **v1.5: Everyone in the global circle, daily nudges, Detox tab**
 - **Bas 1 Minute India** (global circle): new members are in from setup (stated on the name screen); earlier members who
   weren't sharing get one "Count me in" invite. Periods: Today, Week, Month, All time. Every published challenge

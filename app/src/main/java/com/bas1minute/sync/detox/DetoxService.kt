@@ -18,8 +18,9 @@ import java.util.Date
 
 /**
  * Runs only while a detox session is active. Every 0.6 s it checks which app is on screen; if it's blocked,
- * it brings up [BlockActivity] on top. Shows an ongoing countdown notification, and stops itself when the
- * time is up, the user ends early, or a needed permission is turned off.
+ * it shows [BlockOverlay] on top — a system overlay window, not a launched Activity, which is what actually
+ * lets it appear reliably on Android 14+ (see BlockOverlay's own notes). Shows an ongoing countdown
+ * notification, and stops itself when the time is up, the user ends early, or a needed permission is revoked.
  *
  * Foreground service type: specialUse (user-started app blocking for a fixed time; declared in Play Console).
  */
@@ -35,7 +36,6 @@ class DetoxService : Service() {
     private var lastQuery = 0L
     private var fgPkg: String? = null
     private var lastCountedPkg: String? = null
-    private var lastBlockLaunch = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -78,12 +78,14 @@ class DetoxService : Service() {
             val now = System.currentTimeMillis()
 
             if (now >= s.plannedEndMs) {
+                BlockOverlay.hide()
                 val done = DetoxController.finishWithHistory(this@DetoxService, s, now)
                 notifyResult(done)
                 stopNow()
                 return
             }
             if (!DetoxController.isReady(this@DetoxService)) {
+                BlockOverlay.hide()
                 val broken = DetoxLogic.breakNow(s, now, BreakReason.PERMISSION_REVOKED)
                 store.update(broken)
                 notifyResult(broken)
@@ -103,33 +105,19 @@ class DetoxService : Service() {
                     store.recordBlockedAttempt(s.id)
                     lastCountedPkg = fg
                 }
-                if (now - lastBlockLaunch > 800) {
-                    lastBlockLaunch = now
-                    showBlockScreen(fg)
-                }
+                // A no-op if this app is already covered; BlockOverlay itself checks for Display-over-other-apps.
+                BlockOverlay.show(this@DetoxService, fg)
             } else if (fg != null) {
                 lastCountedPkg = null
+                if (BlockOverlay.isShowing) BlockOverlay.hide()
             }
             handler.postDelayed(this, POLL_MS)
         }
     }
 
-    private fun showBlockScreen(pkg: String) {
-        // Allowed from the background because the user granted "Display over other apps".
-        runCatching {
-            startActivity(
-                Intent(this, BlockActivity::class.java)
-                    .putExtra(BlockActivity.EXTRA_PKG, pkg)
-                    .addFlags(
-                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                            Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NO_ANIMATION,
-                    ),
-            )
-        }
-    }
-
     private fun stopNow() {
         running = false
+        BlockOverlay.hide()
         handler.removeCallbacksAndMessages(null)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -137,6 +125,7 @@ class DetoxService : Service() {
 
     override fun onDestroy() {
         running = false
+        BlockOverlay.hide()
         handler.removeCallbacksAndMessages(null)
         thread.quitSafely()
         super.onDestroy()

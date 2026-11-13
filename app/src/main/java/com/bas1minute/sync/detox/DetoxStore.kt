@@ -34,7 +34,7 @@ class DetoxStore private constructor(context: Context) {
 
     fun active(): DetoxSession? = sessions().lastOrNull { it.outcome == Outcome.ACTIVE }
 
-    @Synchronized fun start(nowMs: Long, minutes: Int): DetoxSession {
+    @Synchronized fun start(nowMs: Long, minutes: Int, why: String = ""): DetoxSession {
         val list = sessions().map {
             // Never two at once: an older ACTIVE one left behind is closed as broken.
             if (it.outcome == Outcome.ACTIVE) DetoxLogic.breakNow(it, nowMs, BreakReason.ENDED_EARLY) else it
@@ -42,6 +42,7 @@ class DetoxStore private constructor(context: Context) {
         val s = DetoxSession(
             id = nowMs, startMs = nowMs,
             plannedEndMs = nowMs + DetoxLogic.clampMinutes(minutes) * DetoxLogic.MINUTE,
+            why = why.trim().take(140),
         )
         save(list + s)
         return s
@@ -83,11 +84,31 @@ class DetoxStore private constructor(context: Context) {
         get() = prefs.getInt(KEY_LAST_MIN, 60)
         set(v) { prefs.edit().putInt(KEY_LAST_MIN, DetoxLogic.clampMinutes(v)).apply() }
 
+    /** The person's own past commitment phrases, shown as suggestions next time (never sent anywhere). */
+    var recentWhys: List<String>
+        get() = prefs.getString(KEY_WHYS, null)?.let { JSONArray(it) }?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
+        set(v) { prefs.edit().putString(KEY_WHYS, JSONArray(v.takeLast(5)).toString()).apply() }
+
+    /**
+     * Optional accountability contact: a name and a phone number or handle, used only to pre-fill a message the
+     * person reviews and sends themselves if they end a detox early. Never sent automatically.
+     */
+    var accountabilityName: String
+        get() = prefs.getString(KEY_ACC_NAME, "") ?: ""
+        set(v) { prefs.edit().putString(KEY_ACC_NAME, v.trim().take(60)).apply() }
+
+    var accountabilityContact: String
+        get() = prefs.getString(KEY_ACC_CONTACT, "") ?: ""
+        set(v) { prefs.edit().putString(KEY_ACC_CONTACT, v.trim().take(60)).apply() }
+
     companion object {
         private const val KEY_SESSIONS = "sessions"
         private const val KEY_EXTRA = "extra_allowed"
         private const val KEY_FIRST_HOUR = "day_first_hour"
         private const val KEY_LAST_MIN = "last_minutes"
+        private const val KEY_WHYS = "recent_whys"
+        private const val KEY_ACC_NAME = "accountability_name"
+        private const val KEY_ACC_CONTACT = "accountability_contact"
         private const val MAX_SESSIONS = 400
 
         @Volatile private var instance: DetoxStore? = null
@@ -101,6 +122,7 @@ class DetoxStore private constructor(context: Context) {
             s.reason?.let { put("reason", it.name) }
             put("attempts", s.blockedAttempts)
             s.brokenBy?.let { put("brokenBy", it) }
+            if (s.why.isNotBlank()) put("why", s.why)
         }
 
         private fun fromJson(o: JSONObject) = DetoxSession(
@@ -112,6 +134,7 @@ class DetoxStore private constructor(context: Context) {
             reason = o.optString("reason", "").takeIf { it.isNotEmpty() }?.let { BreakReason.valueOf(it) },
             blockedAttempts = o.optInt("attempts", 0),
             brokenBy = o.optString("brokenBy", "").takeIf { it.isNotEmpty() },
+            why = o.optString("why", ""),
         )
     }
 }

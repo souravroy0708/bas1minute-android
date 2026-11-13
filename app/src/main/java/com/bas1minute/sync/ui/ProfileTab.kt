@@ -58,6 +58,8 @@ data class PhoneActions(
     val track: TrackActions = TrackActions(),
     /** Google Play update flow (or the Play listing). */
     val onUpdateApp: () -> Unit = {},
+    /** Opens the photo picker for the life goal with this id (see goal/LifeGoalPhoto.kt). */
+    val onPickGoalPhoto: (Long) -> Unit = {},
 )
 
 @Composable
@@ -258,6 +260,34 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                         if (on) { actions.onAskNotifications(); com.bas1minute.sync.nudge.NudgeWorker.schedule(app.ctxForPush) }
                     })
             }
+        }
+
+        // One honest number a day: how long yesterday actually went on the phone and social apps
+        AppCard(title = t("Daily phone-time reminder")) {
+            var on by remember { mutableStateOf(prefs.dailyUsageAlert) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("One number, once a day", style = MaterialTheme.typography.titleMedium)
+                    Text("A plain evening notification: how much time yesterday went on your phone and on social apps. No shaming, just the number.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = on, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { v ->
+                        on = v; prefs.dailyUsageAlert = v
+                        if (v) { actions.onAskNotifications(); com.bas1minute.sync.nudge.UsageAlertWorker.schedule(app.ctxForPush) }
+                    })
+            }
+        }
+
+        // Someone who hears about it if a detox is ended early (optional)
+        AppCard(title = t("Accountability contact")) {
+            val detoxStore = remember { com.bas1minute.sync.detox.DetoxStore.get(app.ctxForPush) }
+            var name by remember { mutableStateOf(detoxStore.accountabilityName) }
+            var contact by remember { mutableStateOf(detoxStore.accountabilityContact) }
+            Text("If you end a detox early, you can choose to text them. Nothing is ever sent without you reviewing and tapping Send.",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
+            AppField("Their name", name, { name = it.take(60); detoxStore.accountabilityName = name }, null, placeholder = "Mom")
+            AppField("Their phone number", contact, { contact = it.take(60); detoxStore.accountabilityContact = contact }, null, placeholder = "+91…")
         }
 
         SectionHeader(t("This phone"))

@@ -25,11 +25,23 @@ class AppController(private val ctx: android.content.Context, private val scope:
     val prefs = Prefs(ctx)
     val repo = Repo(ctx)
 
+    // One-time: the tour was introduced after some members had already finished onboarding. Those members
+    // skip it (their account already predates it); only members who hadn't onboarded yet — or install fresh
+    // after this — see it once, right after setup.
+    init {
+        if (!prefs.tourMigrated) {
+            prefs.tourDone = prefs.onboardingDone
+            prefs.tourMigrated = true
+        }
+    }
+
     /** Name and PIN set on first launch (privacy first: no phone, email or password). */
     var setupDone by mutableStateOf(prefs.setupDone || prefs.isConfigured)
     /** App lock: true when the PIN isn't required or was entered this session. */
     var unlocked by mutableStateOf(!prefs.appLock)
     var permissionsDone by mutableStateOf(prefs.onboardingDone)
+    /** The mandatory first-run tour: open until the member taps through every page once. */
+    var tourOpen by mutableStateOf(prefs.setupDone && !prefs.tourDone)
     var tab by mutableStateOf(Tab.Today)
     var openCircleId by mutableStateOf<Int?>(null)
     /** "Log a day" opens on top of Today. */
@@ -76,6 +88,8 @@ class AppController(private val ctx: android.content.Context, private val scope:
 
     /** Phone check (battery, data, background, permissions) open on top of Insights. */
     var phoneCheckOpen by mutableStateOf(false)
+    /** Goals screen (the fourth pillar) open on top of Today. */
+    var goalsOpen by mutableStateOf(false)
 
     /** Which part of the Detox tab is showing: "detox" (start a detox, clean hours) or "insights" (screen time). */
     var detoxView by mutableStateOf("detox")
@@ -283,8 +297,15 @@ class AppController(private val ctx: android.content.Context, private val scope:
         prefs.onboardingDone = true
         permissionsDone = true
         unlocked = true
+        tourOpen = !prefs.tourDone
         launch { repo.ensureAccount(); refresh() }
         prefs.pendingJoin.takeIf { it.isNotBlank() }?.let { joinFromLink(it) }
+    }
+
+    /** The member tapped through every page of the first-run tour. */
+    fun finishTour() {
+        prefs.tourDone = true
+        tourOpen = false
     }
 
     /** "Forgot PIN?": set a new one, no questions asked (the PIN is a convenience lock). */

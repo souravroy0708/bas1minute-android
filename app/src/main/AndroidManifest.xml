@@ -143,15 +143,6 @@
                 android:value="User-started digital detox: pauses other apps for a time the user chooses and shows a countdown notification" />
         </service>
 
-        <!-- Digital detox: the pause screen shown over a paused app -->
-        <activity
-            android:name=".detox.BlockActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTask"
-            android:taskAffinity="com.bas1minute.sync.detox"
-            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
-
         <!-- Digital detox: resume or close a running detox after a restart or app update -->
         <receiver
             android:name=".detox.DetoxBootReceiver"

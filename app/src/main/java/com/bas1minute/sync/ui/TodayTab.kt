@@ -211,6 +211,9 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     UpdateAvailableBanner(onUpdate = phoneActions.onUpdateApp, onLater = { updateLater = true })
                 }
 
+                // Goals: the thread tying steps, sleep, screen time and detox to what the person actually wants
+                GoalsCard(app)
+
                 // GPS walk / run: start one, or see the one in progress
                 TrackTodayCard(app)
                 // Digital detox: the focus half of Bas 1 Minute, one tap from Today

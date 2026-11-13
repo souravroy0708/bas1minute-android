@@ -1,6 +1,12 @@
 package com.bas1minute.sync.ui
 
 import android.content.Intent
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.bas1minute.sync.detox.DetoxShareCard
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -68,6 +75,7 @@ import com.bas1minute.sync.detox.DetoxStore
 import com.bas1minute.sync.detox.HourCell
 import com.bas1minute.sync.detox.HourState
 import com.bas1minute.sync.detox.Outcome
+import com.bas1minute.sync.detox.StreakLogic
 import com.bas1minute.sync.detox.WeekSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -244,11 +252,14 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
             }
         }
 
+        val streak = remember(st.sessions, st.now) { StreakLogic.currentStreak(st.sessions, st.now) }
+
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (active != null) ActiveCard(active, st.now) { DetoxController.endEarly(ctx) }
-            else SetupCard(store, st.usageOk, st.overlayOk, actions, onStart = { m ->
-                if (DetoxController.start(ctx, m) == null) app.message = "Allow both permissions to start a detox."
+            if (active != null) ActiveCard(active, st.now, streak, store) { DetoxController.endEarly(ctx) }
+            else SetupCard(store, st.usageOk, st.overlayOk, actions, onStart = { m, why ->
+                if (DetoxController.start(ctx, m, why) == null) app.message = "Allow both permissions to start a detox."
             })
+            BadgesCard(st.sessions, st.now)
             TodayCard(st.usageOk, cells, day)
             WeekCard(week, weekSum)
             HistoryCard(st.sessions.filter { it.outcome != Outcome.ACTIVE }.takeLast(10).reversed(), st.now)
@@ -262,42 +273,26 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
 }
 
 @Composable
-private fun ActiveCard(s: DetoxSession, now: Long, onEndEarly: () -> Unit) {
-    var confirm by remember { mutableStateOf(false) }
+private fun ActiveCard(s: DetoxSession, now: Long, streak: Int, store: DetoxStore, onEndEarly: () -> Unit) {
+    var showFlow by remember { mutableStateOf(false) }
     AppCard(title = t("Detox is on")) {
         Text("WhatsApp, browsers, social media and every other app are paused. Calls, messages, camera and alarms still work.",
             style = MaterialTheme.typography.bodyMedium, color = Muted)
-        GhostButton(t("End early")) { confirm = true }
+        // Visible and reachable at all times — the person's own choice, not hidden behind a maze.
+        GhostButton(t("End early")) { showFlow = true }
     }
-    if (confirm) EndEarlyDialog(s, now, onConfirm = { confirm = false; onEndEarly() }, onDismiss = { confirm = false })
-}
-
-/** Ten seconds to think before breaking a promise. Ending early is always possible, never instant. */
-@Composable
-private fun EndEarlyDialog(s: DetoxSession, now: Long, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    var wait by remember { mutableIntStateOf(10) }
-    LaunchedEffect(Unit) { while (wait > 0) { delay(1_000); wait-- } }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(t("Break your promise?")) },
-        text = {
-            Text("You promised ${DetoxLogic.formatMinutes(s.plannedMinutes)} and have kept ${DetoxLogic.formatMinutes(s.keptMinutes(now))}. " +
-                "Ending now is counted as a broken promise (guilty) in your history.\n\n" +
-                "Only ${DetoxLogic.formatDuration(s.remainingMs(now))} to go.")
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm, enabled = wait == 0) {
-                Text(if (wait > 0) "${t("End anyway")} ($wait)" else t("End anyway"), color = if (wait == 0) Danger else Muted)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(t("Keep my promise"), color = Blue, fontWeight = FontWeight.Bold) } },
+    if (showFlow) EndEarlyFlow(
+        s, now, streak, store.accountabilityName, store.accountabilityContact,
+        onConfirm = { showFlow = false; onEndEarly() },
+        onDismiss = { showFlow = false },
     )
 }
 
 @Composable
-private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, actions: PhoneActions, onStart: (Int) -> Unit) {
+private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, actions: PhoneActions, onStart: (Int, String) -> Unit) {
     val ctx = LocalContext.current
     var minutes by remember { mutableIntStateOf(store.lastMinutes) }
+    var why by remember { mutableStateOf("") }
     var extras by remember { mutableStateOf(store.extraAllowed) }
     var picking by remember { mutableStateOf(false) }
     val rules = remember(extras) { AppRules(ctx, extras) }
@@ -329,7 +324,21 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
         TextButton(onClick = { picking = true }) {
             Text(if (extras.isEmpty()) t("Allow up to 3 more apps (maps, UPI…)") else t("Change allowed apps"), color = Blue)
         }
-        BigButton("${t("I promise")}: ${DetoxLogic.formatMinutes(minutes)}", enabled = usageOk && overlayOk) { onStart(minutes) }
+        Text(t("Why now?"), style = MaterialTheme.typography.labelLarge)
+        Text("Write it down. If you try to end early, we'll ask you to type it back — your own reason, not ours.",
+            style = MaterialTheme.typography.bodySmall, color = Muted)
+        OutlinedTextField(why, { why = it.take(140) }, placeholder = { Text("e.g. Finish my assignment before midnight") },
+            modifier = Modifier.fillMaxWidth())
+        if (store.recentWhys.isNotEmpty() && why.isBlank()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                store.recentWhys.take(3).forEach { prev ->
+                    Text(prev, style = MaterialTheme.typography.labelMedium, color = TextMain,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(CardBg).clickable { why = prev }
+                            .padding(horizontal = 12.dp, vertical = 8.dp))
+                }
+            }
+        }
+        BigButton("${t("I promise")}: ${DetoxLogic.formatMinutes(minutes)}", enabled = usageOk && overlayOk) { onStart(minutes, why) }
     }
     if (picking) AllowedAppsDialog(rules, extras, onDone = { store.extraAllowed = it; extras = store.extraAllowed; picking = false }, onDismiss = { picking = false })
 }
@@ -339,22 +348,39 @@ private fun AllowedAppsDialog(rules: AppRules, current: Set<String>, onDone: (Se
     var apps by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     LaunchedEffect(Unit) { apps = withContext(Dispatchers.IO) { rules.pickableApps() } }
     var chosen by remember { mutableStateOf(current) }
+    var query by remember { mutableStateOf("") }
+    val shown = remember(apps, query) {
+        if (query.isBlank()) apps else apps.filter { it.second.contains(query, ignoreCase = true) }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("${t("Also allow")} (${chosen.size}/${DetoxLogic.MAX_EXTRA_ALLOWED})") },
         text = {
-            LazyColumn(Modifier.heightIn(max = 420.dp)) {
-                items(apps, key = { it.first }) { (pkg, label) ->
-                    val on = pkg in chosen
-                    val canChange = on || chosen.size < DetoxLogic.MAX_EXTRA_ALLOWED
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .clickable(enabled = canChange) { chosen = if (on) chosen - pkg else chosen + pkg },
-                    ) {
-                        Checkbox(checked = on, onCheckedChange = null, enabled = canChange)
-                        Spacer(Modifier.width(8.dp))
-                        Text(label, style = MaterialTheme.typography.bodyMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    query, { query = it }, singleLine = true,
+                    placeholder = { Text("Search apps") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = { if (query.isNotEmpty()) TextButton(onClick = { query = "" }) { Text(t("Cancel")) } },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (apps.isNotEmpty() && shown.isEmpty()) {
+                    Text("No app matches “$query”.", style = MaterialTheme.typography.bodyMedium, color = Muted,
+                        modifier = Modifier.padding(vertical = 12.dp))
+                }
+                LazyColumn(Modifier.heightIn(max = 380.dp)) {
+                    items(shown, key = { it.first }) { (pkg, label) ->
+                        val on = pkg in chosen
+                        val canChange = on || chosen.size < DetoxLogic.MAX_EXTRA_ALLOWED
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                .clickable(enabled = canChange) { chosen = if (on) chosen - pkg else chosen + pkg },
+                        ) {
+                            Checkbox(checked = on, onCheckedChange = null, enabled = canChange)
+                            Spacer(Modifier.width(8.dp))
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
             }
@@ -470,6 +496,75 @@ private fun HistoryCard(list: List<DetoxSession>, now: Long) {
                     Text("${fmt.format(Date(s.startMs))} · $why", style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Badges
+
+@Composable
+private fun BadgesCard(sessions: List<DetoxSession>, now: Long) {
+    val ctx = LocalContext.current
+    val streak = remember(sessions, now) { StreakLogic.currentStreak(sessions, now) }
+    val best = remember(sessions) { StreakLogic.bestStreak(sessions) }
+    val total = remember(sessions) { StreakLogic.totalFocusDays(sessions) }
+    val earned = remember(streak, best) { StreakLogic.badgesFor(maxOf(streak, best)) }
+    val next = remember(streak) { StreakLogic.nextBadge(streak) }
+    var share by remember { mutableStateOf(false) }
+
+    AppCard(title = t("Focus streak")) {
+        Text("A focus day is a 3-hour (or longer) detox you keep, fully between 10 AM and 10 PM.",
+            style = MaterialTheme.typography.bodySmall, color = Muted)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            WeekStat("$streak", t("day streak"), Haldi, Modifier.weight(1f))
+            WeekStat("$best", "best streak", Violet, Modifier.weight(1f))
+            WeekStat("$total", "focus days", CleanGreen, Modifier.weight(1f))
+        }
+        if (earned.isNotEmpty()) {
+            Text(t("Badges earned"), style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                earned.take(3).forEach { b ->
+                    Column(Modifier.clip(RoundedCornerShape(14.dp)).background(Ink).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🏅", style = MaterialTheme.typography.titleLarge)
+                        Text(StreakLogic.badgeLabel(b.days), style = MaterialTheme.typography.labelMedium, color = Color.White)
+                    }
+                }
+            }
+        }
+        next?.let { (badge, remaining) ->
+            Text("$remaining more day${if (remaining == 1) "" else "s"} to ${StreakLogic.badgeLabel(badge.days)}.",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
+        }
+        if (streak >= StreakLogic.BADGE_DAYS_FIRST_SHAREABLE) BigButton(t("Share my streak"), dark = false) { share = true }
+    }
+    if (share) DetoxShareSheet(streak, best, total, onDismiss = { share = false })
+}
+
+@Composable
+private fun DetoxShareSheet(streak: Int, best: Int, total: Int, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    val card = remember(streak) { DetoxShareCard.render(ctx, streak, best, total) }
+    val caption = "$streak day${if (streak == 1) "" else "s"} of focus, 3+ hours a day, on Bas 1 Minute 🧠 #Bas1Minute"
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier.fillMaxWidth().padding(12.dp).clip(RoundedCornerShape(28.dp)).background(Paper).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(t("Share your streak"), style = MaterialTheme.typography.titleLarge)
+            Image(card.asImageBitmap(), contentDescription = "Preview of the picture", contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp).clip(RoundedCornerShape(18.dp)))
+            BigButton(t("Share"), dark = false) {
+                runCatching {
+                    val dir = java.io.File(ctx.cacheDir, "share").apply { mkdirs() }
+                    val file = java.io.File(dir, "bas1minute-streak.png")
+                    file.outputStream().use { card.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                    val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
+                    val send = Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri)
+                        .putExtra(Intent.EXTRA_TEXT, caption).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    ctx.startActivity(Intent.createChooser(send, "Share your streak"))
+                }
+            }
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t("Close"), color = Muted) }
         }
     }
 }

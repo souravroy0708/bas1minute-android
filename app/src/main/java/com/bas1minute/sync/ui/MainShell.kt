@@ -107,7 +107,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                         selected = app.tab == item.tab,
                         onClick = {
                             if (item.tab == Tab.Circles && app.tab == Tab.Circles) { app.closeCircle(); app.globalOpen = false; app.findOpen = false }
-                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.spinOpen = false }
+                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.spinOpen = false; app.goalsOpen = false }
                             if (item.tab == Tab.Move && app.tab == Tab.Move) app.trackDetailId = null
                             if (item.tab == Tab.Profile) app.aboutPage = null
                             if (item.tab == Tab.Detox) app.phoneCheckOpen = false
@@ -130,7 +130,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         ShareSheet(app, actions.onShareImage)
         WeekReviewStory(app)
         // Fade-through between tabs and their full screens (burst, calm, log, circle)
-        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}:${app.detoxView}"
+        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}:${app.detoxView}:${app.goalsOpen}"
         androidx.compose.animation.AnimatedContent(
             targetState = screen,
             transitionSpec = {
@@ -146,6 +146,10 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         Box(Modifier.fillMaxSize()) {
             when (shownTab) {
                 Tab.Today -> when {
+                    part[9] == "true" -> {
+                        androidx.activity.compose.BackHandler { app.goalsOpen = false }
+                        GoalsScreen(app, actions, onClose = { app.goalsOpen = false })
+                    }
                     part[6] == "true" -> {
                         androidx.activity.compose.BackHandler { app.spinOpen = false }
                         WheelScreen(app, onClose = { app.spinOpen = false })

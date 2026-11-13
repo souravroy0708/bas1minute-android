@@ -198,6 +198,27 @@ class Prefs(context: Context) {
         get() = p.getBoolean("global_invite_shown", false)
         set(v) = p.edit().putBoolean("global_invite_shown", v).apply()
 
+    /** One daily notification with yesterday's total screen and social-media time. Off by default. */
+    var dailyUsageAlert: Boolean
+        get() = p.getBoolean("daily_usage_alert", false)
+        set(v) = p.edit().putBoolean("daily_usage_alert", v).apply()
+
+    /** "2026-11-13": the last usage-alert day sent, so it's never sent twice. */
+    var lastUsageAlert: String
+        get() = p.getString("last_usage_alert", "") ?: ""
+        set(v) = p.edit().putString("last_usage_alert", v).apply()
+
+    /** Shown once, right after setup: a short, mandatory walkthrough of the app's main features. */
+    var tourDone: Boolean
+        get() = p.getBoolean("tour_done", false)
+        set(v) = p.edit().putBoolean("tour_done", v).apply()
+
+    /** One-time migration flag: decides tourDone's starting value for members who already existed when the
+     *  tour shipped (see AppController), so it never forces an already-onboarded member through it. */
+    var tourMigrated: Boolean
+        get() = p.getBoolean("tour_migrated", false)
+        set(v) = p.edit().putBoolean("tour_migrated", v).apply()
+
     /** Asked for the notification permission once already. */
     var notifAsked: Boolean
         get() = p.getBoolean("notif_asked", false)

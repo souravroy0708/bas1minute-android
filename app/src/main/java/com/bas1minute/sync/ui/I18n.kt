@@ -74,6 +74,17 @@ object Lang {
         "Your promises" to "आपके वादे", "Kept" to "निभाया", "Ended early" to "पहले ख़त्म किया",
         "used during detox" to "डिटॉक्स में खोला", "Permission turned off" to "अनुमति बंद की",
         "Resisted" to "रोका", "No slips" to "कोई चूक नहीं",
+        // Goals
+        "Your goals" to "आपके लक्ष्य", "Set your first goal" to "अपना पहला लक्ष्य बनाएँ",
+        "Add a goal" to "लक्ष्य जोड़ें", "Add another goal" to "एक और लक्ष्य जोड़ें",
+        "Remove this goal" to "यह लक्ष्य हटाएँ", "Or your own, for anything the phone can't measure:" to "या अपना खुद का, जो फ़ोन नहीं माप सकता:",
+        "Write my own goal" to "अपना लक्ष्य लिखें",
+        // Life goals
+        "Life goals" to "जीवन के लक्ष्य", "Daily" to "रोज़ाना", "Short-term" to "अल्पकालिक", "Mid-term" to "मध्यकालिक", "Long-term" to "दीर्घकालिक",
+        "Add" to "जोड़ें", "Mark achieved" to "पूरा हुआ चिह्नित करें", "Pause this goal" to "यह लक्ष्य रोकें", "Keep going" to "जारी रखें",
+        "Add a photo — who or what this is for" to "एक फ़ोटो जोड़ें — यह किसके लिए है",
+        "The plan" to "योजना", "If it gets hard" to "अगर मुश्किल हो तो", "Milestones" to "पड़ाव",
+        "Why does this matter to you?" to "यह आपके लिए क्यों मायने रखता है?", "What's the plan?" to "योजना क्या है?",
         // Common
         "Save" to "सेव करें", "Cancel" to "रद्द करें", "Back up now" to "अभी बैकअप लें",
     )

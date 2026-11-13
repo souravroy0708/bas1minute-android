@@ -51,7 +51,7 @@ data class DayRow(
  * display; they reach the website through the action outbox.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 7) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 9) {
 
     companion object {
         private const val KEEP_DAYS = 400L
@@ -86,6 +86,8 @@ class LocalDb private constructor(context: Context) :
         createV5(db)
         createV6(db)
         createV7(db)
+        createV8(db)
+        createV9(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -96,6 +98,8 @@ class LocalDb private constructor(context: Context) :
         if (oldVersion < 5) createV5(db)
         if (oldVersion < 6) createV6(db)
         if (oldVersion < 7) createV7(db)
+        if (oldVersion < 8) createV8(db)
+        if (oldVersion < 9) createV9(db)
     }
 
     private fun createV2(db: SQLiteDatabase) {
@@ -155,6 +159,61 @@ class LocalDb private constructor(context: Context) :
     /** v6: battery level every ~15 minutes, for Phone check (phone only, kept 8 days). See phone/BatteryLog.kt. */
     private fun createV6(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS battery_samples (t INTEGER PRIMARY KEY, level INTEGER NOT NULL, charging INTEGER NOT NULL, temp REAL)")
+    }
+
+    /** v8: Goals (the fourth pillar). Phone only, never synced. See goal/GoalStore.kt. */
+    private fun createV8(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL,
+                title TEXT NOT NULL,
+                target INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                archived_at INTEGER
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS goal_checkins (goal_id INTEGER NOT NULL, date TEXT NOT NULL, done INTEGER NOT NULL, " +
+                "PRIMARY KEY (goal_id, date))"
+        )
+    }
+
+    /** v9: Life goals — short/mid/long-term goals with a why, a photo, and milestones. Phone only, never synced. */
+    private fun createV9(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS life_goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                horizon TEXT NOT NULL,
+                title TEXT NOT NULL,
+                details TEXT NOT NULL DEFAULT '',
+                why TEXT NOT NULL DEFAULT '',
+                obstacle TEXT NOT NULL DEFAULT '',
+                plan TEXT NOT NULL DEFAULT '',
+                has_photo INTEGER NOT NULL DEFAULT 0,
+                started_at INTEGER NOT NULL,
+                target_date TEXT NOT NULL,
+                achieved_at INTEGER,
+                archived_at INTEGER
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS life_goal_milestones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                done INTEGER NOT NULL DEFAULT 0,
+                done_at INTEGER,
+                sort_order INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS life_goal_milestones_goal ON life_goal_milestones(goal_id)")
     }
 
     // ---------- days ----------
@@ -289,7 +348,7 @@ class LocalDb private constructor(context: Context) :
 
     /** Remove every saved day (used by "Delete everything"). */
     fun wipeAll() {
-        for (t in listOf("days", "app_usage", "outbox", "cache", "activities", "activity_points", "battery_samples")) writableDatabase.delete(t, null, null)
+        for (t in listOf("days", "app_usage", "outbox", "cache", "activities", "activity_points", "battery_samples", "goals", "goal_checkins", "life_goals", "life_goal_milestones")) writableDatabase.delete(t, null, null)
     }
 
     fun days(from: LocalDate, to: LocalDate): List<DayRow> =

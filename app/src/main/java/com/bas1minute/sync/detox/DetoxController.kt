@@ -34,11 +34,12 @@ object DetoxController {
         Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}"))
 
     /** Starts a promise for [minutes]. Returns null if the permissions the block needs are missing. */
-    fun start(ctx: Context, minutes: Int): DetoxSession? {
+    fun start(ctx: Context, minutes: Int, why: String = ""): DetoxSession? {
         if (!isReady(ctx)) return null
         val store = DetoxStore.get(ctx)
         store.lastMinutes = minutes
-        val s = store.start(System.currentTimeMillis(), minutes)
+        if (why.isNotBlank()) store.recentWhys = (listOf(why.trim()) + store.recentWhys).distinct()
+        val s = store.start(System.currentTimeMillis(), minutes, why)
         startService(ctx)
         return s
     }
@@ -47,6 +48,7 @@ object DetoxController {
     fun endEarly(ctx: Context) {
         val store = DetoxStore.get(ctx)
         val s = store.active() ?: return
+        BlockOverlay.hide()
         store.update(DetoxLogic.breakNow(s, System.currentTimeMillis(), BreakReason.ENDED_EARLY))
         ctx.stopService(Intent(ctx, DetoxService::class.java))
     }

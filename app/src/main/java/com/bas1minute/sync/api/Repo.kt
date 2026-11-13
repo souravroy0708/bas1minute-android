@@ -72,7 +72,7 @@ class Repo(context: Context) {
     suspend fun logout() {
         api.post("auth/logout/")  // best effort; the phone forgets the token either way
         prefs.clearSession()
-        withContext(Dispatchers.IO) { db.clearAccountData() }
+        withContext(Dispatchers.IO) { db.clearAccountData(); com.bas1minute.sync.goal.LifeGoalPhoto.clearAll(ctx) }
     }
 
     suspend fun updateMe(fields: JSONObject): Res<Me> {
