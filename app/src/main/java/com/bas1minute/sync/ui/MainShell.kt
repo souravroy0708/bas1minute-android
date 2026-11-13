@@ -43,12 +43,7 @@ private val TABS = listOf(
 /** Five tabs: Today, Move (walks and runs), Circles, Detox (digital detox + screen-time insights), Profile. */
 @Composable
 fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Unit, onCall: (String) -> Unit) {
-    // A required update replaces the whole app until it's installed
-    val update by com.bas1minute.sync.AppUpdate.status.collectAsState()
-    if (update == com.bas1minute.sync.AppUpdate.Status.Required) {
-        UpdateRequiredScreen(onUpdate = actions.onUpdateApp)
-        return
-    }
+    // A required update replaces the whole app: see UpdateGate (MainActivity), which also covers setup and the lock
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(app.message) {
         app.message?.let {

@@ -38,7 +38,9 @@ class Repo(context: Context) {
             return secrets.secret.isNotBlank() || up.code == null
         }
         if (prefs.name.isBlank()) return false
-        val r = api.post("auth/device/", JSONObject().put("name", prefs.name).put("device", device()).put("install_id", installId()))
+        // share_activity: new members are in the global circle from setup, so they're ranked from the first sync
+        val r = api.post("auth/device/", JSONObject().put("name", prefs.name).put("device", device()).put("install_id", installId())
+            .put("share_activity", prefs.shareActivity))
         if (!r.ok || r.json == null) return false
         prefs.token = r.json.optString("token")
         secrets.secret = r.json.optString("secret")

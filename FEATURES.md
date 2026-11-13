@@ -36,6 +36,10 @@ water, weight), automatic steps / screen / social / sleep / water / weight, Sams
 
 **App only (v1.2): Phone check** — Insights → Phone check: health score, battery level history and screen-on/off drain, estimated battery by app, mobile/Wi-Fi data per app (foreground vs background), apps running in the background, battery exemptions, permissions and powerful access, sideloaded apps, evening alert. Phone only, never synced.
 
+**v1.6: Always the latest version** — every release published on Google Play is required: once Play can deliver it
+to a phone, "Time to update" replaces the app and Play's update opens by itself (waits for a running walk or detox).
+Server *Minimum version code* stays as a kill switch; *Latest* forces non-Play installs. See docs/PLAY_STORE.md §5.
+
 **v1.5: Everyone in the global circle, daily nudges, Detox tab**
 - **Bas 1 Minute India** (global circle): new members are in from setup (stated on the name screen); earlier members who
   weren't sharing get one "Count me in" invite. Periods: Today, Week, Month, All time. Every published challenge

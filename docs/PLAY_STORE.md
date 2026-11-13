@@ -88,15 +88,23 @@ Data "collected" = sent off the phone. Encrypted in transit: **Yes**. Users can 
 Everything else (mood, calm, sleep, water, weight, routes, Phone check, app-by-app usage) is processed **only on the
 device** and is not "collected".
 
-## 5. Every later release, and forcing an update
+## 5. Every later release: everyone must update (automatic)
 
-1. Merge to `main` → GitHub builds `2.0.N+1` → upload the `.aab` to a Play track → roll out.
-2. Members get **"Update available"** on Today as soon as Play has it (in-app update, installs without leaving the app).
-3. To make it **mandatory**: when the rollout reaches 100% and the version is live, open the website admin →
-   **App versions** → set *Minimum version code* to the new build number (and *Latest*). Every older app then shows a
-   full-screen **"Time to update"** screen, and the API answers 426 to it, until it updates. Data on the phone stays.
-   (Alternatively give a release in-app update priority 4–5 with the Play Developer API.)
-4. Never raise the minimum above a version that isn't fully rolled out on Play yet, or some people can't update.
+Policy: **every release published on Google Play is mandatory** (`AppUpdate.ALWAYS_LATEST = true`).
+
+1. Merge to `main` → GitHub builds `2.0.N+1` → upload the `.aab` to the track → send for review → roll out.
+2. Nothing else to do. As soon as Play can deliver the new version to a phone (Play only reports it once the
+   rollout reaches that phone), the app on that phone is replaced by **"Time to update"** and Play's full-screen
+   update opens by itself. Backing out leaves the blocking screen; **Update now** opens Play again. Data stays.
+3. It waits while a walk is recording or a detox is on (installing restarts the app), then blocks right after.
+4. Offline phones keep working until they're next online (they can't know a release exists).
+5. Optional, for phones that didn't install from Play (test APKs from GitHub): website admin → **App versions** →
+   set *Latest version code* to the new build number. Play installs ignore *Latest* until Play confirms the update,
+   so setting it early never blocks anyone.
+6. Kill switch: *Minimum version code* blocks every older version immediately, Play or not, and the API answers
+   426 to it. Only raise it to a version that is **fully rolled out** on Play, or people get blocked with nothing to
+   install.
+7. To go back to optional updates ("Update available" banner), set `ALWAYS_LATEST = false` in `AppUpdate.kt`.
 
 ## 6. Size
 

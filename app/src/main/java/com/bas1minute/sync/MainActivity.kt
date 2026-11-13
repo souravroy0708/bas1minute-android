@@ -198,6 +198,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         app = AppController(applicationContext, lifecycleScope)
+        AppUpdate.init(applicationContext)   // Play install or not: decides who confirms an update
         // Close a digital detox whose time is up, or restart its blocker if Android stopped it
         com.bas1minute.sync.detox.DetoxController.reconcile(applicationContext)
         handleLink(intent)
@@ -239,6 +240,8 @@ class MainActivity : ComponentActivity() {
             val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
             com.bas1minute.sync.ui.Lang.current = app.language
             Bas1MinuteTheme(dark = when (app.theme) { "dark" -> true; "light" -> false; else -> systemDark }) {
+              // Every new Play release is required: "Time to update" replaces the app until it's installed
+              com.bas1minute.sync.ui.UpdateGate(onUpdate = { updater.update() }) {
                 when {
                     !app.setupDone -> SetupScreen(app)
                     !app.unlocked -> LockScreen(app)
@@ -257,6 +260,7 @@ class MainActivity : ComponentActivity() {
                     )
                     else -> MainShell(app, phone, onShare = { share(it) }, onCall = { call(it) })
                 }
+              }
             }
         }
     }
@@ -313,7 +317,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Required or available update: ask the server (minimum version) and Google Play
         updater.resumeIfNeeded()
-        updater.checkPlay()
+        updater.checkPlay(busy = { com.bas1minute.sync.ui.updateMustWait(this) })
         app.launch { AppUpdate.checkServer(com.bas1minute.sync.api.Api(this@MainActivity)) }
         // After setup: ask for notifications once, and keep this phone's push token current.
         if (app.setupDone && app.permissionsDone && app.prefs.pushEnabled) {

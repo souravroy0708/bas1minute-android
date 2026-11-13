@@ -18,6 +18,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,7 +30,28 @@ import androidx.compose.ui.unit.sp
 import com.bas1minute.sync.AppUpdate
 import com.bas1minute.sync.BuildConfig
 
-/** Shown instead of the app when this version is below the minimum. Your data on the phone stays. */
+/** Busy with something an update would interrupt (installing restarts the app): a walk recording or a detox on. */
+fun updateMustWait(context: android.content.Context): Boolean =
+    com.bas1minute.sync.track.LiveTrack.state.value.active ||
+        com.bas1minute.sync.detox.DetoxStore.get(context).active() != null
+
+/**
+ * Wraps the whole app (setup, lock and the tabs): a required update replaces everything until it's installed,
+ * except while a walk is recording or a detox is on, which finish first.
+ */
+@Composable
+fun UpdateGate(onUpdate: () -> Unit, content: @Composable () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val update by AppUpdate.status.collectAsState()
+    val live by com.bas1minute.sync.track.LiveTrack.state.collectAsState()
+    if (update == AppUpdate.Status.Required && !live.active && com.bas1minute.sync.detox.DetoxStore.get(ctx).active() == null) {
+        UpdateRequiredScreen(onUpdate)
+    } else {
+        content()
+    }
+}
+
+/** Shown instead of the app when a newer version must be installed. Your data on the phone stays. */
 @Composable
 fun UpdateRequiredScreen(onUpdate: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Ink), contentAlignment = Alignment.Center) {
@@ -38,7 +61,7 @@ fun UpdateRequiredScreen(onUpdate: () -> Unit) {
             }
             Text("Time to update", color = Color.White, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
             Text(AppUpdate.message, color = MutedOnDark, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
-            Text("This version no longer works with our servers. Updating takes a minute, and everything on your phone stays as it is.",
+            Text("A new version of Bas 1 Minute is out, and everyone moves to it together. Updating takes a minute, and everything on your phone stays as it is.",
                 color = MutedOnDark, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
             BigButton("Update now", dark = false, modifier = Modifier.fillMaxWidth(), onClick = onUpdate)
