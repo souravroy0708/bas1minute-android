@@ -53,6 +53,16 @@ sync/JournalSync.kt.
 Goals (daily + life goals) with Diary one tap away, same pattern as Detox/Insights. Circles (Bas 1 Minute India,
 private circles, competitions) moved to Profile, one tap away, exactly where it was before just relocated.
 
+**v1.9.1: Block only what you choose to block, not everything** — Detox flipped from a strict allow-list (block
+everything except a few picked apps) to a block-list the member curates. Two defaults, both on: Social media &
+short video (Instagram, Facebook, YouTube, X, Snapchat, TikTok-style apps...) and Web browsers (Chrome, Firefox,
+every browser installed) — either can be turned off entirely, or one app exempted out of it by name (e.g. keep
+LinkedIn while still blocking Instagram). Everything else — calls, messages, WhatsApp, music apps, UPI and
+payment apps, maps, office/work apps, games — stays usable by default without being named, because the model
+now fails open, not closed. "+ Block another app" lets a member add any other app they personally find
+distracting, with a small "Usually left open: Music / UPI & payments / Maps / Work" tag when known. See
+detox/AppRules.kt and DetoxLogic.isPackageBlocked (pure, unit-tested).
+
 **v1.3.1: Stop over-counting steps when a watch is also connected** — Health Connect's own daily step total was
 being trusted as-is, but Health Connect does not reliably deduplicate steps when more than one app writes them
 (a watch's companion app, Google Fit, Samsung Health and, on Android 14+, the phone itself can all write for the

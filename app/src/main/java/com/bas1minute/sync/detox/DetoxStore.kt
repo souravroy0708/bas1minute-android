@@ -70,10 +70,21 @@ class DetoxStore private constructor(context: Context) {
 
     // ---- settings -------------------------------------------------------------------------------------
 
-    /** Up to 3 extra apps the user allows during detox (maps, UPI, a work app). Chosen before starting. */
-    var extraAllowed: Set<String>
-        get() = prefs.getStringSet(KEY_EXTRA, emptySet())?.toSet() ?: emptySet()
-        set(v) { prefs.edit().putStringSet(KEY_EXTRA, v.take(DetoxLogic.MAX_EXTRA_ALLOWED).toSet()).apply(); changed() }
+    /** Which built-in categories are blocked. Both on by default: this is what "just block social media and
+     * browsers" means on a fresh install. Stored as the literal strings "social" / "browsers". */
+    var blockCategories: Set<String>
+        get() = prefs.getStringSet(KEY_CATEGORIES, null)?.toSet() ?: setOf("social", "browsers")
+        set(v) { prefs.edit().putStringSet(KEY_CATEGORIES, v.toSet()).apply(); changed() }
+
+    /** Individual apps the member added to block, beyond the two categories above. */
+    var blockedApps: Set<String>
+        get() = prefs.getStringSet(KEY_BLOCKED_EXTRA, emptySet())?.toSet() ?: emptySet()
+        set(v) { prefs.edit().putStringSet(KEY_BLOCKED_EXTRA, v.take(DetoxLogic.MAX_BLOCKED_EXTRA).toSet()).apply(); changed() }
+
+    /** Individual apps carved OUT of an on category — e.g. keep LinkedIn open while still blocking Instagram. */
+    var allowedOverride: Set<String>
+        get() = prefs.getStringSet(KEY_ALLOWED_OVERRIDE, emptySet())?.toSet() ?: emptySet()
+        set(v) { prefs.edit().putStringSet(KEY_ALLOWED_OVERRIDE, v.toSet()).apply(); changed() }
 
     /** Clean hours are counted from this hour of the day (default 6 AM) to midnight. */
     var dayFirstHour: Int
@@ -103,7 +114,9 @@ class DetoxStore private constructor(context: Context) {
 
     companion object {
         private const val KEY_SESSIONS = "sessions"
-        private const val KEY_EXTRA = "extra_allowed"
+        private const val KEY_CATEGORIES = "block_categories"
+        private const val KEY_BLOCKED_EXTRA = "blocked_extra"
+        private const val KEY_ALLOWED_OVERRIDE = "allowed_override"
         private const val KEY_FIRST_HOUR = "day_first_hour"
         private const val KEY_LAST_MIN = "last_minutes"
         private const val KEY_WHYS = "recent_whys"

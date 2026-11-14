@@ -69,7 +69,7 @@ class DetoxService : Service() {
             startForeground(NOTIF_ONGOING, n)
         }
         sessionId = s.id
-        rules = AppRules(this, store.extraAllowed)
+        rules = AppRules(this, store.blockCategories, store.blockedApps, store.allowedOverride)
         reader = UsageReader(this)
         acquireWake(s.plannedEndMs)
         if (!running) {

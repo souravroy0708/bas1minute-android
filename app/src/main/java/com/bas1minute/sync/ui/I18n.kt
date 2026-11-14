@@ -93,6 +93,9 @@ object Lang {
         "Add a life milestone" to "जीवन का पड़ाव जोड़ें", "What kind of moment is this?" to "यह किस तरह का पल है?",
         "When did it happen?" to "यह कब हुआ?", "Tell the story" to "कहानी बताएँ", "Reflect" to "सोच-विचार करें",
         "Preview the pause screen" to "पॉज़ स्क्रीन पहले देखें", "Open battery settings" to "बैटरी सेटिंग खोलें",
+        "What should it block?" to "यह क्या रोके?", "Social media & short video" to "सोशल मीडिया और शॉर्ट वीडियो",
+        "Web browsers" to "वेब ब्राउज़र", "Review" to "देखें", "Block another app" to "एक और ऐप रोकें",
+        "+ Block another app" to "+ एक और ऐप रोकें",
         // Common
         "Save" to "सेव करें", "Cancel" to "रद्द करें", "Back up now" to "अभी बैकअप लें",
     )

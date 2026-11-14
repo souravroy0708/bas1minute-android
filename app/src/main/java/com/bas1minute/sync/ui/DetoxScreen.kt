@@ -15,6 +15,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -299,9 +300,11 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
     val ctx = LocalContext.current
     var minutes by remember { mutableIntStateOf(store.lastMinutes) }
     var why by remember { mutableStateOf("") }
-    var extras by remember { mutableStateOf(store.extraAllowed) }
-    var picking by remember { mutableStateOf(false) }
-    val rules = remember(extras) { AppRules(ctx, extras) }
+    var categories by remember { mutableStateOf(store.blockCategories) }
+    var blockedExtra by remember { mutableStateOf(store.blockedApps) }
+    var overrides by remember { mutableStateOf(store.allowedOverride) }
+    var choosingFor by remember { mutableStateOf<String?>(null) }   // "social", "browsers" or "add" — which picker is open
+    val rules = remember(categories, blockedExtra, overrides) { AppRules(ctx, categories, blockedExtra, overrides) }
 
     AppCard(title = t("Start a detox")) {
         if (!usageOk || !overlayOk) {
@@ -339,12 +342,25 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
             Spacer(Modifier.width(6.dp))
             SmallPill("+30") { minutes = DetoxLogic.clampMinutes(minutes + 30) }
         }
-        Text(t("Always allowed"), style = MaterialTheme.typography.labelLarge)
-        Text((listOf("Calls", "Messages", "Contacts", "Camera", "Clock and alarms") + extras.map { rules.label(it) }).joinToString(", "),
-            style = MaterialTheme.typography.bodyMedium)
-        TextButton(onClick = { picking = true }) {
-            Text(if (extras.isEmpty()) t("Allow up to 3 more apps (maps, UPI…)") else t("Change allowed apps"), color = Blue)
+        Text(t("What should it block?"), style = MaterialTheme.typography.labelLarge)
+        Text("Only what you choose below is paused. Everything else — calls, messages, WhatsApp, music, UPI, maps, work apps — keeps working.",
+            style = MaterialTheme.typography.bodySmall, color = Muted)
+        CategoryRow(
+            title = t("Social media & short video"), examples = "Instagram, Facebook, YouTube, X, Snapchat…",
+            on = "social" in categories, exemptCount = overrides.count { it in AppRules.SOCIAL },
+            onToggle = { on -> categories = if (on) categories + "social" else categories - "social"; store.blockCategories = categories },
+            onReview = { choosingFor = "social" },
+        )
+        CategoryRow(
+            title = t("Web browsers"), examples = "Chrome, Firefox, Edge, Opera…",
+            on = "browsers" in categories, exemptCount = overrides.count { it !in AppRules.SOCIAL },
+            onToggle = { on -> categories = if (on) categories + "browsers" else categories - "browsers"; store.blockCategories = categories },
+            onReview = { choosingFor = "browsers" },
+        )
+        if (blockedExtra.isNotEmpty()) {
+            Text("Also blocking: " + blockedExtra.joinToString(", ") { rules.label(it) }, style = MaterialTheme.typography.bodySmall, color = Muted)
         }
+        TextButton(onClick = { choosingFor = "add" }) { Text(t("+ Block another app"), color = Blue) }
         Text(t("Why now?"), style = MaterialTheme.typography.labelLarge)
         Text("Write it down. If you try to end early, we'll ask you to type it back — your own reason, not ours.",
             style = MaterialTheme.typography.bodySmall, color = Muted)
@@ -361,13 +377,80 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
         }
         BigButton("${t("I promise")}: ${DetoxLogic.formatMinutes(minutes)}", enabled = usageOk && overlayOk) { onStart(minutes, why) }
     }
-    if (picking) AllowedAppsDialog(rules, extras, onDone = { store.extraAllowed = it; extras = store.extraAllowed; picking = false }, onDismiss = { picking = false })
+    when (choosingFor) {
+        "social" -> CategoryReviewDialog(
+            title = t("Social media & short video"), apps = rules.installedSocial(), overrides = overrides,
+            onDone = { overrides = it; store.allowedOverride = it; choosingFor = null }, onDismiss = { choosingFor = null },
+        )
+        "browsers" -> CategoryReviewDialog(
+            title = t("Web browsers"), apps = rules.installedBrowsers(), overrides = overrides,
+            onDone = { overrides = it; store.allowedOverride = it; choosingFor = null }, onDismiss = { choosingFor = null },
+        )
+        "add" -> AddBlockedAppDialog(
+            rules, blockedExtra, onDone = { blockedExtra = it; store.blockedApps = it; choosingFor = null }, onDismiss = { choosingFor = null },
+        )
+    }
 }
 
+/** One built-in category: on/off, a couple of examples, and a link to exempt one app from it by name. */
 @Composable
-private fun AllowedAppsDialog(rules: AppRules, current: Set<String>, onDone: (Set<String>) -> Unit, onDismiss: () -> Unit) {
+private fun CategoryRow(title: String, examples: String, on: Boolean, exemptCount: Int, onToggle: (Boolean) -> Unit, onReview: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            Text(
+                if (!on) "Off — none of these are blocked" else if (exemptCount > 0) "$examples (except $exemptCount you've kept open)" else examples,
+                style = MaterialTheme.typography.bodySmall, color = Muted,
+            )
+        }
+        if (on) TextButton(onClick = onReview, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(t("Review"), color = Blue, style = MaterialTheme.typography.bodySmall) }
+        androidx.compose.material3.Switch(checked = on, onCheckedChange = onToggle,
+            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi))
+    }
+}
+
+/** Lets the member untick one or more installed apps out of an on category — e.g. keep LinkedIn while still blocking Instagram. */
+@Composable
+private fun CategoryReviewDialog(title: String, apps: List<Pair<String, String>>, overrides: Set<String>, onDone: (Set<String>) -> Unit, onDismiss: () -> Unit) {
+    var chosen by remember { mutableStateOf(overrides) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            if (apps.isEmpty()) {
+                Text("None of these are installed.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+            } else {
+                Column {
+                    Text("Untick any you want to keep open even while this category is blocked.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(Modifier.heightIn(max = 380.dp)) {
+                        items(apps, key = { it.first }) { (pkg, label) ->
+                            val blocked = pkg !in chosen
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    .clickable { chosen = if (blocked) chosen + pkg else chosen - pkg },
+                            ) {
+                                Checkbox(checked = blocked, onCheckedChange = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(label, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onDone(chosen) }) { Text(t("Save")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t("Cancel")) } },
+    )
+}
+
+/** Add any other installed app to the block list — a game, a news app, or (fully the member's call) WhatsApp,
+ * a music app etc., tagged with why it isn't blocked by default when that's known. */
+@Composable
+private fun AddBlockedAppDialog(rules: AppRules, current: Set<String>, onDone: (Set<String>) -> Unit, onDismiss: () -> Unit) {
     var apps by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
-    LaunchedEffect(Unit) { apps = withContext(Dispatchers.IO) { rules.pickableApps() } }
+    LaunchedEffect(Unit) { apps = withContext(Dispatchers.IO) { rules.pickableToBlock() } }
     var chosen by remember { mutableStateOf(current) }
     var query by remember { mutableStateOf("") }
     val shown = remember(apps, query) {
@@ -375,7 +458,7 @@ private fun AllowedAppsDialog(rules: AppRules, current: Set<String>, onDone: (Se
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("${t("Also allow")} (${chosen.size}/${DetoxLogic.MAX_EXTRA_ALLOWED})") },
+        title = { Text("${t("Block another app")} (${chosen.size}/${DetoxLogic.MAX_BLOCKED_EXTRA})") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -392,7 +475,8 @@ private fun AllowedAppsDialog(rules: AppRules, current: Set<String>, onDone: (Se
                 LazyColumn(Modifier.heightIn(max = 380.dp)) {
                     items(shown, key = { it.first }) { (pkg, label) ->
                         val on = pkg in chosen
-                        val canChange = on || chosen.size < DetoxLogic.MAX_EXTRA_ALLOWED
+                        val canChange = on || chosen.size < DetoxLogic.MAX_BLOCKED_EXTRA
+                        val tag = rules.referenceCategoryOf(pkg)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
@@ -400,7 +484,10 @@ private fun AllowedAppsDialog(rules: AppRules, current: Set<String>, onDone: (Se
                         ) {
                             Checkbox(checked = on, onCheckedChange = null, enabled = canChange)
                             Spacer(Modifier.width(8.dp))
-                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                            Column(Modifier.weight(1f)) {
+                                Text(label, style = MaterialTheme.typography.bodyMedium)
+                                if (tag != null) Text("Usually left open: $tag", style = MaterialTheme.typography.labelSmall, color = Muted)
+                            }
                         }
                     }
                 }

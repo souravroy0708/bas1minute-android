@@ -64,7 +64,8 @@ object BlockOverlay {
             return false
         }
         hide()
-        val rules = AppRules(ctx, DetoxStore.get(ctx).extraAllowed)
+        val store = DetoxStore.get(ctx)
+        val rules = AppRules(ctx, store.blockCategories, store.blockedApps, store.allowedOverride)
         val view = buildUi(ctx, rules.label(pkg))
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,

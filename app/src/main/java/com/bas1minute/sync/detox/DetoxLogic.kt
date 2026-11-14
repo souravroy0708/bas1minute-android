@@ -91,9 +91,40 @@ object DetoxLogic {
     val DURATION_CHOICES_MIN = listOf(5, 30, 60, 120, 180, 240)
     const val MIN_MINUTES = 5
     const val MAX_MINUTES = 12 * 60
-    const val MAX_EXTRA_ALLOWED = 3
+    /** How many individual extra apps a member can add to their own block list, beyond the two categories. */
+    const val MAX_BLOCKED_EXTRA = 30
 
     fun clampMinutes(minutes: Int): Int = minutes.coerceIn(MIN_MINUTES, MAX_MINUTES)
+
+    /**
+     * The actual block/allow decision, as a pure function so it's fully unit tested without Android: a
+     * member's own block-list, not a fixed wall. Fails OPEN — anything not explicitly chosen (by the member,
+     * or by one of the two default categories they can turn off) stays usable. Only [hardAllowed] (dialer,
+     * default messaging app, launcher, keyboard, Settings and other system essentials AppRules resolves from
+     * the real phone) can never be blocked, so nobody can lock themselves out of calling for help.
+     *
+     * @param blockCategories which of "social" / "browsers" are turned on (both default on)
+     * @param blockedApps individual packages the member added beyond the two categories
+     * @param allowedOverride individual packages carved OUT of an on category (e.g. exempt one social app)
+     * @param social the Social media / short video reference list (AppRules.SOCIAL)
+     * @param browsers every installed browser (AppRules' resolved browser set)
+     */
+    fun isPackageBlocked(
+        pkg: String,
+        blockCategories: Set<String>,
+        blockedApps: Set<String>,
+        allowedOverride: Set<String>,
+        hardAllowed: Set<String>,
+        social: Set<String>,
+        browsers: Set<String>,
+    ): Boolean {
+        if (pkg in hardAllowed) return false
+        if (pkg in allowedOverride) return false
+        if (pkg in blockedApps) return true
+        if ("browsers" in blockCategories && pkg in browsers) return true
+        if ("social" in blockCategories && pkg in social) return true
+        return false
+    }
 
     /**
      * Turns usage events into foreground intervals between [from] and [to].

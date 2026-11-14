@@ -71,7 +71,8 @@ object DetoxController {
     }
 
     fun finishWithHistory(ctx: Context, s: DetoxSession, now: Long): DetoxSession {
-        val rules = AppRules(ctx, DetoxStore.get(ctx).extraAllowed)
+        val store = DetoxStore.get(ctx)
+        val rules = AppRules(ctx, store.blockCategories, store.blockedApps, store.allowedOverride)
         val blocked = if (hasUsageAccess(ctx)) {
             UsageReader(ctx).intervals(s.startMs, minOf(now, s.plannedEndMs), rules::isBlocked)
         } else emptyList()
@@ -102,7 +103,8 @@ object DetoxController {
     fun hourCells(ctx: Context, dayStartMs: Long, nowMs: Long): List<HourCell> {
         if (!hasUsageAccess(ctx)) return emptyList()
         val store = DetoxStore.get(ctx)
-        val rules = AppRules(ctx, store.extraAllowed)
+        // isDistracting never looks at block choices, only the Social/Browsers reference lists — empty sets are fine.
+        val rules = AppRules(ctx, emptySet(), emptySet())
         val to = minOf(nowMs, dayStartMs + DetoxLogic.DAY)
         val distracting = UsageReader(ctx).intervals(dayStartMs, to, rules::isDistracting)
         return DetoxLogic.hourCells(dayStartMs, store.dayFirstHour, 24, nowMs, distracting)
