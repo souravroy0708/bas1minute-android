@@ -579,7 +579,8 @@ private fun WeekStat(value: String, label: String, dot: Color, modifier: Modifie
 private fun HistoryCard(list: List<DetoxSession>, now: Long) {
     if (list.isEmpty()) return
     val ctx = LocalContext.current
-    val rules = remember { AppRules(ctx, emptySet()) }
+    // Only used for rules.label(pkg) below — block choices don't matter for showing a past session's history.
+    val rules = remember { AppRules(ctx, emptySet(), emptySet()) }
     val fmt = remember { SimpleDateFormat("d MMM, h:mm a", Locale.ENGLISH) }
     AppCard(title = t("Your promises")) {
         list.forEach { s ->
