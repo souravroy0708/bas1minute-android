@@ -3,7 +3,9 @@ package com.bas1minute.sync.ui
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -128,7 +130,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFE9ECFF)), contentAlignment = Alignment.Center) {
-                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Groups, contentDescription = null, tint = Ink)
+                androidx.compose.material3.Icon(Icons.Filled.Groups, contentDescription = null, tint = Ink)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
