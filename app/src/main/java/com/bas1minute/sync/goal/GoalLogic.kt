@@ -23,6 +23,8 @@ enum class GoalKind(val id: String) {
 
 data class Goal(
     val id: Long,
+    /** Stable id for syncing this goal to the website — never reused, even if the goal is deleted. */
+    val uuid: String,
     val kind: GoalKind,
     val title: String,
     /** Meaning depends on kind: steps count, minutes of sleep, minutes of screen time, minutes of detox. Ignored for Custom. */

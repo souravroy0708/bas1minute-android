@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.PowerManager
 import com.bas1minute.sync.MainActivity
 import com.bas1minute.sync.R
 import java.text.DateFormat
@@ -23,12 +24,21 @@ import java.util.Date
  * notification, and stops itself when the time is up, the user ends early, or a needed permission is revoked.
  *
  * Foreground service type: specialUse (user-started app blocking for a fixed time; declared in Play Console).
+ *
+ * Holds a partial wake lock for as long as the session runs. Without one, several Android skins (OnePlus's
+ * OxygenOS among the most aggressive) throttle a background Service's own Handler thread even while its
+ * foreground notification stays up and visible — the countdown and notification keep going (those are drawn
+ * by the system, not this loop), but the every-0.6s check that shows the block screen silently stops firing.
+ * The giveaway: a session still correctly marks itself "guilty" after the fact (that check re-reads Android's
+ * own usage history once, at the end, regardless of whether this loop ran), while nothing was ever blocked
+ * live in the moment.
  */
 class DetoxService : Service() {
 
     private lateinit var thread: HandlerThread
     private lateinit var handler: Handler
     private lateinit var store: DetoxStore
+    private var wakeLock: PowerManager.WakeLock? = null
     private var rules: AppRules? = null
     private var reader: UsageReader? = null
     private var sessionId = -1L
@@ -62,6 +72,7 @@ class DetoxService : Service() {
         sessionId = s.id
         rules = AppRules(this, store.extraAllowed)
         reader = UsageReader(this)
+        acquireWake(s.plannedEndMs)
         if (!running) {
             running = true
             lastQuery = System.currentTimeMillis() - 10_000
@@ -70,54 +81,79 @@ class DetoxService : Service() {
         return START_STICKY
     }
 
+    /** Keeps the CPU awake for the rest of the session, so the 0.6s check keeps firing on the phones that need it most. */
+    @android.annotation.SuppressLint("WakelockTimeout")   // has an explicit timeout below; never held indefinitely
+    private fun acquireWake(untilMs: Long) {
+        if (wakeLock?.isHeld == true) return
+        val remaining = (untilMs - System.currentTimeMillis()).coerceIn(0L, 12 * 60 * 60_000L)
+        wakeLock = getSystemService(PowerManager::class.java)
+            ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "bas1minute:detox")
+            ?.apply { setReferenceCounted(false); acquire(remaining + 60_000L) }   // +1 min margin past the session end
+    }
+
+    private fun releaseWake() {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+    }
+
     private val tick: Runnable = object : Runnable {
         override fun run() {
-            if (!running) return
-            val s = store.active()
-            if (s == null || s.id != sessionId) { stopNow(); return }
-            val now = System.currentTimeMillis()
+            // The reschedule lives in a finally block: one bad tick (a transient exception from the usage-stats
+            // API, seen on a few OEM builds) must never silently end the loop for the rest of the session.
+            try {
+                if (!running) return
+                val s = store.active()
+                if (s == null || s.id != sessionId) { stopNow(); return }
+                val now = System.currentTimeMillis()
 
-            if (now >= s.plannedEndMs) {
-                BlockOverlay.hide()
-                val done = DetoxController.finishWithHistory(this@DetoxService, s, now)
-                notifyResult(done)
-                stopNow()
-                return
-            }
-            if (!DetoxController.isReady(this@DetoxService)) {
-                BlockOverlay.hide()
-                val broken = DetoxLogic.breakNow(s, now, BreakReason.PERMISSION_REVOKED)
-                store.update(broken)
-                notifyResult(broken)
-                stopNow()
-                return
-            }
-
-            reader?.events(lastQuery, now)?.forEach { e ->
-                if (e.resumed) fgPkg = e.pkg else if (e.pkg == fgPkg) fgPkg = null
-            }
-            lastQuery = now
-
-            val fg = fgPkg
-            val r = rules
-            if (fg != null && r != null && r.isBlocked(fg)) {
-                if (fg != lastCountedPkg) {
-                    store.recordBlockedAttempt(s.id)
-                    lastCountedPkg = fg
+                if (now >= s.plannedEndMs) {
+                    BlockOverlay.hide()
+                    val done = DetoxController.finishWithHistory(this@DetoxService, s, now)
+                    notifyResult(done)
+                    stopNow()
+                    return
                 }
-                // A no-op if this app is already covered; BlockOverlay itself checks for Display-over-other-apps.
-                BlockOverlay.show(this@DetoxService, fg)
-            } else if (fg != null) {
-                lastCountedPkg = null
-                if (BlockOverlay.isShowing) BlockOverlay.hide()
+                if (!DetoxController.isReady(this@DetoxService)) {
+                    BlockOverlay.hide()
+                    val broken = DetoxLogic.breakNow(s, now, BreakReason.PERMISSION_REVOKED)
+                    store.update(broken)
+                    notifyResult(broken)
+                    stopNow()
+                    return
+                }
+
+                runCatching {
+                    reader?.events(lastQuery, now)?.forEach { e ->
+                        if (e.resumed) fgPkg = e.pkg else if (e.pkg == fgPkg) fgPkg = null
+                    }
+                }
+                lastQuery = now
+
+                val fg = fgPkg
+                val r = rules
+                if (fg != null && r != null && r.isBlocked(fg)) {
+                    if (fg != lastCountedPkg) {
+                        store.recordBlockedAttempt(s.id)
+                        lastCountedPkg = fg
+                    }
+                    // A no-op if this app is already covered; BlockOverlay itself checks for Display-over-other-apps.
+                    BlockOverlay.show(this@DetoxService, fg)
+                } else if (fg != null) {
+                    lastCountedPkg = null
+                    if (BlockOverlay.isShowing) BlockOverlay.hide()
+                }
+            } catch (e: Exception) {
+                // Swallow and keep polling rather than let one bad tick end live blocking for the rest of the session.
+            } finally {
+                if (running) handler.postDelayed(this, POLL_MS)
             }
-            handler.postDelayed(this, POLL_MS)
         }
     }
 
     private fun stopNow() {
         running = false
         BlockOverlay.hide()
+        releaseWake()
         handler.removeCallbacksAndMessages(null)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -126,6 +162,7 @@ class DetoxService : Service() {
     override fun onDestroy() {
         running = false
         BlockOverlay.hide()
+        releaseWake()
         handler.removeCallbacksAndMessages(null)
         thread.quitSafely()
         super.onDestroy()

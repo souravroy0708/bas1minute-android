@@ -88,8 +88,8 @@ object DetoxLogic {
      */
     const val GRACE_MS = 5_000L
 
-    val DURATION_CHOICES_MIN = listOf(30, 60, 120, 180, 240)
-    const val MIN_MINUTES = 15
+    val DURATION_CHOICES_MIN = listOf(5, 30, 60, 120, 180, 240)
+    const val MIN_MINUTES = 5
     const val MAX_MINUTES = 12 * 60
     const val MAX_EXTRA_ALLOWED = 3
 

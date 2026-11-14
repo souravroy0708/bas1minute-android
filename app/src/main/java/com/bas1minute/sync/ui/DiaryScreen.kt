@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bas1minute.sync.AppController
+import com.bas1minute.sync.Tab
 import com.bas1minute.sync.diary.Category
 import com.bas1minute.sync.diary.DiaryEntry
 import com.bas1minute.sync.diary.DiaryLogic
@@ -68,7 +69,7 @@ import java.util.Locale
  * Everything here stays on this phone.
  */
 @Composable
-fun DiaryScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit) {
+fun DiaryScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)?) {
     val ctx = LocalContext.current
     val store = remember { DiaryStore(ctx) }
     val today = remember { LocalDate.now() }
@@ -90,11 +91,13 @@ fun DiaryScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit) 
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(CircleShape).background(Ink3).clickable(onClickLabel = "Back", onClick = onClose),
-                    contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+                if (onClose != null) {
+                    Box(Modifier.size(48.dp).clip(CircleShape).background(Ink3).clickable(onClickLabel = "Back", onClick = onClose),
+                        contentAlignment = Alignment.Center) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
                 }
-                Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(t("Diary"), color = Color.White, style = MaterialTheme.typography.headlineMedium)
                     Text("Your life's milestones, and how today actually felt", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
@@ -343,12 +346,12 @@ fun DiaryCard(app: AppController) {
     var onThisDayTitle by remember { mutableStateOf<String?>(null) }
     val today = remember { LocalDate.now() }
 
-    LaunchedEffect(app.diaryOpen) {
+    LaunchedEffect(app.tab) {
         doneToday = withContext(Dispatchers.IO) { store.reflectionOn(today) != null }
         onThisDayTitle = withContext(Dispatchers.IO) { DiaryLogic.onThisDay(store.milestones(), today).firstOrNull()?.first?.title }
     }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg).clickable { app.diaryOpen = true }.padding(16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg).clickable { app.tab = Tab.Goals; app.goalsHubView = "diary" }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFE9D9FF)), contentAlignment = Alignment.Center) {
@@ -364,6 +367,6 @@ fun DiaryCard(app: AppController) {
             )
         }
         Spacer(Modifier.width(8.dp))
-        SmallPill(if (doneToday) t("Open") else t("Reflect")) { app.diaryOpen = true }
+        SmallPill(if (doneToday) t("Open") else t("Reflect")) { app.tab = Tab.Goals; app.goalsHubView = "diary" }
     }
 }

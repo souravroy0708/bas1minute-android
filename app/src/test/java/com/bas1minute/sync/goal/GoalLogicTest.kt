@@ -9,11 +9,11 @@ import java.time.LocalDate
 class GoalLogicTest {
     private val day0 = LocalDate.of(2026, 11, 9)   // a Monday
 
-    private fun stepsGoal(target: Int = 7000) = Goal(1, GoalKind.Steps, "Steps", target, createdAt = 0)
-    private fun sleepGoal(target: Int = 420) = Goal(2, GoalKind.Sleep, "Sleep", target, createdAt = 0)
-    private fun screenGoal(target: Int = 120) = Goal(3, GoalKind.ScreenTime, "Screen", target, createdAt = 0)
-    private fun detoxGoal(target: Int = 120) = Goal(4, GoalKind.Detox, "Detox", target, createdAt = 0)
-    private fun customGoal() = Goal(5, GoalKind.Custom, "Study", createdAt = 0)
+    private fun stepsGoal(target: Int = 7000) = Goal(1, "u1", GoalKind.Steps, "Steps", target, createdAt = 0)
+    private fun sleepGoal(target: Int = 420) = Goal(2, "u2", GoalKind.Sleep, "Sleep", target, createdAt = 0)
+    private fun screenGoal(target: Int = 120) = Goal(3, "u3", GoalKind.ScreenTime, "Screen", target, createdAt = 0)
+    private fun detoxGoal(target: Int = 120) = Goal(4, "u4", GoalKind.Detox, "Detox", target, createdAt = 0)
+    private fun customGoal() = Goal(5, "u5", GoalKind.Custom, "Study", createdAt = 0)
 
     @Test fun steps_metAtOrAboveTarget() {
         val g = stepsGoal(7000)

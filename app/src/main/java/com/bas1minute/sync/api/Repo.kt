@@ -58,6 +58,13 @@ class Repo(context: Context) {
         return if (r.ok) Res.Ok(Unit) else Res.Fail(r.error ?: "Couldn’t update sharing.")
     }
 
+    /** Turn syncing Goals, Diary and Digital detox to the website on or off on the server. */
+    suspend fun setSyncPersonal(on: Boolean): Res<Unit> {
+        if (!ensureAccount()) return Res.Fail("You’re offline. Try again when connected.")
+        val r = api.post("me/", JSONObject().put("sync_personal", on))
+        return if (r.ok) Res.Ok(Unit) else Res.Fail(r.error ?: "Couldn’t update syncing.")
+    }
+
     /** Delete every day this phone shared with the server. Account and circles stay. */
     suspend fun deleteSharedData(): Res<Int> {
         if (prefs.token.isBlank()) return Res.Ok(0)

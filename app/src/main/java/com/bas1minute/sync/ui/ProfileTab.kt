@@ -1,5 +1,6 @@
 package com.bas1minute.sync.ui
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Edit
@@ -121,6 +122,22 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 placeholder = "Walking 7K a day with my family 🚶", hint = "${bio.length}/120 · shown on your home screen")
         }
 
+        // Circles: Bas 1 Minute India, private circles and competitions — moved here from the bottom bar
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg).clickable { app.circlesOpen = true }.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFE9ECFF)), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Groups, contentDescription = null, tint = Ink)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(t("Circles"), style = MaterialTheme.typography.titleMedium)
+                Text("Bas 1 Minute India, your circles, and monthly challenges", style = MaterialTheme.typography.bodySmall, color = Muted)
+            }
+            SmallPill(t("Open")) { app.circlesOpen = true }
+        }
+
         SectionHeader(t("Appearance"))
         AppCard {
             Text(t("Language"), style = MaterialTheme.typography.titleMedium)
@@ -191,6 +208,30 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 BigButton(if (app.home.syncing) "Syncing…" else "Back up now", enabled = !app.home.syncing) { app.fullSync() }
                 OfflineNote(snap.pendingDays + app.waiting, snap.savedDays)
                 app.fullSyncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Muted) }
+            }
+        }
+
+        // Separate, off-by-default opt-in: Goals, Life goals, Diary and Digital detox are far more personal
+        // than steps and screen time, so this isn't bundled with "Share my steps and screen time" above.
+        AppCard(title = t("Sync goals, diary and detox")) {
+            Text("Off by default. On, your goals, life goals, diary and digital detox history — and any photo you've added — are copied to the website so you can see them from a browser and keep a backup.",
+                style = MaterialTheme.typography.bodyMedium, color = Muted)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Sync my goals, diary and detox to the website", style = MaterialTheme.typography.titleMedium)
+                    Text("Read-only on the website for now. Nothing here is shown to other members, circles or the global ranking.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = prefs.syncPersonal, enabled = !app.busy,
+                    colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on -> app.setSyncPersonal(on) })
+            }
+            if (prefs.syncPersonal) {
+                BigButton(if (app.journalSyncing) "Syncing…" else "Sync now", enabled = !app.journalSyncing) { app.syncJournalNow() }
+                Text(
+                    if (prefs.journalLastSyncAt > 0) "Last synced ${DateUtils.getRelativeTimeSpanString(prefs.journalLastSyncAt)}" else "Not synced yet.",
+                    style = MaterialTheme.typography.bodySmall, color = Muted,
+                )
             }
         }
 

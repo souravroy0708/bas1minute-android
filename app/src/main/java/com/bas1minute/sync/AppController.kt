@@ -16,7 +16,7 @@ import java.time.LocalDate
 
 /** Bottom tabs. Move (walks, runs, rides) is a daily tab; the health wheel opens from a card on Today. */
 /** Bottom bar. Detox holds Digital detox (focus, the product's second pillar next to fitness) and the screen-time Insights. */
-enum class Tab { Today, Move, Circles, Detox, Profile }
+enum class Tab { Today, Move, Goals, Detox, Profile }
 
 /** Holds what the screens show. Reads phone data and the website; falls back to saved copies offline. */
 class AppController(private val ctx: android.content.Context, private val scope: CoroutineScope) {
@@ -88,10 +88,33 @@ class AppController(private val ctx: android.content.Context, private val scope:
 
     /** Phone check (battery, data, background, permissions) open on top of Insights. */
     var phoneCheckOpen by mutableStateOf(false)
-    /** Goals screen (the fourth pillar) open on top of Today. */
-    var goalsOpen by mutableStateOf(false)
-    /** Diary screen (life milestones + daily reflection) open on top of Today. */
-    var diaryOpen by mutableStateOf(false)
+    /** Which half of the Goals tab is showing: "goals" (daily + life goals) or "diary". */
+    var goalsHubView by mutableStateOf("goals")
+    /** Circles (Bas 1 Minute India, private circles, competitions) open on top of Profile. */
+    var circlesOpen by mutableStateOf(false)
+
+    /** True while a manual "Sync now" is in flight, so the Profile button can show a spinner and not double-fire. */
+    var journalSyncing by mutableStateOf(false)
+
+    /** Turns syncing Goals, Diary and Digital detox to the website on or off, on the server and on this phone. */
+    fun setSyncPersonal(on: Boolean) = launch {
+        val r = repo.setSyncPersonal(on)
+        if (r is com.bas1minute.sync.api.Res.Ok) prefs.syncPersonal = on
+        handle(r, if (on) "Syncing goals, diary and detox to the website is now on." else "Syncing is off. What's already there stays until you delete it.") {
+            if (on) syncJournalNow()
+        }
+    }
+
+    /** Uploads the current Goals, Diary and Digital detox state to the website. No-op (quietly) if sync is off. */
+    fun syncJournalNow() {
+        if (!prefs.syncPersonal || journalSyncing) return
+        journalSyncing = true
+        launch {
+            val result = com.bas1minute.sync.sync.JournalSync.run(ctxForPush)
+            journalSyncing = false
+            if (!result.ok) message = result.message
+        }
+    }
 
     /** Which part of the Detox tab is showing: "detox" (start a detox, clean hours) or "insights" (screen time). */
     var detoxView by mutableStateOf("detox")
@@ -197,7 +220,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
         t.value?.let { today = it }
         offline = t.offline
         if (t.authLost) return@launch onAuthLost()
-        if (tab == Tab.Circles) refreshCircles()
+        if (circlesOpen) refreshCircles()
         refreshCounters()
     }
 
@@ -412,7 +435,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
             handle(res, "You joined the circle. Say hello with a Shabash!") {
                 prefs.pendingJoin = ""
                 if (res is Res.Ok) {
-                    tab = Tab.Circles
+                    tab = Tab.Profile; circlesOpen = true
                     openCircle(res.value.getJSONObject("circle").getInt("id"))
                 }
             }

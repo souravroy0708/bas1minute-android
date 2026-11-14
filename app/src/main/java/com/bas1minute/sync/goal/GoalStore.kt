@@ -18,6 +18,7 @@ class GoalStore(context: Context) {
 
     fun create(kind: GoalKind, title: String, target: Int, nowMs: Long = System.currentTimeMillis()): Long =
         db.insert("goals", null, ContentValues().apply {
+            put("uuid", java.util.UUID.randomUUID().toString())
             put("kind", kind.id); put("title", title.trim().take(GoalLogic.MAX_TITLE_LEN))
             put("target", target); put("created_at", nowMs)
         })
@@ -41,11 +42,11 @@ class GoalStore(context: Context) {
     }
 
     fun active(): List<Goal> =
-        db.rawQuery("SELECT id, kind, title, target, created_at, archived_at FROM goals WHERE archived_at IS NULL ORDER BY created_at", null)
+        db.rawQuery("SELECT id, uuid, kind, title, target, created_at, archived_at FROM goals WHERE archived_at IS NULL ORDER BY created_at", null)
             .use { c -> generateSequence { if (c.moveToNext()) read(c) else null }.toList() }
 
     fun all(): List<Goal> =
-        db.rawQuery("SELECT id, kind, title, target, created_at, archived_at FROM goals ORDER BY created_at", null)
+        db.rawQuery("SELECT id, uuid, kind, title, target, created_at, archived_at FROM goals ORDER BY created_at", null)
             .use { c -> generateSequence { if (c.moveToNext()) read(c) else null }.toList() }
 
     fun setCheckin(goalId: Long, date: LocalDate, done: Boolean) {
@@ -76,7 +77,8 @@ class GoalStore(context: Context) {
     }
 
     private fun read(c: android.database.Cursor) = Goal(
-        id = c.getLong(0), kind = GoalKind.of(c.getString(1)), title = c.getString(2), target = c.getInt(3),
-        createdAt = c.getLong(4), archivedAt = if (c.isNull(5)) null else c.getLong(5),
+        id = c.getLong(0), uuid = c.getString(1) ?: c.getLong(0).toString(), kind = GoalKind.of(c.getString(2)),
+        title = c.getString(3), target = c.getInt(4), createdAt = c.getLong(5),
+        archivedAt = if (c.isNull(6)) null else c.getLong(6),
     )
 }

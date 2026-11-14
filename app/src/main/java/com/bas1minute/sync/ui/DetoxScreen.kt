@@ -47,13 +47,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -278,7 +278,7 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
 @Composable
 private fun ActiveCard(s: DetoxSession, now: Long, streak: Int, store: DetoxStore, onEndEarly: () -> Unit) {
     var showFlow by remember { mutableStateOf(false) }
-    val failure by com.bas1minute.sync.detox.BlockOverlay.lastFailure.collectAsState(initial = null)
+    val failure by com.bas1minute.sync.detox.BlockOverlay.lastFailure.collectAsStateWithLifecycle()
     AppCard(title = t("Detox is on")) {
         Text("WhatsApp, browsers, social media and every other app are paused. Calls, messages, camera and alarms still work.",
             style = MaterialTheme.typography.bodyMedium, color = Muted)
@@ -322,6 +322,13 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
         if (usageOk && overlayOk) GhostButton(t("Preview the pause screen")) {
             com.bas1minute.sync.detox.BlockOverlay.show(ctx, ctx.packageName)
         }
+        Text(
+            "On some phones (OnePlus, Xiaomi, Oppo, Vivo especially) the pause screen can still fail to appear " +
+                "unless battery optimization is off for Bas 1 Minute. If it was previewed above but doesn't show up " +
+                "during a real detox, open App info \u2192 Battery \u2192 Unrestricted (and Autostart, if your phone has it).",
+            style = MaterialTheme.typography.bodySmall, color = Muted,
+        )
+        GhostButton(t("Open battery settings")) { actions.onOpenBatterySettings() }
         Text(t("How long?"), style = MaterialTheme.typography.labelLarge)
         val choices = DetoxLogic.DURATION_CHOICES_MIN
         Segmented(choices.map { DetoxLogic.formatMinutes(it) }, choices.indexOf(minutes)) { minutes = choices[it] }

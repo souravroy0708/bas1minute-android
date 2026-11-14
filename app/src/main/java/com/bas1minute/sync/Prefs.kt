@@ -208,6 +208,27 @@ class Prefs(context: Context) {
         get() = p.getString("last_usage_alert", "") ?: ""
         set(v) = p.edit().putString("last_usage_alert", v).apply()
 
+    /**
+     * Off by default: Goals, Life goals, Diary and Digital detox are the most personal data in the app.
+     * On, the phone uploads a copy to the website for viewing and backup (see sync/JournalSync.kt); this
+     * mirrors the server's own Profile.sync_personal flag, which the app also reads/writes via me/.
+     */
+    var syncPersonal: Boolean
+        get() = p.getBoolean("sync_personal", false)
+        set(v) = p.edit().putBoolean("sync_personal", v).apply()
+
+    /** Separate from the activity/circles [lastSyncAt] above — this is the last successful Goals/Diary/Detox sync. */
+    var journalLastSyncAt: Long
+        get() = p.getLong("journal_last_sync_at", 0L)
+        set(v) = p.edit().putLong("journal_last_sync_at", v).apply()
+
+    /** "uuid:fileLastModified" -> true, for photos JournalSync has already uploaded, so an unchanged photo isn't resent every sync. */
+    var syncedPhotoMarks: Map<String, Boolean>
+        get() = p.getString("synced_photo_marks", null)?.let { raw ->
+            runCatching { org.json.JSONObject(raw) }.getOrNull()?.let { o -> o.keys().asSequence().associateWith { true } }
+        } ?: emptyMap()
+        set(v) = p.edit().putString("synced_photo_marks", org.json.JSONObject(v.keys.associateWith { true as Any }).toString()).apply()
+
     /** Shown once, right after setup: a short, mandatory walkthrough of the app's main features. */
     var tourDone: Boolean
         get() = p.getBoolean("tour_done", false)

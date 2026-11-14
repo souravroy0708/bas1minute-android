@@ -11,9 +11,9 @@ class LifeGoalLogicTest {
     private val startMs = start.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     private fun goal(horizon: Horizon, target: LocalDate) =
-        LifeGoal(1, horizon, "Run a marathon", startedAt = startMs, targetDate = target)
+        LifeGoal(1, "gu1", horizon, "Run a marathon", startedAt = startMs, targetDate = target)
 
-    private fun milestone(id: Long, done: Boolean) = Milestone(id, 1, "Step $id", done, null, id.toInt())
+    private fun milestone(id: Long, done: Boolean) = Milestone(id, "mu$id", 1, "Step $id", done, null, id.toInt())
 
     @Test fun suggestedTargetDate_matchesEachHorizon() {
         assertEquals(start.plusMonths(2), LifeGoalLogic.suggestedTargetDate(Horizon.Short, start))

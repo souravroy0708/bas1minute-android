@@ -104,6 +104,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.lifecycle.runtime.ktx)
+    implementation(libs.lifecycle.runtime.compose)
     implementation(libs.work.runtime.ktx)
     implementation(libs.health.connect)
     implementation(libs.play.services.fitness)

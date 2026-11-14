@@ -115,7 +115,8 @@ class DetoxLogicTest {
     }
 
     @Test fun clampAndFormat() {
-        assertEquals(15, DetoxLogic.clampMinutes(5))
+        assertEquals(5, DetoxLogic.clampMinutes(5))
+        assertEquals(5, DetoxLogic.clampMinutes(0))
         assertEquals(720, DetoxLogic.clampMinutes(5000))
         assertEquals("1:05:09", DetoxLogic.formatDuration(HOUR + 5 * MINUTE + 9_000))
         assertEquals("2 h", DetoxLogic.formatMinutes(120))

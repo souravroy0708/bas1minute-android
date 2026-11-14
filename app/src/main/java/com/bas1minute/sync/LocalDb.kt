@@ -51,7 +51,7 @@ data class DayRow(
  * display; they reach the website through the action outbox.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 10) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 11) {
 
     companion object {
         private const val KEEP_DAYS = 400L
@@ -89,6 +89,7 @@ class LocalDb private constructor(context: Context) :
         createV8(db)
         createV9(db)
         createV10(db)
+        createV11(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -102,6 +103,7 @@ class LocalDb private constructor(context: Context) :
         if (oldVersion < 8) createV8(db)
         if (oldVersion < 9) createV9(db)
         if (oldVersion < 10) createV10(db)
+        if (oldVersion < 11) createV11(db)
     }
 
     private fun createV2(db: SQLiteDatabase) {
@@ -241,6 +243,25 @@ class LocalDb private constructor(context: Context) :
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS diary_entries_date ON diary_entries(date)")
+    }
+
+    /**
+     * v11: a stable client id (UUID) on Goals, Life goals, Milestones and Diary entries, so each can be
+     * synced to the website as a safe upsert (see com.bas1minute.sync.sync.JournalSync). Existing rows are
+     * backfilled here; every row created from now on gets one at insert time. Digital detox sessions need no
+     * such column: DetoxStore already keys each one by its own start time in milliseconds, which already
+     * works as a stable id.
+     */
+    private fun createV11(db: SQLiteDatabase) {
+        for (t in listOf("goals", "life_goals", "life_goal_milestones", "diary_entries")) {
+            db.execSQL("ALTER TABLE $t ADD COLUMN uuid TEXT")
+            db.rawQuery("SELECT id FROM $t WHERE uuid IS NULL", null).use { c ->
+                while (c.moveToNext()) {
+                    db.execSQL("UPDATE $t SET uuid = ? WHERE id = ?", arrayOf(java.util.UUID.randomUUID().toString(), c.getLong(0).toString()))
+                }
+            }
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS ${t}_uuid ON $t(uuid)")
+        }
     }
 
     // ---------- days ----------

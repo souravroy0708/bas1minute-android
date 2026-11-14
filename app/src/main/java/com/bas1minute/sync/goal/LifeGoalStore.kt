@@ -14,13 +14,14 @@ class LifeGoalStore(context: Context) {
     private val helper = LocalDb.get(ctx)
 
     companion object {
-        private const val COLS = "id, horizon, title, details, why, obstacle, plan, has_photo, started_at, target_date, achieved_at, archived_at"
+        private const val COLS = "id, uuid, horizon, title, details, why, obstacle, plan, has_photo, started_at, target_date, achieved_at, archived_at"
     }
 
     fun create(
         horizon: Horizon, title: String, details: String, why: String, obstacle: String, plan: String,
         targetDate: LocalDate, nowMs: Long = System.currentTimeMillis(),
     ): Long = db.insert("life_goals", null, ContentValues().apply {
+        put("uuid", java.util.UUID.randomUUID().toString())
         put("horizon", horizon.id)
         put("title", LifeGoalLogic.clampText(title, LifeGoalLogic.MAX_TITLE))
         put("details", LifeGoalLogic.clampText(details, LifeGoalLogic.MAX_DETAILS))
@@ -81,11 +82,17 @@ class LifeGoalStore(context: Context) {
         db.rawQuery("SELECT $COLS FROM life_goals WHERE achieved_at IS NOT NULL ORDER BY achieved_at DESC", null)
             .use { c -> generateSequence { if (c.moveToNext()) read(c) else null }.toList() }
 
+    /** Every life goal regardless of horizon or status — for syncing to the website. */
+    fun all(): List<LifeGoal> =
+        db.rawQuery("SELECT $COLS FROM life_goals ORDER BY started_at DESC", null)
+            .use { c -> generateSequence { if (c.moveToNext()) read(c) else null }.toList() }
+
     // ---- milestones ----
 
     fun addMilestone(goalId: Long, title: String, order: Int): Long =
         db.insert("life_goal_milestones", null, ContentValues().apply {
-            put("goal_id", goalId); put("title", LifeGoalLogic.clampText(title, LifeGoalLogic.MAX_MILESTONE_TITLE)); put("sort_order", order)
+            put("uuid", java.util.UUID.randomUUID().toString()); put("goal_id", goalId)
+            put("title", LifeGoalLogic.clampText(title, LifeGoalLogic.MAX_MILESTONE_TITLE)); put("sort_order", order)
         })
 
     fun setMilestoneDone(id: Long, done: Boolean, nowMs: Long = System.currentTimeMillis()) {
@@ -97,19 +104,20 @@ class LifeGoalStore(context: Context) {
     fun deleteMilestone(id: Long) { db.delete("life_goal_milestones", "id = ?", arrayOf(id.toString())) }
 
     fun milestones(goalId: Long): List<Milestone> =
-        db.rawQuery("SELECT id, goal_id, title, done, done_at, sort_order FROM life_goal_milestones WHERE goal_id = ? ORDER BY sort_order",
+        db.rawQuery("SELECT id, uuid, goal_id, title, done, done_at, sort_order FROM life_goal_milestones WHERE goal_id = ? ORDER BY sort_order",
             arrayOf(goalId.toString())).use { c ->
             generateSequence {
-                if (c.moveToNext()) Milestone(c.getLong(0), c.getLong(1), c.getString(2), c.getInt(3) == 1,
-                    if (c.isNull(4)) null else c.getLong(4), c.getInt(5)) else null
+                if (c.moveToNext()) Milestone(c.getLong(0), c.getString(1) ?: c.getLong(0).toString(), c.getLong(2), c.getString(3), c.getInt(4) == 1,
+                    if (c.isNull(5)) null else c.getLong(5), c.getInt(6)) else null
             }.toList()
         }
 
     private fun read(c: Cursor) = LifeGoal(
-        id = c.getLong(0), horizon = Horizon.of(c.getString(1)), title = c.getString(2), details = c.getString(3),
-        why = c.getString(4), obstacle = c.getString(5), plan = c.getString(6),
-        photoPath = if (c.getInt(7) == 1) LifeGoalPhoto.path(ctx, c.getLong(0)) else null,
-        startedAt = c.getLong(8), targetDate = LocalDate.parse(c.getString(9)),
-        achievedAt = if (c.isNull(10)) null else c.getLong(10), archivedAt = if (c.isNull(11)) null else c.getLong(11),
+        id = c.getLong(0), uuid = c.getString(1) ?: c.getLong(0).toString(), horizon = Horizon.of(c.getString(2)),
+        title = c.getString(3), details = c.getString(4),
+        why = c.getString(5), obstacle = c.getString(6), plan = c.getString(7),
+        photoPath = if (c.getInt(8) == 1) LifeGoalPhoto.path(ctx, c.getLong(0)) else null,
+        startedAt = c.getLong(9), targetDate = LocalDate.parse(c.getString(10)),
+        achievedAt = if (c.isNull(11)) null else c.getLong(11), archivedAt = if (c.isNull(12)) null else c.getLong(12),
     )
 }

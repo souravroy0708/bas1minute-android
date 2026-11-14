@@ -40,6 +40,28 @@ water, weight), automatic steps / screen / social / sleep / water / weight, Sams
 to a phone, "Time to update" replaces the app and Play's update opens by itself (waits for a running walk or detox).
 Server *Minimum version code* stays as a kill switch; *Latest* forces non-Play installs. See docs/PLAY_STORE.md §5.
 
+**v2.3: Sync Goals, Diary and Digital detox to the website** — Profile → "Sync goals, diary and detox," off by
+default: turns on a one-way upload (phone → website) of every daily goal and check-off, every life goal and its
+milestones and photo, every diary entry and its photo, and every digital detox session, to a new read-only
+dashboard on bas1minute.pythonanywhere.com (Goals, Diary, Detox pages). A manual "Sync now" button; no background
+sync yet. Stable client UUIDs were added to the local goals/life_goals/life_goal_milestones/diary_entries tables
+(DB v11) so re-syncing is always a safe upsert, keyed to the server's apps.journal models. Photos travel as base64
+over the app's existing signed API, and are served back only to their own owner, never a public URL. See
+sync/JournalSync.kt.
+
+**v2.2: Circles moved, Goals is now a tab** — bottom bar is Today, Move, **Goals**, Detox, Profile. Goals opens to
+Goals (daily + life goals) with Diary one tap away, same pattern as Detox/Insights. Circles (Bas 1 Minute India,
+private circles, competitions) moved to Profile, one tap away, exactly where it was before just relocated.
+
+**v2.1.2: Real fix for live blocking, and a 5-minute option** — found the actual cause behind "detox never blocks
+anything, but still marks itself guilty afterward": the service's own polling loop held no wake lock, so several
+OEM skins (OnePlus/OxygenOS confirmed) throttle it to a near-stop while the foreground notification and countdown
+keep working fine (those are drawn by the system, not this loop) — guilty detection worked because that's a
+separate, one-time check against Android's usage history at session end, regardless of whether the loop ran.
+Now holds a partial wake lock for the session, the loop can't be silently killed by one bad tick, and Start a
+detox explains the OnePlus/Xiaomi/Oppo/Vivo battery-optimization + autostart settings this depends on, with a
+direct button to them. Minimum detox length is now 5 minutes (was 15), useful for exactly this kind of testing.
+
 **v2.1.1: Detox diagnostics** — when the pause screen can't be shown (most often: "Display over other apps" was
 never actually granted, or Android's restricted-settings block for apps installed outside Play Store is silently
 preventing it), Bas 1 Minute now says so on screen instead of quietly letting the blocked app through. A "Preview

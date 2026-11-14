@@ -32,6 +32,8 @@ enum class Category(val id: String, val label: String, val emoji: String) {
 
 data class DiaryEntry(
     val id: Long,
+    /** Stable id for syncing this entry to the website — never reused, even if the entry is deleted. */
+    val uuid: String,
     val type: EntryType,
     val date: LocalDate,
     val title: String,

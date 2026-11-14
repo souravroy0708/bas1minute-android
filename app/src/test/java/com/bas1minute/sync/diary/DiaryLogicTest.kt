@@ -8,10 +8,10 @@ import java.time.LocalDate
 
 class DiaryLogicTest {
     private fun milestone(date: LocalDate, title: String = "Event") =
-        DiaryEntry(date.toEpochDay(), EntryType.Milestone, date, title, Category.Family, createdAt = 0)
+        DiaryEntry(date.toEpochDay(), "u-${date.toEpochDay()}", EntryType.Milestone, date, title, Category.Family, createdAt = 0)
 
     private fun reflection(date: LocalDate, effort: Int? = 3, satisfaction: Int? = 3) =
-        DiaryEntry(date.toEpochDay() + 100000, EntryType.Reflection, date, "Reflection", Category.Other,
+        DiaryEntry(date.toEpochDay() + 100000, "u-${date.toEpochDay() + 100000}", EntryType.Reflection, date, "Reflection", Category.Other,
             effort = effort, satisfaction = satisfaction, createdAt = 0)
 
     @Test fun onThisDay_matchesMonthAndDayAcrossYears_excludesThisYearAndFuture() {

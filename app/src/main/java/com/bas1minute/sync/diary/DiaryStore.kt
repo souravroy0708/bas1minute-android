@@ -14,11 +14,12 @@ class DiaryStore(context: Context) {
     private val helper = LocalDb.get(ctx)
 
     companion object {
-        private const val COLS = "id, type, date, title, category, story, effort, satisfaction, has_photo, created_at"
+        private const val COLS = "id, uuid, type, date, title, category, story, effort, satisfaction, has_photo, created_at"
     }
 
     fun addMilestone(date: LocalDate, title: String, category: Category, story: String, nowMs: Long = System.currentTimeMillis()): Long =
         db.insert("diary_entries", null, ContentValues().apply {
+            put("uuid", java.util.UUID.randomUUID().toString())
             put("type", EntryType.Milestone.name); put("date", date.toString())
             put("title", DiaryLogic.clampText(title, DiaryLogic.MAX_TITLE)); put("category", category.id)
             put("story", DiaryLogic.clampText(story, DiaryLogic.MAX_STORY)); put("created_at", nowMs)
@@ -41,6 +42,7 @@ class DiaryStore(context: Context) {
             }, "id = ?", arrayOf(existing.id.toString()))
         } else {
             db.insert("diary_entries", null, ContentValues().apply {
+                put("uuid", java.util.UUID.randomUUID().toString())
                 put("type", EntryType.Reflection.name); put("date", today.toString()); put("title", "Reflection")
                 put("category", Category.Other.id); put("story", DiaryLogic.clampText(note, DiaryLogic.MAX_STORY))
                 put("effort", DiaryLogic.clampRating(effort)); put("satisfaction", DiaryLogic.clampRating(satisfaction))
@@ -81,9 +83,9 @@ class DiaryStore(context: Context) {
             .use { c -> generateSequence { if (c.moveToNext()) LocalDate.parse(c.getString(0)) else null }.toSet() }
 
     private fun read(c: Cursor) = DiaryEntry(
-        id = c.getLong(0), type = EntryType.valueOf(c.getString(1)), date = LocalDate.parse(c.getString(2)),
-        title = c.getString(3), category = Category.of(c.getString(4)), story = c.getString(5),
-        effort = if (c.isNull(6)) null else c.getInt(6), satisfaction = if (c.isNull(7)) null else c.getInt(7),
-        photoPath = if (c.getInt(8) == 1) DiaryPhoto.path(ctx, c.getLong(0)) else null, createdAt = c.getLong(9),
+        id = c.getLong(0), uuid = c.getString(1) ?: c.getLong(0).toString(), type = EntryType.valueOf(c.getString(2)),
+        date = LocalDate.parse(c.getString(3)), title = c.getString(4), category = Category.of(c.getString(5)), story = c.getString(6),
+        effort = if (c.isNull(7)) null else c.getInt(7), satisfaction = if (c.isNull(8)) null else c.getInt(8),
+        photoPath = if (c.getInt(9) == 1) DiaryPhoto.path(ctx, c.getLong(0)) else null, createdAt = c.getLong(10),
     )
 }

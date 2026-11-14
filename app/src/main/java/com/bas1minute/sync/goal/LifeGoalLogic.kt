@@ -26,10 +26,21 @@ enum class Horizon(val id: String, val label: String, val minMonths: Int, val ma
     companion object { fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Short }
 }
 
-data class Milestone(val id: Long, val goalId: Long, val title: String, val done: Boolean, val doneAt: Long?, val order: Int)
+data class Milestone(
+    val id: Long,
+    /** Stable id for syncing this milestone to the website. */
+    val uuid: String,
+    val goalId: Long,
+    val title: String,
+    val done: Boolean,
+    val doneAt: Long?,
+    val order: Int,
+)
 
 data class LifeGoal(
     val id: Long,
+    /** Stable id for syncing this life goal to the website — never reused, even if the goal is deleted. */
+    val uuid: String,
     val horizon: Horizon,
     val title: String,
     /** The plan, in the person's own words: what they'll actually do. */

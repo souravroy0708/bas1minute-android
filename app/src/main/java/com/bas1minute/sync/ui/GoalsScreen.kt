@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -47,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bas1minute.sync.AppController
+import com.bas1minute.sync.Tab
 import com.bas1minute.sync.goal.Goal
 import com.bas1minute.sync.goal.GoalKind
 import com.bas1minute.sync.goal.GoalLogic
@@ -56,12 +60,31 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 /**
+ * The Goals tab: "Goals" (the fourth pillar — daily and life goals) by default, "Diary" one tap away. Mirrors
+ * the Detox tab's Focus/Insights pattern. Lives where Circles used to; Circles moved to Profile.
+ */
+@Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+fun GoalsHub(app: AppController, actions: PhoneActions, view: String = app.goalsHubView) {
+    Column(Modifier.fillMaxSize().background(Paper)) {
+        Row(Modifier.fillMaxWidth().background(Ink).statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Segmented(listOf(t("Goals"), t("Diary")), if (view == "diary") 1 else 0) { app.goalsHubView = if (it == 1) "diary" else "goals" }
+        }
+        // The status bar is already padded above, so the screens below don't pad it again
+        Box(Modifier.weight(1f).consumeWindowInsets(WindowInsets.statusBars)) {
+            if (view == "diary") DiaryScreen(app, actions, onClose = null) else GoalsScreen(app, actions, onClose = null)
+        }
+    }
+}
+
+/**
  * Goals: the fourth pillar, tying steps, sleep, screen time and detox to what the person actually wants out
  * of using Bas 1 Minute, plus simple yes/no goals (study, read, no phone after 10) for anything the phone
  * can't measure on its own. Everything here is worked out from data already on the phone; nothing is sent.
  */
 @Composable
-fun GoalsScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit) {
+fun GoalsScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)?) {
     val ctx = LocalContext.current
     val store = remember { GoalStore(ctx) }
     var goals by remember { mutableStateOf<List<Goal>>(emptyList()) }
@@ -86,11 +109,13 @@ fun GoalsScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit) 
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(CircleShape).background(Ink3).clickable(onClickLabel = "Back", onClick = onClose),
-                    contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+                if (onClose != null) {
+                    Box(Modifier.size(48.dp).clip(CircleShape).background(Ink3).clickable(onClickLabel = "Back", onClick = onClose),
+                        contentAlignment = Alignment.Center) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
                 }
-                Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(t("Your goals"), color = Color.White, style = MaterialTheme.typography.headlineMedium)
                     Text("From today's habits to the life you're working toward", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
@@ -270,7 +295,7 @@ fun GoalsCard(app: AppController) {
     val store = remember { GoalStore(ctx) }
     var goals by remember { mutableStateOf<List<Goal>>(emptyList()) }
     var metCount by remember { mutableStateOf(0) }
-    LaunchedEffect(app.goalsOpen) {
+    LaunchedEffect(app.tab) {
         val loaded = withContext(Dispatchers.IO) { store.active() }
         goals = loaded
         val today = LocalDate.now()
@@ -279,7 +304,7 @@ fun GoalsCard(app: AppController) {
         }
     }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg).clickable { app.goalsOpen = true }.padding(16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg).clickable { app.tab = Tab.Goals; app.goalsHubView = "goals" }.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFFFF3C8)), contentAlignment = Alignment.Center) {
@@ -295,6 +320,6 @@ fun GoalsCard(app: AppController) {
             )
         }
         Spacer(Modifier.width(8.dp))
-        SmallPill(if (goals.isEmpty()) t("Start") else t("Open")) { app.goalsOpen = true }
+        SmallPill(if (goals.isEmpty()) t("Start") else t("Open")) { app.tab = Tab.Goals; app.goalsHubView = "goals" }
     }
 }
