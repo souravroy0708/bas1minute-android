@@ -53,6 +53,23 @@ sync/JournalSync.kt.
 Goals (daily + life goals) with Diary one tap away, same pattern as Detox/Insights. Circles (Bas 1 Minute India,
 private circles, competitions) moved to Profile, one tap away, exactly where it was before just relocated.
 
+**v1.3.1: Stop over-counting steps when a watch is also connected** — Health Connect's own daily step total was
+being trusted as-is, but Health Connect does not reliably deduplicate steps when more than one app writes them
+(a watch's companion app, Google Fit, Samsung Health and, on Android 14+, the phone itself can all write for the
+same walking) — it often just adds every contributing app together for the overlapping time range, which is
+exactly the "more steps than I actually walked" bug reported with a watch in use. Fixed by reading Health Connect's
+raw per-app records instead of its aggregate, grouping by which app wrote each one, and keeping only the single
+largest app's total for the day — never a sum across apps — the same "take the larger, never the total" rule
+this app already used one level up, between Health Connect and the phone's own sensor. See StepsReader.kt.
+
+**v2.1.3: Real fix #2 — stop missing app switches entirely on some phones** — the previous fix (wake lock) was
+correct but incomplete: detection used an advancing cursor over Android's usage-event stream, and on phones that
+deliver those events a few seconds late (OnePlus/OxygenOS confirmed, likely other heavily customized OEM builds
+too), a delayed event's timestamp could fall behind the cursor before it became queryable — permanently losing
+that app switch, every time, no matter how reliably the service's own loop ran. UsageReader.currentForegroundApp
+now re-reads the last ~20s fresh on every poll instead of advancing a cursor, and cross-checks against aggregate
+usage stats (lastTimeUsed) as a fallback when the event stream itself comes back empty. See detox/UsageReader.kt.
+
 **v2.1.2: Real fix for live blocking, and a 5-minute option** — found the actual cause behind "detox never blocks
 anything, but still marks itself guilty afterward": the service's own polling loop held no wake lock, so several
 OEM skins (OnePlus/OxygenOS confirmed) throttle it to a near-stop while the foreground notification and countdown

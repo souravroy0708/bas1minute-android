@@ -7,7 +7,7 @@ import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
@@ -24,10 +24,14 @@ import java.util.concurrent.TimeUnit
 data class Steps(val count: Long, val source: String)
 
 /**
- * Steps for one day from two places, taking the larger number (they count the same walking):
- *  1. Health Connect: what Google Fit, Samsung Health, watches and (Android 14+) the phone itself recorded.
+ * Steps for one day, taking the larger number at every level rather than adding anything up — every source
+ * here (a watch, Google Fit, Samsung Health, the phone's own sensor) is counting the SAME walking, so summing
+ * them over-counts:
+ *  1. Health Connect: read per app that wrote steps there, and keep only the largest app's total for the day
+ *     (see readHealthConnect) — not Health Connect's own aggregate, which can add overlapping apps together.
  *  2. Recording API: Google Play services counting with the phone's step sensor. Fallback for phones
  *     where nothing writes to Health Connect. Keeps 10 days, only from the moment we subscribe.
+ * The larger of (1) and (2) is what's shown; see readDay.
  */
 class StepsReader(private val context: Context) {
 
@@ -89,19 +93,43 @@ class StepsReader(private val context: Context) {
         }
     }
 
+    /**
+     * Health Connect's own COUNT_TOTAL aggregate is NOT safe to use here: when more than one app writes
+     * steps for the same walking — a watch's companion app, Google Fit, Samsung Health, and (Android 14+)
+     * the phone itself can all write to Health Connect at once — its aggregate often just adds every
+     * contributing app's records together for the overlapping time range, rather than reliably recognising
+     * they're the same steps. That's the exact "more steps than I actually walked" bug: someone wearing a
+     * watch alongside their phone would see roughly double.
+     *
+     * The fix: read the raw records instead of the aggregate, group them by which app wrote them
+     * (metadata.dataOrigin), sum each app's own records for the day, and take the LARGEST of those per-app
+     * totals — never the sum across apps. Different apps are alternative measurements of the same walking,
+     * not additional steps; this mirrors the same "take the larger, not the total" rule this class already
+     * applies one level up, between Health Connect and the phone's own sensor.
+     */
     private suspend fun readHealthConnect(start: Instant, end: Instant): Long? {
         if (!healthConnectGranted()) return null
         return try {
-            val result = HealthConnectClient.getOrCreate(context).aggregate(
-                AggregateRequest(
-                    metrics = setOf(StepsRecord.COUNT_TOTAL),
-                    timeRangeFilter = TimeRangeFilter.between(start, end),
-                )
-            )
-            result[StepsRecord.COUNT_TOTAL] ?: 0L
+            val records = HealthConnectClient.getOrCreate(context).readRecords(
+                ReadRecordsRequest(StepsRecord::class, timeRangeFilter = TimeRangeFilter.between(start, end))
+            ).records
+            if (records.isEmpty()) return 0L
+            records.groupBy { it.metadata.dataOrigin.packageName }
+                .mapValues { (_, recs) -> recs.sumOf { clippedCount(it, start, end) } }
+                .values.maxOrNull() ?: 0L
         } catch (e: Exception) {
             null // for example a background read without the background permission
         }
+    }
+
+    /** A record's step count, scaled down if only part of its time span falls inside [start, end]. */
+    private fun clippedCount(record: StepsRecord, start: Instant, end: Instant): Long {
+        val overlapStart = maxOf(record.startTime, start)
+        val overlapEnd = minOf(record.endTime, end)
+        val overlapMs = (overlapEnd.toEpochMilli() - overlapStart.toEpochMilli()).coerceAtLeast(0)
+        val fullMs = (record.endTime.toEpochMilli() - record.startTime.toEpochMilli())
+        if (fullMs <= 0 || overlapMs >= fullMs) return record.count
+        return ((record.count * overlapMs) / fullMs)
     }
 
     private suspend fun readRecording(start: Instant, end: Instant): Long? {

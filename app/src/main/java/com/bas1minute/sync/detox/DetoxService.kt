@@ -43,8 +43,7 @@ class DetoxService : Service() {
     private var reader: UsageReader? = null
     private var sessionId = -1L
     private var running = false
-    private var lastQuery = 0L
-    private var fgPkg: String? = null
+
     private var lastCountedPkg: String? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -75,7 +74,6 @@ class DetoxService : Service() {
         acquireWake(s.plannedEndMs)
         if (!running) {
             running = true
-            lastQuery = System.currentTimeMillis() - 10_000
             handler.post(tick)
         }
         return START_STICKY
@@ -122,14 +120,8 @@ class DetoxService : Service() {
                     return
                 }
 
-                runCatching {
-                    reader?.events(lastQuery, now)?.forEach { e ->
-                        if (e.resumed) fgPkg = e.pkg else if (e.pkg == fgPkg) fgPkg = null
-                    }
-                }
-                lastQuery = now
-
-                val fg = fgPkg
+                // Re-read the last ~20s fresh every tick (not an advancing cursor): see UsageReader.currentForegroundApp.
+                val fg = reader?.currentForegroundApp(now)
                 val r = rules
                 if (fg != null && r != null && r.isBlocked(fg)) {
                     if (fg != lastCountedPkg) {
