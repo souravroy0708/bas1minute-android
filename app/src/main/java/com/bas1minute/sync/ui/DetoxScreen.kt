@@ -621,6 +621,21 @@ private fun BadgesCard(sessions: List<DetoxSession>, now: Long) {
     val next = remember(streak) { StreakLogic.nextBadge(streak) }
     var share by remember { mutableStateOf(false) }
 
+    // Celebrate the first time a new badge threshold is actually crossed — never on every recomposition,
+    // and never again once it's been seen, the same "once, not every time" rule Today uses for its step goal.
+    val prefs = remember { com.bas1minute.sync.Prefs(ctx) }
+    var newBadge by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(earned) {
+        val highest = earned.maxOfOrNull { it.days } ?: return@LaunchedEffect
+        if (highest > prefs.lastCelebratedDetoxBadge) {
+            prefs.lastCelebratedDetoxBadge = highest
+            newBadge = highest
+        }
+    }
+    newBadge?.let { days ->
+        DetoxBadgeCelebration(days, StreakLogic.badgeLabel(days), onClose = { newBadge = null })
+    }
+
     AppCard(title = t("Focus streak")) {
         Text("A focus day is a 3-hour (or longer) detox you keep, fully between 10 AM and 10 PM.",
             style = MaterialTheme.typography.bodySmall, color = Muted)

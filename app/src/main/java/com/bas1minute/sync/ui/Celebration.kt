@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -41,9 +42,14 @@ import kotlin.random.Random
 
 private data class Piece(val x: Float, val delay: Float, val speed: Float, val drift: Float, val spin: Float, val color: Color, val w: Float)
 
-/** Shown once a day when the step goal is reached: confetti, a buzz, and a chance to share. */
+/**
+ * The shared confetti-and-haptic shell behind every celebration in the app: a falling-confetti canvas behind
+ * a dark card with whatever content the caller supplies. One achievement language used everywhere, rather
+ * than each screen inventing its own "well done" moment — the kind of small consistency that makes an app
+ * feel considered rather than assembled from parts.
+ */
 @Composable
-fun GoalCelebration(steps: String, km: String, onShare: () -> Unit, onClose: () -> Unit) {
+private fun ConfettiDialog(onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val haptics = LocalHapticFeedback.current
     val t = remember { Animatable(0f) }
     val pieces = remember {
@@ -72,15 +78,46 @@ fun GoalCelebration(steps: String, km: String, onShare: () -> Unit, onClose: () 
                 Modifier.padding(28.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Ink).padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(t("Goal done!"), style = MaterialTheme.typography.displayMedium, color = Haldi)
-                Text("$steps steps · $km", style = MaterialTheme.typography.titleLarge, color = Color.White)
-                Text("Shabash! Every day like this builds the habit.", style = MaterialTheme.typography.bodyMedium,
-                    color = MutedOnDark, textAlign = TextAlign.Center)
-                BigButton(t("Share it"), dark = false) { onShare() }
-                TextButton(onClick = onClose) { Text(t("Close"), color = MutedOnDark) }
-            }
+                content = content,
+            )
         }
+    }
+}
+
+/** Shown once a day when the step goal is reached: confetti, a buzz, and a chance to share. */
+@Composable
+fun GoalCelebration(steps: String, km: String, onShare: () -> Unit, onClose: () -> Unit) {
+    ConfettiDialog(onClose) {
+        Text(t("Goal done!"), style = MaterialTheme.typography.displayMedium, color = Haldi)
+        Text("$steps steps · $km", style = MaterialTheme.typography.titleLarge, color = Color.White)
+        Text("Shabash! Every day like this builds the habit.", style = MaterialTheme.typography.bodyMedium,
+            color = MutedOnDark, textAlign = TextAlign.Center)
+        BigButton(t("Share it"), dark = false) { onShare() }
+        TextButton(onClick = onClose) { Text(t("Close"), color = MutedOnDark) }
+    }
+}
+
+/** Shown once, the moment a life goal is marked achieved — this is a bigger deal than a daily habit tick,
+ * so it gets the same confetti language plus the person's own reason for starting, read back to them. */
+@Composable
+fun LifeGoalAchievedCelebration(title: String, why: String, onClose: () -> Unit) {
+    ConfettiDialog(onClose) {
+        Text(t("You did it"), style = MaterialTheme.typography.displayMedium, color = Haldi)
+        Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White, textAlign = TextAlign.Center)
+        if (why.isNotBlank()) Text("“$why”", style = MaterialTheme.typography.bodyMedium, color = MutedOnDark, textAlign = TextAlign.Center)
+        TextButton(onClick = onClose) { Text(t("Close"), color = MutedOnDark) }
+    }
+}
+
+/** Shown once, the first time a focus streak crosses a new badge threshold (3/7/21/50/100 days). */
+@Composable
+fun DetoxBadgeCelebration(days: Int, label: String, onClose: () -> Unit) {
+    ConfettiDialog(onClose) {
+        Text(t("Badge earned"), style = MaterialTheme.typography.displayMedium, color = Haldi)
+        Text(label, style = MaterialTheme.typography.titleLarge, color = Color.White)
+        Text("$days days of real focus. That's not small.", style = MaterialTheme.typography.bodyMedium,
+            color = MutedOnDark, textAlign = TextAlign.Center)
+        TextButton(onClick = onClose) { Text(t("Close"), color = MutedOnDark) }
     }
 }
 

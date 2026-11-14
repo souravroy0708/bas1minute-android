@@ -230,6 +230,11 @@ class Prefs(context: Context) {
         set(v) = p.edit().putString("synced_photo_marks", org.json.JSONObject(v.keys.associateWith { true as Any }).toString()).apply()
 
     /** Shown once, right after setup: a short, mandatory walkthrough of the app's main features. */
+    /** Highest focus-streak badge (3/7/21/50/100 days) already celebrated, so crossing it again never repeats. */
+    var lastCelebratedDetoxBadge: Int
+        get() = p.getInt("last_celebrated_detox_badge", 0)
+        set(v) = p.edit().putInt("last_celebrated_detox_badge", v).apply()
+
     var tourDone: Boolean
         get() = p.getBoolean("tour_done", false)
         set(v) = p.edit().putBoolean("tour_done", v).apply()

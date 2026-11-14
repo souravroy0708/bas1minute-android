@@ -100,6 +100,21 @@ photo) plus a one-a-day reflection — how hard you worked toward your goals and
 on two 1-5 scales, with a note. "On this day" resurfaces a milestone from a past year automatically. A reflection
 streak, and an honest effort-vs-satisfaction read-out over time. All phone only, never synced, even with sharing on.
 
+**v2.0.2: Celebration, where it was missing** — the app already had a well-built confetti-and-haptic
+celebration for the daily step goal; it just wasn't used anywhere else. Extended to the two moments that
+arguably deserve it more: finishing a life goal (shows their own "why" read back to them, not just a plain
+confirm dialog) and crossing a new detox focus-streak badge (3/7/21/50/100 days) the first time it happens,
+never again for the same badge. Same shared confetti component everywhere now, not three different
+implementations. See ui/Celebration.kt.
+
+**v2.0.1: The first-run tour, reanimated** — swipeable pages (spring-flung, not just tap), a parallax carousel
+feel (the page you're leaving shrinks and fades), a top progress bar that fills smoothly and tracks the swipe
+itself mid-gesture, a light haptic tick on every page change, and a hero per page that pulses, sweeps in a
+progress ring, springs into place with a little bounce, and floats gently rather than sitting frozen — plus a
+small spark burst on the very last page. Content refreshed to match the current app: Detox's block-choice model,
+Goals+Diary combined, Circles now under Profile, sync off by default. All hand-built with Canvas and Compose's
+own animation APIs — no new dependency. See ui/TourScreen.kt.
+
 **v2.0: Mandatory first-run tour** — right after setup, before the tabs appear, a short page-per-feature tour
 (Today, Move, Circles, Detox, Goals, privacy) that can't be skipped, only moved through. Shown once per account;
 members who already existed when this shipped are not retroactively forced through it. See ui/TourScreen.kt.

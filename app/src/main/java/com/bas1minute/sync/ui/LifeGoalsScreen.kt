@@ -184,6 +184,7 @@ private fun LifeGoalDetailScreen(app: AppController, actions: PhoneActions, goal
     var newMilestone by remember { mutableStateOf("") }
     var confirmGiveUp by remember { mutableStateOf(false) }
     var confirmAchieved by remember { mutableStateOf(false) }
+    var showAchievedCelebration by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
     val photoSaved by LifeGoalPhoto.saved.collectAsState()
 
@@ -302,10 +303,12 @@ private fun LifeGoalDetailScreen(app: AppController, actions: PhoneActions, goal
         title = { Text("Mark “${g.title}” achieved?") },
         text = { Text("You did it. This moves to your achieved goals; you can always look back on it.") },
         confirmButton = { TextButton(onClick = {
-            confirmAchieved = false; app.launch { withContext(Dispatchers.IO) { store.markAchieved(g.id) }; onChanged(); onBack() }
+            confirmAchieved = false
+            app.launch { withContext(Dispatchers.IO) { store.markAchieved(g.id) }; onChanged(); showAchievedCelebration = true }
         }) { Text("Yes, I did it 🎉", color = MintDark, fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = { confirmAchieved = false }) { Text(t("Cancel")) } },
     )
+    if (showAchievedCelebration) LifeGoalAchievedCelebration(g.title, g.why, onClose = { showAchievedCelebration = false; onBack() })
 
     // Honest, not punitive: this is a long-term goal, not a craving — one clear reminder of the why, then the
     // person's own call. "Pause" rather than "give up": they can bring it back from Profile any time.
