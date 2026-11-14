@@ -9,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -156,6 +157,10 @@ private fun TourProgress(pagerState: PagerState, count: Int) {
  * The hero: a soft pulsing glow, a ring that sweeps in when the page arrives, a spring-bounce badge with the
  * page's glyph, and a slow continuous float so nothing on screen ever looks frozen. On the final page, a
  * small outward burst of sparks marks the end of the tour.
+ *
+ * bob and glowPulse use InfiniteTransition.animateFloat which lives in androidx.compose.animation
+ * (not animation-core). To avoid adding that dependency, they are driven by looping Animatable coroutines
+ * instead — identical visual result, zero extra Gradle dependency.
  */
 @Composable
 private fun TourHero(glyph: String, tint: Color, visible: Boolean, celebrate: Boolean) {
@@ -168,21 +173,30 @@ private fun TourHero(glyph: String, tint: Color, visible: Boolean, celebrate: Bo
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "entrance",
     )
-    val infinite = rememberInfiniteTransition(label = "idle")
-    val bob by infinite.animateFloat(
-        initialValue = -1f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "bob",
-    )
-    val glowPulse by infinite.animateFloat(
-        initialValue = 0.85f, targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "glow",
-    )
+
+    // Continuous float — loops forever between -1f and 1f (replaces InfiniteTransition.animateFloat)
+    val bob = remember { Animatable(-1f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            bob.animateTo(1f, tween(1800, easing = FastOutSlowInEasing))
+            bob.animateTo(-1f, tween(1800, easing = FastOutSlowInEasing))
+        }
+    }
+
+    // Glow pulse — loops forever between 0.85f and 1.15f (replaces InfiniteTransition.animateFloat)
+    val glowPulse = remember { Animatable(0.85f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            glowPulse.animateTo(1.15f, tween(1400, easing = FastOutSlowInEasing))
+            glowPulse.animateTo(0.85f, tween(1400, easing = FastOutSlowInEasing))
+        }
+    }
 
     Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             // Soft outer glow, breathing slowly. `center` here is DrawScope's own property — the centre
             // of this drawing area — not a property of Size itself, which has no such member.
-            drawCircle(color = tint.copy(alpha = 0.18f), radius = this.size.minDimension / 2f * glowPulse)
+            drawCircle(color = tint.copy(alpha = 0.18f), radius = this.size.minDimension / 2f * glowPulse.value)
             // Progress ring sweeping in on arrival
             val stroke = 5.dp.toPx()
             drawArc(
@@ -196,7 +210,7 @@ private fun TourHero(glyph: String, tint: Color, visible: Boolean, celebrate: Bo
         Box(
             Modifier.size(84.dp).graphicsLayer {
                 scaleX = entrance; scaleY = entrance
-                translationY = bob * 3.dp.toPx()
+                translationY = bob.value * 3.dp.toPx()
             }.clip(CircleShape).background(tint),
             contentAlignment = Alignment.Center,
         ) {
