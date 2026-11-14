@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons)
     implementation(libs.compose.material.icons.extended)   // R8 strips the icons we don't use
+    implementation(libs.compose.animation)                 // InfiniteTransition.animateFloat (TourScreen)
     implementation(libs.splashscreen)
     implementation(libs.activity.compose)
     implementation(libs.fragment.ktx)
