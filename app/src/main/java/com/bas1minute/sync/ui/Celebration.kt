@@ -121,6 +121,19 @@ fun DetoxBadgeCelebration(days: Int, label: String, onClose: () -> Unit) {
     }
 }
 
+/** Shown once, the first time the daily-reflection streak in Diary crosses a new badge threshold. Same
+ * thresholds and badge names as Detox's streak (StreakLogic is shared, not duplicated), different words. */
+@Composable
+fun DiaryStreakCelebration(days: Int, label: String, onClose: () -> Unit) {
+    ConfettiDialog(onClose) {
+        Text(t("Badge earned"), style = MaterialTheme.typography.displayMedium, color = Haldi)
+        Text(label, style = MaterialTheme.typography.titleLarge, color = Color.White)
+        Text("$days days of actually showing up for yourself. Keep going.", style = MaterialTheme.typography.bodyMedium,
+            color = MutedOnDark, textAlign = TextAlign.Center)
+        TextButton(onClick = onClose) { Text(t("Close"), color = MutedOnDark) }
+    }
+}
+
 /** Soft pulsing placeholder while phone data loads. */
 @Composable
 fun Skeleton(modifier: Modifier, dark: Boolean = false) {

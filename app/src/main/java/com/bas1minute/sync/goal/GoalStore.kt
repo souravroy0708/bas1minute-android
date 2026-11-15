@@ -23,6 +23,22 @@ class GoalStore(context: Context) {
             put("target", target); put("created_at", nowMs)
         })
 
+    /** Re-creates a goal downloaded from the website backup, keeping its ORIGINAL uuid — so a later sync
+     * recognises it as the same row rather than creating a duplicate on the server. See JournalRestore.kt. */
+    fun restore(uuid: String, kind: GoalKind, title: String, target: Int, createdAt: Long, archivedAt: Long?): Long =
+        db.insert("goals", null, ContentValues().apply {
+            put("uuid", uuid); put("kind", kind.id); put("title", title.take(GoalLogic.MAX_TITLE_LEN))
+            put("target", target); put("created_at", createdAt)
+            if (archivedAt != null) put("archived_at", archivedAt) else putNull("archived_at")
+        })
+
+    /** The local goal id for a given uuid, needed to attach restored checkins to the right goal. */
+    fun idForUuid(uuid: String): Long? =
+        db.rawQuery("SELECT id FROM goals WHERE uuid = ?", arrayOf(uuid)).use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+
+    /** Re-creates one day's check-off downloaded from the backup, against the already-restored goal's local id. */
+    fun restoreCheckin(goalId: Long, date: LocalDate, done: Boolean) = setCheckin(goalId, date, done)
+
     fun archive(id: Long, nowMs: Long = System.currentTimeMillis()) {
         db.update("goals", ContentValues().apply { put("archived_at", nowMs) }, "id = ?", arrayOf(id.toString()))
     }

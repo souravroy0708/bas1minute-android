@@ -79,6 +79,9 @@ fun LifeGoalsBoard(app: AppController, actions: PhoneActions) {
     val ctx = LocalContext.current
     val store = remember { LifeGoalStore(ctx) }
     var byHorizon by remember { mutableStateOf<Map<Horizon, List<LifeGoal>>>(emptyMap()) }
+    // Distinct from an empty horizon: without this, "set a goal" would flash for a frame on every open,
+    // even for someone with goals already saved in every horizon.
+    var loading by remember { mutableStateOf(true) }
     var reload by remember { mutableIntStateOf(0) }
     var addFor by remember { mutableStateOf<Horizon?>(null) }
     var openGoal by remember { mutableStateOf<Long?>(null) }
@@ -86,6 +89,7 @@ fun LifeGoalsBoard(app: AppController, actions: PhoneActions) {
 
     LaunchedEffect(reload, photoSaved) {
         byHorizon = withContext(Dispatchers.IO) { Horizon.entries.associateWith { store.active(it) } }
+        loading = false
     }
 
     openGoal?.let { id ->
@@ -107,7 +111,9 @@ fun LifeGoalsBoard(app: AppController, actions: PhoneActions) {
                         SmallPill(t("Add")) { addFor = horizon }
                     }
                 }
-                if (goals.isEmpty()) {
+                if (loading) {
+                    Skeleton(Modifier.fillMaxWidth().height(64.dp))
+                } else if (goals.isEmpty()) {
                     AppCard {
                         Text(
                             when (horizon) {

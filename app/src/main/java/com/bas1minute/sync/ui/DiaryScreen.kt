@@ -75,12 +75,16 @@ fun DiaryScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
     val today = remember { LocalDate.now() }
     var section by remember { mutableStateOf("today") }   // "today" (reflection) or "timeline" (milestones)
     var timeline by remember { mutableStateOf<List<DiaryEntry>>(emptyList()) }
+    // Distinct from timeline.isEmpty(): without this, "Your story starts here" would flash for a frame on
+    // every open, even for someone with years of entries already saved.
+    var loading by remember { mutableStateOf(true) }
     var reload by remember { mutableIntStateOf(0) }
     var showAddMilestone by remember { mutableStateOf(false) }
     val photoSaved by DiaryPhoto.saved.collectAsState()
 
     LaunchedEffect(reload, photoSaved) {
         timeline = withContext(Dispatchers.IO) { store.timeline() }
+        loading = false
     }
     val onThisDay = remember(timeline, today) { DiaryLogic.onThisDay(timeline, today) }
 
@@ -113,7 +117,7 @@ fun DiaryScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
                 TodayReflectionCard(app, store, today) { reload++ }
                 GhostButton(t("Add a life milestone")) { showAddMilestone = true }
             } else {
-                TimelineSection(app, store, timeline, today) { reload++ }
+                TimelineSection(app, store, timeline, today, loading) { reload++ }
                 GhostButton(t("Add a life milestone")) { showAddMilestone = true }
             }
             Text("Your diary stays on this phone only — never sent anywhere, even if you share steps or screen time elsewhere in the app.",
@@ -159,12 +163,22 @@ private fun TodayReflectionCard(app: AppController, store: DiaryStore, today: Lo
     var note by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(false) }
     var streak by remember { mutableStateOf(0) }
+    var newBadge by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
         val e = withContext(Dispatchers.IO) { store.reflectionOn(today) }
         existing = e
         e?.let { effort = it.effort ?: 3; satisfaction = it.satisfaction ?: 3; note = it.story; saved = true }
         streak = withContext(Dispatchers.IO) { DiaryLogic.reflectionStreak(store.reflectionDates(), today).current }
+        // Same "once, not every time" rule as Detox's badges and Today's step goal.
+        val highest = com.bas1minute.sync.detox.StreakLogic.badgesFor(streak).maxOfOrNull { it.days }
+        if (highest != null && highest > app.prefs.lastCelebratedDiaryBadge) {
+            app.prefs.lastCelebratedDiaryBadge = highest
+            newBadge = highest
+        }
+    }
+    newBadge?.let { days ->
+        DiaryStreakCelebration(days, com.bas1minute.sync.detox.StreakLogic.badgeLabel(days), onClose = { newBadge = null })
     }
 
     AppCard(title = t("Today's reflection")) {
@@ -202,8 +216,12 @@ private fun RatingRow(selected: Int, labels: List<String>, onSelect: (Int) -> Un
 }
 
 @Composable
-private fun TimelineSection(app: AppController, store: DiaryStore, entries: List<DiaryEntry>, today: LocalDate, onChanged: () -> Unit) {
+private fun TimelineSection(app: AppController, store: DiaryStore, entries: List<DiaryEntry>, today: LocalDate, loading: Boolean, onChanged: () -> Unit) {
     val milestones = remember(entries) { entries.filter { it.type == EntryType.Milestone } }
+    if (loading) {
+        Skeleton(Modifier.fillMaxWidth().height(80.dp))
+        return
+    }
     if (milestones.isEmpty()) {
         AppCard {
             Text("📔", style = MaterialTheme.typography.displayMedium)

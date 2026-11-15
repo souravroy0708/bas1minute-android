@@ -263,6 +263,8 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
             else SetupCard(store, st.usageOk, st.overlayOk, actions, onStart = { m, why ->
                 if (DetoxController.start(ctx, m, why) == null) app.message = "Allow both permissions to start a detox."
             })
+            SchedulesCard(ctx)
+            AppTimerCard(app)
             BadgesCard(st.sessions, st.now)
             TodayCard(st.usageOk, cells, day)
             WeekCard(week, weekSum)

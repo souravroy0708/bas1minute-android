@@ -44,6 +44,16 @@ object LifeGoalPhoto {
 
     fun path(context: Context, goalId: Long): String? = file(context, goalId).takeIf { it.exists() }?.path
 
+    /** Writes a photo downloaded back from the website restore straight to disk — it was already resized and
+     * compressed once, when it was first uploaded, so there's no need to decode/re-encode it again here. */
+    fun saveBytes(context: Context, goalId: Long, bytes: ByteArray): Boolean = try {
+        file(context, goalId).writeBytes(bytes)
+        saved.value = goalId
+        true
+    } catch (e: Exception) {
+        false
+    }
+
     fun load(context: Context, goalId: Long): Bitmap? = file(context, goalId).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
 
     fun remove(context: Context, goalId: Long) { file(context, goalId).delete() }

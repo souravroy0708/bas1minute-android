@@ -98,7 +98,9 @@ class AppRules(
         else -> null
     }
 
-    private fun installedOf(pkgs: Set<String>): List<Pair<String, String>> =
+    /** Which of an arbitrary set of packages are actually installed, with labels — used by Detox's own
+     * installedSocial()/installedBrowsers() below, and by App Timers' own app-picker. */
+    fun installedOf(pkgs: Set<String>): List<Pair<String, String>> =
         pkgs.filter(::isInstalled).map { it to label(it) }.sortedBy { it.second.lowercase() }
 
     private fun isInstalled(pkg: String): Boolean = runCatching { pm.getApplicationInfo(pkg, 0); true }.getOrDefault(false)

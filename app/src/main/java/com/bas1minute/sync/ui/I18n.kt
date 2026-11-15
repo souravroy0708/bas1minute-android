@@ -55,7 +55,13 @@ object Lang {
         // Phone check
         "Phone check" to "फ़ोन जाँच",
         // Digital detox
-        "Digital detox" to "डिजिटल डिटॉक्स", "Detox" to "डिटॉक्स", "Daily nudges" to "रोज़ के संदेश", "Focus" to "फ़ोकस", "left" to "बाकी", "Time left" to "बाकी समय",
+        "Digital detox" to "डिजिटल डिटॉक्स", "Detox" to "डिटॉक्स", "Daily nudges" to "रोज़ के संदेश", "Long-session nudges" to "लंबे सत्र के संदेश", "Focus" to "फ़ोकस", "left" to "बाकी", "Time left" to "बाकी समय",
+        "Block distracting websites" to "ध्यान भटकाने वाली वेबसाइट रोकें", "Turn on" to "चालू करें",
+        "Daily limit per site" to "हर साइट की रोज़ की सीमा", "Websites on your list" to "आपकी सूची की वेबसाइटें",
+        "Edit the list" to "सूची बदलें", "Continue" to "जारी रखें",
+        "Schedules" to "शेड्यूल", "+ Add a schedule" to "+ शेड्यूल जोड़ें", "New schedule" to "नया शेड्यूल",
+        "App Timers" to "ऐप टाइमर", "Daily limit per app" to "हर ऐप की रोज़ की सीमा", "Apps on your list" to "आपकी सूची के ऐप",
+        "Edit schedule" to "शेड्यूल बदलें", "Days" to "दिन", "Starts" to "शुरू", "Ends" to "खत्म",
         "Only calls and messages until the timer ends" to "टाइमर ख़त्म होने तक सिर्फ़ कॉल और मैसेज",
         "Only calls and messages, for as long as you promise" to "जितनी देर का वादा, उतनी देर सिर्फ़ कॉल और मैसेज",
         "Your promise" to "आपका वादा", "ends at" to "ख़त्म", "paused" to "रोका",

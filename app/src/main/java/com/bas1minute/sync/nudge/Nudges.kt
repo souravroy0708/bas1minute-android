@@ -15,7 +15,7 @@ import kotlin.math.ceil
  */
 
 enum class NudgeSlot(val hour: Int, val minute: Int, val id: String) {
-    Morning(8, 30, "morning"), Afternoon(13, 30, "afternoon"), Evening(19, 30, "evening");
+    Morning(8, 30, "morning"), MidMorning(10, 0, "mid_morning"), Afternoon(13, 30, "afternoon"), Evening(19, 30, "evening");
 
     companion object { fun of(id: String?) = entries.firstOrNull { it.id == id } ?: Morning }
 }
@@ -62,9 +62,49 @@ object Nudges {
         val overLimit = s.socialToday?.let { it > s.socialLimit } == true
         return when (s.slot) {
             NudgeSlot.Morning -> morning(s)
+            NudgeSlot.MidMorning -> midMorning(s)
             NudgeSlot.Afternoon -> afternoon(s, left, overLimit)
             NudgeSlot.Evening -> evening(s, left, overLimit)
         }
+    }
+
+    /**
+     * A day is "slow to start" if, by mid-morning, steps are well under even a light pace for the time —
+     * not the full daily goal, which nobody reasonably hits by 10 AM. The floor is deliberately generous
+     * (a short walk from the kitchen to the car clears it on an ordinary day), so this only fires on
+     * genuinely rough mornings, not as a daily guilt check.
+     */
+    fun isSlowStart(steps: Long, goal: Int): Boolean = steps < maxOf(300, (goal * 0.10).toInt())
+
+    /** Checked once, at 10 AM: silent on an ordinary morning, supportive — never shaming — on a hard one. */
+    private fun midMorning(s: NudgeState): Nudge? {
+        val steps = s.steps ?: return null             // no step data yet: nothing true to say
+        if (!isSlowStart(steps, s.goal)) return null   // most mornings don't need this at all
+        return pick(s.dayOfYear,
+            Nudge("Slow start, ${s.name}?", "Hard days happen. A 10-minute walk now still counts — today isn't over.", NudgeTarget.Move),
+            Nudge("Still plenty of day left", "${nf.format(steps)} steps so far. A 1-minute burst is an easy way back in.", NudgeTarget.Today),
+            Nudge("Reset the morning", "One short walk can turn the whole day around. Worth a try?", NudgeTarget.Move),
+        )
+    }
+
+    /** Generic, not tied to today's numbers — for the occasional randomly-timed nudge, not a fixed check-in. */
+    private val MOTIVATIONAL = listOf(
+        "Every step counts, even the small ones today.",
+        "Consistency beats intensity. Just show up.",
+        "Future you is cheering for the you that gets up right now.",
+        "A bad hour doesn't have to be a bad day.",
+        "Small wins compound. Today's is still available.",
+        "Nobody has a perfect streak. Showing up again is the real streak.",
+        "Your only competition is who you were yesterday.",
+        "One walk. One minute. One choice. That's all today needs.",
+    )
+
+    /** Picks a motivational line, never repeating [lastIndex] back-to-back. Returns the message and its index
+     * (store the index so the next call can avoid it too). */
+    fun motivational(name: String, candidateIndex: Int, lastIndex: Int): Pair<Nudge, Int> {
+        val idx = if (MOTIVATIONAL.size > 1 && candidateIndex == lastIndex) (candidateIndex + 1) % MOTIVATIONAL.size else candidateIndex
+        val greeting = if (name.isBlank()) "Hey" else "Hey, $name"
+        return Nudge("$greeting 👋", MOTIVATIONAL[Math.floorMod(idx, MOTIVATIONAL.size)], NudgeTarget.Today) to idx
     }
 
     private fun morning(s: NudgeState): Nudge {

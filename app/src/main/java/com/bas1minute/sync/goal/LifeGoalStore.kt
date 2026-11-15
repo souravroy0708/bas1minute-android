@@ -31,6 +31,32 @@ class LifeGoalStore(context: Context) {
         put("started_at", nowMs); put("target_date", targetDate.toString())
     })
 
+    /** Re-creates a life goal downloaded from the website backup, keeping its ORIGINAL uuid. See JournalRestore.kt. */
+    fun restore(
+        uuid: String, horizon: Horizon, title: String, details: String, why: String, obstacle: String, plan: String,
+        startedAt: Long, targetDate: LocalDate, achievedAt: Long?, archivedAt: Long?,
+    ): Long = db.insert("life_goals", null, ContentValues().apply {
+        put("uuid", uuid); put("horizon", horizon.id); put("title", title.take(LifeGoalLogic.MAX_TITLE))
+        put("details", details.take(LifeGoalLogic.MAX_DETAILS)); put("why", why.take(LifeGoalLogic.MAX_WHY))
+        put("obstacle", obstacle.take(LifeGoalLogic.MAX_OBSTACLE)); put("plan", plan.take(LifeGoalLogic.MAX_PLAN))
+        put("started_at", startedAt); put("target_date", targetDate.toString())
+        if (achievedAt != null) put("achieved_at", achievedAt) else putNull("achieved_at")
+        if (archivedAt != null) put("archived_at", archivedAt) else putNull("archived_at")
+    })
+
+    /** The local life goal id for a given uuid, needed to attach restored milestones to the right goal. */
+    fun idForUuid(uuid: String): Long? =
+        db.rawQuery("SELECT id FROM life_goals WHERE uuid = ?", arrayOf(uuid)).use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+
+    /** Re-creates a milestone downloaded from the backup, keeping its ORIGINAL uuid, against the already-restored
+     * parent goal's LOCAL id (its own id changed on restore even though its uuid didn't). */
+    fun restoreMilestone(uuid: String, goalId: Long, title: String, done: Boolean, doneAt: Long?, sortOrder: Int): Long =
+        db.insert("life_goal_milestones", null, ContentValues().apply {
+            put("uuid", uuid); put("goal_id", goalId); put("title", title.take(LifeGoalLogic.MAX_MILESTONE_TITLE))
+            put("done", if (done) 1 else 0); put("sort_order", sortOrder)
+            if (doneAt != null) put("done_at", doneAt) else putNull("done_at")
+        })
+
     fun setPhoto(id: Long, has: Boolean) {
         db.update("life_goals", ContentValues().apply { put("has_photo", if (has) 1 else 0) }, "id = ?", arrayOf(id.toString()))
     }

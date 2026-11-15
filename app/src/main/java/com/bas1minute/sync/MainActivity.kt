@@ -235,6 +235,10 @@ class MainActivity : ComponentActivity() {
         com.bas1minute.sync.phone.BatteryWorker.schedule(this)
         // Three nudges a day (steps, screen time, detox), worked out on this phone
         com.bas1minute.sync.nudge.NudgeWorker.schedule(this)
+        if (app.prefs.dailyNudges) com.bas1minute.sync.nudge.MotivationWorker.schedule(this)
+        // Session Guard, Schedules and App Timers no longer register their own periodic jobs — they ride on
+        // the single shared 15-minute tick already scheduled above (BatteryWorker.schedule) for battery
+        // logging. Nothing to schedule here for any of the three — see BatteryWorker's own doc for why.
         if (app.prefs.dailyUsageAlert) com.bas1minute.sync.nudge.UsageAlertWorker.schedule(this)
 
         val help = HelpActions(

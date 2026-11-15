@@ -143,6 +143,23 @@
                 android:value="User-started digital detox: pauses other apps for a time the user chooses and shows a countdown notification" />
         </service>
 
+        <!-- Site Guard: reads only the address bar of the browser apps listed in site_guard_config.xml, to
+             block specific time-wasting websites once their small daily budget is spent. Off until the member
+             turns it on AND grants Accessibility access themselves in system settings — this app can never
+             enable it silently. Never reads page content, and the OS itself prevents it from ever receiving
+             an event from any app not listed in site_guard_config.xml. -->
+        <service
+            android:name=".siteguard.SiteGuardAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/site_guard_config" />
+        </service>
+
         <!-- Digital detox: resume or close a running detox after a restart or app update -->
         <receiver
             android:name=".detox.DetoxBootReceiver"

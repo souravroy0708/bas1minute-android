@@ -37,6 +37,16 @@ object DiaryPhoto {
     }
 
     fun path(context: Context, entryId: Long): String? = file(context, entryId).takeIf { it.exists() }?.path
+
+    /** Writes a photo downloaded back from the website restore straight to disk — already sized and
+     * compressed once, when it was first uploaded, so there's nothing to re-process here. */
+    fun saveBytes(context: Context, entryId: Long, bytes: ByteArray): Boolean = try {
+        file(context, entryId).writeBytes(bytes)
+        saved.value = entryId
+        true
+    } catch (e: Exception) {
+        false
+    }
     fun remove(context: Context, entryId: Long) { file(context, entryId).delete() }
     fun clearAll(context: Context) { dir(context).listFiles()?.forEach { it.delete() } }
 }

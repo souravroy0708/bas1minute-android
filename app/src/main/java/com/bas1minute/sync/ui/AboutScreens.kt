@@ -93,7 +93,7 @@ fun IdeaContent() {
             "Walk & Talk" to "Steps on phone calls count.",
             "Chai burst" to "Twenty squats while the water boils.",
         ))
-        Text("Never more than three nudges a day.", style = MaterialTheme.typography.bodySmall, color = Muted)
+        Text("A handful of nudges a day, never during a detox — turn any of them off in Profile.", style = MaterialTheme.typography.bodySmall, color = Muted)
     }
     AppCard(title = "Built to last past week three") {
         Points(listOf(
@@ -187,9 +187,13 @@ fun PrivacyContent() {
             "The website" to "You sign in by approving a code in this app (no password). It shows only what this phone shares: steps, screen time and circles.",
             "Phone check" to "Battery level history, which apps used battery, data and background time, and their permissions are worked out and kept on this phone only.",
             "Digital detox" to "While a detox you started is on, the app checks which app is open and shows a pause screen over the ones you've chosen to block (social media and browsers by default, adjustable before you start). Your promises and clean hours are worked out and kept on this phone, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default — which copies this session history to the website so you can see it from a browser.",
+            "Schedules" to "Recurring windows (set in Detox) that start and end a detox on their own, at times you choose, blocking the same apps you've already set up to block in Detox — nothing new to set up twice. Checked every 15 minutes while the phone is on; never touches a detox you started by hand.",
+            "App Timers" to "Off until you turn it on in Detox. A small daily time limit per app, on the short list you choose — once an app's minutes for today are spent, it's paused until tomorrow, using the same Usage access already needed for clean hours and detox. Checked every 15 minutes, so blocking can lag a few minutes behind the exact limit; worked out and kept on this phone only.",
             "Goals" to "The goals you set, your daily check-offs, and whether you met them are worked out from this phone's own data and kept here, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default.",
             "Life goals" to "Your short, mid and long-term goals — the plan, why it matters, any obstacle and plan for it, milestones, and any photo you add — are kept only on this phone, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default. On, they're copied to the website, where only you can see them.",
             "Diary" to "Your life's milestones, your daily effort and satisfaction reflections, your notes, and any photo you add are kept only on this phone, even when sharing is on, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default. On, they're copied to the website, where only you can see them.",
+            "Long-session nudges" to "Turn this on in Profile and the app checks, every 15 minutes, whether you're in the middle of a long unbroken stretch on one social app or browser, using the same Usage access already needed for clean hours and detox. Worked out and sent from this phone only — nothing about which apps you use is ever sent to us.",
+            "Block distracting websites" to "Off until you turn it on in Profile, where you're shown exactly what this needs before Android's own Accessibility settings ever open — you grant it yourself; this app can never enable it for itself. It reads only the address shown in your browser's address bar, never page content, and only in the browser apps named in the app — every other app, including WhatsApp and banking apps, is invisible to it at the Android level, not just by our choice. The time you spend on each site on your list is worked out and kept on this phone only.",
             "Walks and runs (GPS)" to "Location is used only while you record, with a notification showing. Routes are saved on this phone and never sent. Map pictures are downloaded from OpenStreetMap; your position isn’t.",
             "Walks and runs without GPS" to "With “Map with GPS” off, no location is used: km, time and pace come from your phone’s step counter, kept on this phone only.",
         ))

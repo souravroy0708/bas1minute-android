@@ -44,9 +44,13 @@ class Repo(context: Context) {
         if (!r.ok || r.json == null) return false
         prefs.token = r.json.optString("token")
         secrets.secret = r.json.optString("secret")
-        r.json.optJSONObject("me")?.let { saveMe(Me.from(it)) }
+        val me = r.json.optJSONObject("me")
+        me?.let { saveMe(Me.from(it)) }
         // Reinstalled on the same phone: the server gave back the same account (circles, ranking, history)
-        if (r.json.optBoolean("returning")) Welcome.back.value = prefs.name.substringBefore(' ').ifBlank { prefs.name }
+        if (r.json.optBoolean("returning")) {
+            Welcome.back.value = prefs.name.substringBefore(' ').ifBlank { prefs.name }
+            if (me?.optBoolean("sync_personal") == true) Welcome.restoreOffer.value = true
+        }
         if (prefs.shareActivity) api.post("me/", JSONObject().put("share_activity", true))
         return true
     }
@@ -335,4 +339,9 @@ class Repo(context: Context) {
 /** Set when this phone signed back in to its earlier account after a reinstall (shown once as a greeting). */
 object Welcome {
     val back = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
+    /** Set when this phone is recognised as returning AND its account had syncing on — meaning there may be
+     * a backup worth restoring. The UI only actually offers it once it's also confirmed local storage is
+     * genuinely empty (see JournalRestore.localStorageIsEmpty) — this flag alone isn't enough to show the prompt. */
+    val restoreOffer = kotlinx.coroutines.flow.MutableStateFlow(false)
 }

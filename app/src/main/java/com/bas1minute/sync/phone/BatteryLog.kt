@@ -95,14 +95,39 @@ object BatteryLog {
 }
 
 /**
- * Every ~15 minutes (Android's shortest repeat; it waits longer while the phone sleeps): save the battery level.
- * Once each evening, if alerts are on, check for something unusual and send one notification.
+ * Every ~15 minutes (Android's shortest repeat; it waits longer while the phone sleeps): save the battery
+ * level. Once each evening, if alerts are on, check for something unusual and send one notification.
+ *
+ * This is also the SHARED tick for every other 15-minute check in the app — Session Guard's long-session
+ * nudges, Schedules' auto-start/end, and App Timers' daily block — rather than each of those registering
+ * its own separate periodic job. Four independent 15-minute WorkManager jobs would mean up to four separate
+ * OS wake-ups every 15 minutes even for a member using none of those opt-in features; one shared job, with
+ * each check an early-return when its own feature is off, means exactly one wake-up regardless. The
+ * foreground app is looked up once here and passed to both checks that need it, rather than each of them
+ * separately querying UsageStatsManager.
  */
 class BatteryWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val ctx = applicationContext
         try { BatteryLog.record(ctx) } catch (e: Exception) { /* storage busy: next run */ }
         try { maybeAlert(ctx) } catch (e: Exception) { /* never crash in the background */ }
+
+        val now = System.currentTimeMillis()
+        var detoxActive = try {
+            com.bas1minute.sync.detox.DetoxStore.get(ctx).active() != null
+        } catch (e: Exception) { false }
+
+        if (!detoxActive) {
+            try {
+                detoxActive = com.bas1minute.sync.schedule.ScheduleChecker.check(ctx, now)
+            } catch (e: Exception) { /* never crash in the background */ }
+        }
+        if (!detoxActive) {
+            val reader = com.bas1minute.sync.detox.UsageReader(ctx)
+            val fg = try { reader.currentForegroundApp(now) } catch (e: Exception) { null }
+            try { com.bas1minute.sync.nudge.SessionGuardChecker.check(ctx, reader, fg, now) } catch (e: Exception) { }
+            try { com.bas1minute.sync.detox.AppTimerChecker.check(ctx, reader, fg, now) } catch (e: Exception) { }
+        }
         return Result.success()
     }
 

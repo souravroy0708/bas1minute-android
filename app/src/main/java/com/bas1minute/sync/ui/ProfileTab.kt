@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -235,6 +236,18 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                     style = MaterialTheme.typography.bodySmall, color = Muted,
                 )
             }
+            // After a reinstall on this same phone, this brings back whatever was backed up before — only
+            // when this phone's own Goals/Diary/Detox storage is genuinely empty; otherwise it says so and
+            // changes nothing, to avoid any risk of duplicating what's already here.
+            var restoring by remember { mutableStateOf(false) }
+            GhostButton(if (restoring) "Checking…" else "Restore from backup") {
+                restoring = true
+                app.launch {
+                    val result = com.bas1minute.sync.sync.JournalRestore.run(app.ctxForPush)
+                    restoring = false
+                    app.message = result.message
+                }
+            }
         }
 
         // The website: approve a browser with a code from this phone (no password)
@@ -295,17 +308,43 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             var nudges by remember { mutableStateOf(prefs.dailyNudges) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Morning, afternoon and evening", style = MaterialTheme.typography.titleMedium)
-                    Text("A walk when you’re behind, a detox challenge when screen time runs high, a cheer when you’re done. Never during a detox.",
+                    Text("Morning, mid-morning, afternoon and evening", style = MaterialTheme.typography.titleMedium)
+                    Text("A walk when you’re behind, a gentle check-in if mornings start slow, a detox challenge when screen time runs high, a cheer when you’re done — plus the occasional surprise message at a random time. Never during a detox.",
                         style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
                 Switch(checked = nudges, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
                     onCheckedChange = { on ->
                         nudges = on; prefs.dailyNudges = on
-                        if (on) { actions.onAskNotifications(); com.bas1minute.sync.nudge.NudgeWorker.schedule(app.ctxForPush) }
+                        if (on) {
+                            actions.onAskNotifications()
+                            com.bas1minute.sync.nudge.NudgeWorker.schedule(app.ctxForPush)
+                            com.bas1minute.sync.nudge.MotivationWorker.schedule(app.ctxForPush)
+                        }
                     })
             }
         }
+
+        // A different kind of nudge from the four above: not a scheduled check-in, but noticing a long,
+        // unbroken stretch on one social app or browser, in the moment it's happening.
+        AppCard(title = t("Long-session nudges")) {
+            var sessionNudges by remember { mutableStateOf(prefs.longSessionNudges) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Every 15 minutes, in one sitting", style = MaterialTheme.typography.titleMedium)
+                    Text("If you've been continuously on one social app or browser — Instagram, YouTube, Chrome and the rest — for 15 minutes, a gentle tap on the shoulder. Up to 3 per session, then quiet until you actually take a break. Never during a detox.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = sessionNudges, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on ->
+                        // No periodic job to start/stop here any more — this rides on the shared battery-log
+                        // tick, which is always running; flipping the preference is the only thing needed.
+                        sessionNudges = on; prefs.longSessionNudges = on
+                        if (on) actions.onAskNotifications()
+                    })
+            }
+        }
+
+        SiteGuardCard(app)
 
         // One honest number a day: how long yesterday actually went on the phone and social apps
         AppCard(title = t("Daily phone-time reminder")) {

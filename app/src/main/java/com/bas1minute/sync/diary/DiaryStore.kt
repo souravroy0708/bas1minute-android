@@ -25,6 +25,18 @@ class DiaryStore(context: Context) {
             put("story", DiaryLogic.clampText(story, DiaryLogic.MAX_STORY)); put("created_at", nowMs)
         })
 
+    /** Re-creates a diary entry (milestone or reflection) downloaded from the backup, keeping its ORIGINAL uuid. */
+    fun restore(
+        uuid: String, type: EntryType, date: LocalDate, title: String, category: Category, story: String,
+        effort: Int?, satisfaction: Int?, createdAt: Long,
+    ): Long = db.insert("diary_entries", null, ContentValues().apply {
+        put("uuid", uuid); put("type", type.name); put("date", date.toString())
+        put("title", title.take(DiaryLogic.MAX_TITLE)); put("category", category.id)
+        put("story", story.take(DiaryLogic.MAX_STORY)); put("created_at", createdAt)
+        if (effort != null) put("effort", effort) else putNull("effort")
+        if (satisfaction != null) put("satisfaction", satisfaction) else putNull("satisfaction")
+    })
+
     fun updateMilestone(id: Long, date: LocalDate, title: String, category: Category, story: String) {
         db.update("diary_entries", ContentValues().apply {
             put("date", date.toString()); put("title", DiaryLogic.clampText(title, DiaryLogic.MAX_TITLE))

@@ -58,6 +58,20 @@ class UsageReader(context: Context) {
         return fromStats
     }
 
+    /**
+     * Total foreground time for one app so far today (local calendar day, midnight to [nowMs]) — straight
+     * from Android's own aggregated usage stats, which already handles summing every separate visit itself.
+     * Used for App Timers' daily budget; unlike Site Guard's per-website tracking, there's no need to build
+     * this up one event at a time, since Android already tracks foreground time per APP natively.
+     */
+    fun totalTodayMs(pkg: String, nowMs: Long): Long {
+        val dayStart = java.time.LocalDate.now()
+            .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        return runCatching {
+            usm.queryAndAggregateUsageStats(dayStart, nowMs)[pkg]?.totalTimeInForeground ?: 0L
+        }.getOrDefault(0L)
+    }
+
     companion object {
         // ACTIVITY_RESUMED / ACTIVITY_PAUSED (API 29) share values with MOVE_TO_FOREGROUND / BACKGROUND (API 21).
         const val RESUMED = 1

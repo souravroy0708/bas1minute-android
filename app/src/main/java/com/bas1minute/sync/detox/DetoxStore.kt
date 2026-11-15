@@ -48,6 +48,13 @@ class DetoxStore private constructor(context: Context) {
         return s
     }
 
+    /** Re-creates a session downloaded from the website backup. Safe to call even if a session with this id
+     * (its own start time, already unique) somehow already exists — it replaces rather than duplicating. */
+    @Synchronized fun restoreSession(session: DetoxSession) {
+        val list = sessions().filter { it.id != session.id }
+        save(list + session)
+    }
+
     @Synchronized fun update(session: DetoxSession) {
         save(sessions().map { if (it.id == session.id) session else it })
     }

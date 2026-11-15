@@ -193,6 +193,75 @@ class Prefs(context: Context) {
         get() = p.getString("last_nudge", "") ?: ""
         set(v) = p.edit().putString("last_nudge", v).apply()
 
+    /** "2026-11-13": the last date a random motivational nudge was sent, so it's never sent twice in a day. */
+    var lastMotivationalDate: String
+        get() = p.getString("last_motivational_date", "") ?: ""
+        set(v) = p.edit().putString("last_motivational_date", v).apply()
+
+    /** Which pool message was sent last, so the next random one never repeats it back-to-back. */
+    var lastMotivationalIndex: Int
+        get() = p.getInt("last_motivational_index", -1)
+        set(v) = p.edit().putInt("last_motivational_index", v).apply()
+
+    /**
+     * App Timers: the same daily time budget Site Guard gives a website, but for the app itself (Instagram,
+     * TikTok, Facebook...) — blocked once spent, resetting at midnight. Off by default; no extra permission
+     * needed beyond Usage access, already required for Detox and the step/screen-time rings. See
+     * detox/AppTimerLogic.kt.
+     */
+    var appTimerEnabled: Boolean
+        get() = p.getBoolean("app_timer_enabled", false)
+        set(v) = p.edit().putBoolean("app_timer_enabled", v).apply()
+
+    var appTimerBudgetMinutes: Int
+        get() = p.getInt("app_timer_budget_min", com.bas1minute.sync.detox.AppTimerLogic.DEFAULT_DAILY_BUDGET_MIN)
+        set(v) = p.edit().putInt("app_timer_budget_min", com.bas1minute.sync.detox.AppTimerLogic.clampBudget(v)).apply()
+
+    /** Packages the member has chosen to time-limit — a short, deliberate list, not every app Detox's wider
+     * Social category would catch. */
+    var appTimerApps: Set<String>
+        get() = p.getStringSet("app_timer_apps", null)?.toSet() ?: com.bas1minute.sync.detox.AppTimerLogic.DEFAULT_APPS
+        set(v) = p.edit().putStringSet("app_timer_apps", v.take(com.bas1minute.sync.detox.AppTimerLogic.MAX_APPS).toSet()).apply()
+
+    /**
+     * Site Guard: blocks specific time-wasting websites (not whole apps) inside any browser, once a small
+     * daily time budget for that one site is spent — resets at midnight. Off until the member turns it on
+     * and grants Accessibility access themselves in system settings; see siteguard/SiteGuardLogic.kt.
+     */
+    var siteGuardEnabled: Boolean
+        get() = p.getBoolean("site_guard_enabled", false)
+        set(v) = p.edit().putBoolean("site_guard_enabled", v).apply()
+
+    var siteGuardBudgetMinutes: Int
+        get() = p.getInt("site_guard_budget_min", com.bas1minute.sync.siteguard.SiteGuardLogic.DEFAULT_DAILY_BUDGET_MIN)
+        set(v) = p.edit().putInt("site_guard_budget_min", com.bas1minute.sync.siteguard.SiteGuardLogic.clampBudget(v)).apply()
+
+    var siteGuardDomains: Set<String>
+        get() = p.getStringSet("site_guard_domains", null)?.toSet() ?: com.bas1minute.sync.siteguard.SiteGuardLogic.DEFAULT_BLOCKED_DOMAINS
+        set(v) = p.edit().putStringSet("site_guard_domains", v.take(com.bas1minute.sync.siteguard.SiteGuardLogic.MAX_DOMAINS).toSet()).apply()
+
+    /** Milliseconds spent today on one blocked domain — [key] is "yyyy-MM-dd:domain" (see SiteGuardAccessibilityService). */
+    fun siteTimeMs(key: String): Long = p.getLong("sg_time_$key", 0L)
+
+    fun addSiteTime(key: String, deltaMs: Long) {
+        p.edit().putLong("sg_time_$key", siteTimeMs(key) + deltaMs).apply()
+    }
+
+    /** On by default: a tap on the shoulder every 15 minutes of one unbroken stretch on a distracting app. */
+    var longSessionNudges: Boolean
+        get() = p.getBoolean("long_session_nudges", true)
+        set(v) = p.edit().putBoolean("long_session_nudges", v).apply()
+
+    /** "pkg:sessionStartMs" for the continuous session SessionGuardChecker last nudged about. */
+    var lastSessionGuardKey: String
+        get() = p.getString("last_session_guard_key", "") ?: ""
+        set(v) = p.edit().putString("last_session_guard_key", v).apply()
+
+    /** How many of that session's 3 nudges have already been sent. */
+    var lastSessionGuardCount: Int
+        get() = p.getInt("last_session_guard_count", 0)
+        set(v) = p.edit().putInt("last_session_guard_count", v).apply()
+
     /** Members from before the global circle was opt-out have been invited once (they weren't sharing). */
     var globalInviteShown: Boolean
         get() = p.getBoolean("global_invite_shown", false)
@@ -234,6 +303,11 @@ class Prefs(context: Context) {
     var lastCelebratedDetoxBadge: Int
         get() = p.getInt("last_celebrated_detox_badge", 0)
         set(v) = p.edit().putInt("last_celebrated_detox_badge", v).apply()
+
+    /** Same idea, for the Diary's daily-reflection streak. */
+    var lastCelebratedDiaryBadge: Int
+        get() = p.getInt("last_celebrated_diary_badge", 0)
+        set(v) = p.edit().putInt("last_celebrated_diary_badge", v).apply()
 
     var tourDone: Boolean
         get() = p.getBoolean("tour_done", false)

@@ -5,7 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
@@ -18,20 +21,29 @@ import java.text.DateFormat
 import java.util.Date
 
 /**
- * Runs only while a detox session is active. Every 0.6 s it checks which app is on screen; if it's blocked,
- * it shows [BlockOverlay] on top — a system overlay window, not a launched Activity, which is what actually
- * lets it appear reliably on Android 14+ (see BlockOverlay's own notes). Shows an ongoing countdown
- * notification, and stops itself when the time is up, the user ends early, or a needed permission is revoked.
+ * Runs only while a detox session is active. Every 0.6 s while the screen is ON it checks which app is on
+ * screen; if it's blocked, it shows [BlockOverlay] on top — a system overlay window, not a launched Activity,
+ * which is what actually lets it appear reliably on Android 14+ (see BlockOverlay's own notes). Shows an
+ * ongoing countdown notification, and stops itself when the time is up, the user ends early, or a needed
+ * permission is revoked.
+ *
+ * While the screen is OFF, it backs off to checking once every 30 s instead — nobody can freshly open a
+ * blocked app with the screen off, so there is nothing for a faster check to catch, and for a long overnight
+ * Schedules session (see schedule/ScheduleChecker.kt) this is most of the session's actual duration. The
+ * moment the screen turns back on, a broadcast receiver below cancels that slow wait immediately and resumes
+ * full-speed checking right away, rather than waiting out whatever's left of a 30 s window — the screen
+ * turning on is exactly the moment someone could open a blocked app.
  *
  * Foreground service type: specialUse (user-started app blocking for a fixed time; declared in Play Console).
  *
  * Holds a partial wake lock for as long as the session runs. Without one, several Android skins (OnePlus's
  * OxygenOS among the most aggressive) throttle a background Service's own Handler thread even while its
  * foreground notification stays up and visible — the countdown and notification keep going (those are drawn
- * by the system, not this loop), but the every-0.6s check that shows the block screen silently stops firing.
- * The giveaway: a session still correctly marks itself "guilty" after the fact (that check re-reads Android's
- * own usage history once, at the end, regardless of whether this loop ran), while nothing was ever blocked
- * live in the moment.
+ * by the system, not this loop), but the checking that shows the block screen silently stops firing. The
+ * giveaway: a session still correctly marks itself "guilty" after the fact (that check re-reads Android's own
+ * usage history once, at the end, regardless of whether this loop ran), while nothing was ever blocked live
+ * in the moment. The wake lock itself still has to cover screen-off time too — the OEM throttling it guards
+ * against isn't only a screen-off phenomenon — so only the poll INTERVAL adapts to screen state, not the lock.
  */
 class DetoxService : Service() {
 
@@ -46,6 +58,17 @@ class DetoxService : Service() {
 
     private var lastCountedPkg: String? = null
 
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_ON && running) {
+                // Don't wait out whatever's left of a slow screen-off interval — the screen turning on is
+                // exactly the moment someone could open a blocked app, so resume full-speed checking now.
+                handler.removeCallbacks(tick)
+                handler.post(tick)
+            }
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -54,6 +77,7 @@ class DetoxService : Service() {
         thread = HandlerThread("detox").apply { start() }
         handler = Handler(thread.looper)
         createChannels()
+        registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_ON))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -137,10 +161,13 @@ class DetoxService : Service() {
             } catch (e: Exception) {
                 // Swallow and keep polling rather than let one bad tick end live blocking for the rest of the session.
             } finally {
-                if (running) handler.postDelayed(this, POLL_MS)
+                if (running) handler.postDelayed(this, if (isScreenOn()) POLL_MS else SCREEN_OFF_POLL_MS)
             }
         }
     }
+
+    private fun isScreenOn(): Boolean =
+        runCatching { getSystemService(PowerManager::class.java)?.isInteractive }.getOrNull() ?: true   // assume on if it can't be read, so checking never silently slows down by mistake
 
     private fun stopNow() {
         running = false
@@ -156,6 +183,7 @@ class DetoxService : Service() {
         BlockOverlay.hide()
         releaseWake()
         handler.removeCallbacksAndMessages(null)
+        runCatching { unregisterReceiver(screenReceiver) }
         thread.quitSafely()
         super.onDestroy()
     }
@@ -238,5 +266,6 @@ class DetoxService : Service() {
         private const val NOTIF_ONGOING = 7300
         private const val NOTIF_RESULT = 7302
         private const val POLL_MS = 600L
+        private const val SCREEN_OFF_POLL_MS = 30_000L
     }
 }

@@ -305,7 +305,9 @@ private fun MoveHome(app: AppController, actions: TrackActions) {
         }
 
         when {
-            d == null -> Text("Loading…", color = Muted)
+            // Already correctly distinct from genuinely having no history — just plain text where every
+            // other screen now shows a Skeleton shimmer; matching that for consistency, not fixing a bug.
+            d == null -> Skeleton(Modifier.fillMaxWidth().height(96.dp))
             d.history.isEmpty() -> AppCard {
                 Text("🏃", style = MaterialTheme.typography.displayMedium)
                 Text("Your first walk is one tap away", style = MaterialTheme.typography.titleLarge)

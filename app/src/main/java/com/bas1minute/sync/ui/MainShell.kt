@@ -96,6 +96,18 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
             }
         }
     }
+    // Same phone, and it had goals/diary/detox syncing on before: offer to restore that backup, but only
+    // once local storage is confirmed genuinely empty — see JournalRestore's own doc for why that matters.
+    var showRestoreOffer by remember { androidx.compose.runtime.mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        com.bas1minute.sync.api.Welcome.restoreOffer.collect { offered ->
+            if (offered) {
+                com.bas1minute.sync.api.Welcome.restoreOffer.value = false
+                if (com.bas1minute.sync.sync.JournalRestore.localStorageIsEmpty(ctx)) showRestoreOffer = true
+            }
+        }
+    }
+    if (showRestoreOffer) RestoreOfferDialog(app, onDismiss = { showRestoreOffer = false })
     // A walk/run was just saved (from the screen or the notification): show its summary
     LaunchedEffect(Unit) {
         com.bas1minute.sync.track.LiveTrack.justFinished.collect { id ->
@@ -202,3 +214,36 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
     }
 }
 
+
+/**
+ * Shown once, only when a reinstall on the same phone is recognised AND local Goals/Diary/Detox storage is
+ * confirmed genuinely empty — see JournalRestore.kt for why that check matters before anything is written.
+ */
+@Composable
+private fun RestoreOfferDialog(app: AppController, onDismiss: () -> Unit) {
+    var restoring by remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!restoring) onDismiss() },
+        title = { Text("Restore your backed-up data?") },
+        text = {
+            Text(
+                "This phone was recognised as one you've used before, and it had goals, diary and detox " +
+                    "history backed up to the website. Bring that back to this install?",
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(enabled = !restoring, onClick = {
+                restoring = true
+                app.launch {
+                    val result = com.bas1minute.sync.sync.JournalRestore.run(app.ctxForPush)
+                    restoring = false
+                    app.message = result.message
+                    onDismiss()
+                }
+            }) { Text(if (restoring) "Restoring…" else "Restore it", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(enabled = !restoring, onClick = onDismiss) { Text("Not now") }
+        },
+    )
+}

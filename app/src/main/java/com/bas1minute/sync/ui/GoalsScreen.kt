@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -89,6 +90,9 @@ fun GoalsScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
     val store = remember { GoalStore(ctx) }
     var goals by remember { mutableStateOf<List<Goal>>(emptyList()) }
     var checkins by remember { mutableStateOf<Map<Long, Boolean>>(emptyMap()) }   // today's custom check-ins
+    // Distinct from goals.isEmpty(): without this, the "set your first goal" card would flash for a frame
+    // on every open, even for someone with goals already saved, before the real list has loaded.
+    var loading by remember { mutableStateOf(true) }
     var reload by remember { mutableIntStateOf(0) }
     var showAdd by remember { mutableStateOf(false) }
     val today = remember { LocalDate.now() }
@@ -100,6 +104,7 @@ fun GoalsScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
         checkins = withContext(Dispatchers.IO) {
             loaded.filter { it.kind == GoalKind.Custom }.associate { it.id to (store.checkin(it.id, today)?.done ?: false) }
         }
+        loading = false
     }
 
     Column(Modifier.fillMaxSize().background(Paper).verticalScroll(rememberScrollState())) {
@@ -130,7 +135,10 @@ fun GoalsScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
         }
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (goals.isEmpty()) {
+            if (loading) {
+                Skeleton(Modifier.fillMaxWidth().height(72.dp))
+                Skeleton(Modifier.fillMaxWidth().height(72.dp))
+            } else if (goals.isEmpty()) {
                 AppCard {
                     Text("🎯", style = MaterialTheme.typography.displayMedium)
                     Text(t("Set your first goal"), style = MaterialTheme.typography.titleLarge)

@@ -110,7 +110,11 @@ private fun CircleList(app: AppController) {
             Text("Your circles", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             data?.let { Text("You own ${it.owned} of ${if (it.ownedLimit >= 999) "∞" else it.ownedLimit}", style = MaterialTheme.typography.labelMedium, color = Muted) }
         }
-        if (data == null || data.circles.isEmpty()) {
+        if (data == null) {
+            // Distinct from genuinely having zero circles: this loads over the network, so without this,
+            // "start a circle" could sit there — wrongly — for however long a slow connection takes.
+            Skeleton(Modifier.fillMaxWidth().height(96.dp))
+        } else if (data.circles.isEmpty()) {
             AppCard {
                 Badge("👨‍👩‍👧", Color(0xFFFFF3C8), 72)
                 Text("Fitness is easier together", style = MaterialTheme.typography.titleLarge)

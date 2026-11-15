@@ -100,6 +100,123 @@ photo) plus a one-a-day reflection — how hard you worked toward your goals and
 on two 1-5 scales, with a note. "On this day" resurfaces a milestone from a past year automatically. A reflection
 streak, and an honest effort-vs-satisfaction read-out over time. All phone only, never synced, even with sharing on.
 
+**v2.3.3: Detox stops polling at full speed while the screen is off** — the live block-screen check ran every
+0.6 seconds unconditionally, even with the screen off, when nobody can freshly open a blocked app anyway.
+This mattered little for a quick manual detox, but Schedules (just built) makes long overnight sessions
+routine — a 9-hour bedtime window where the phone sits untouched, screen off, for most of it. Now the check
+backs off to once every 30 seconds while the screen is off, and a screen-on broadcast receiver cancels that
+wait immediately the moment the screen turns back on — resuming full 0.6s-speed checking right away, rather
+than waiting out whatever's left of a slow interval, since the screen turning on is exactly the moment someone
+could open a blocked app. The wake lock itself is unchanged (the OEM throttling it guards against isn't only a
+screen-off phenomenon) — only the poll interval adapts. Compiles clean with zero errors against the real
+Android SDK (this file depends only on core framework APIs, no missing third-party jars to account for). See
+detox/DetoxService.kt.
+
+**v2.3.2: One background wake-up instead of up to four** — a battery audit found that Session Guard, Schedules
+and App Timers had each registered their own independent 15-minute periodic job, on top of the battery/phone-
+health logger that was ALREADY running on that same cadence — up to four separate OS wake-ups every 15
+minutes for a member using all three opt-in features, three of which were pure duplication. All three now
+ride on that single already-scheduled tick instead of registering their own: SessionGuardWorker, ScheduleWorker
+and AppTimerWorker are gone as WorkManager jobs entirely, replaced by plain SessionGuardChecker/
+ScheduleChecker/AppTimerChecker objects the shared tick calls directly — same behavior, same tests, one wake-
+up instead of up to four. The foreground app is now looked up once per tick and passed to both checks that
+need it, rather than each separately querying UsageStatsManager. Also fixed in the process: Schedules'
+periodic job was being unconditionally registered at every app start even for members who had never created
+a single schedule — it now costs nothing beyond the tick that was already happening for battery logging.
+124 unit tests unaffected; this is purely how the checks are triggered, not what they do. See
+phone/BatteryLog.kt.
+
+**v2.3.1: App Timers — a real daily limit per app, not just a nudge** — closes the gap Session Guard always
+had: it could only ever nudge someone using Instagram's own app past 15 minutes, never actually stop them the
+way Site Guard already stops facebook.com in a browser. Detox → "App Timers": a short, member-chosen list of
+apps, each with the same kind of daily time budget (15–180 min, default 30) Site Guard already gives a
+website — spend it, and the app is paused until midnight. No new permission: Android's own UsageStatsManager
+already tracks exact foreground time per app, so unlike Site Guard this needed no incremental accumulation
+logic at all, just a direct daily-total query. Shares its budget math with Site Guard (SiteGuardLogic) rather
+than duplicating it — one definition of "over budget" used by both. Checked every 15 minutes, the same
+battery-respecting cadence as Session Guard and Schedules, with the same honest trade-off: blocking can lag a
+few minutes behind the exact limit, which a persistent always-on service could avoid but only at the cost of
+its own permanent notification. See detox/AppTimerLogic.kt, detox/AppTimerWorker.kt, detox/AppTimerOverlay.kt.
+
+**v2.3.0: Schedules — Detox that starts and ends itself** — the single clearest gap against every well-known paid
+focus app (Freedom's Scheduled Sessions, Opal's Schedules, Digital Wellbeing's own Bedtime mode): until now,
+Detox only ever ran if a member remembered to start it. A new "Schedules" section in Detox lets a member set
+recurring windows — any days, any start/end time, including overnight ones that cross midnight (tested
+specifically, since that's the easiest place to get an off-by-one wrong) — that auto-start and auto-end a
+detox using exactly the block choices already set up in Detox itself: no separate category list to configure
+twice, no new permission, no new risky subsystem — it's the same DetoxController, BlockOverlay and block-list
+every existing Detox session already uses, just started by a 15-minute periodic check instead of a tap. Never
+touches a detox a member started by hand. See schedule/ScheduleLogic.kt, schedule/ScheduleStore.kt,
+schedule/ScheduleWorker.kt.
+
+**v2.2.1: Sync is now a real backup, with restore after reinstall** — the one-way "mirror to the website" sync
+became a genuine backup: if a phone is recognised as one that synced before (same device, same way auth/device/
+already reconnects circles and ranking after a reinstall) and local Goals/Diary/Detox storage is genuinely
+empty, the app now offers to bring that history straight back — life goals, milestones, diary entries and
+their photos, habit goals and check-ins, detox sessions, all of it, keyed by the SAME ids they had before so a
+normal sync afterward never creates duplicates. Deliberately scope-limited rather than a general two-way sync:
+restore only ever runs when local storage is confirmed empty first, so there's no merge logic to get wrong —
+if anything is already there, it says so and changes nothing. A manual "Restore from backup" button in Profile
+covers it too, for whenever the automatic prompt was dismissed or didn't fire. See sync/JournalRestore.kt.
+
+**v2.2.0: Block specific time-wasting websites, inside any browser** — Profile → "Block distracting websites":
+a small daily time budget per site (15 min default, adjustable) for a member's own list (facebook.com,
+instagram.com, youtube.com, x.com, tiktok.com, reddit.com... editable), enforced in any browser — Chrome,
+Firefox, Samsung Internet and the rest. Once a site's budget for today is spent, it's paused until midnight;
+every OTHER site in the same browser — work, email, banking, search — is never touched. This needed
+Accessibility access to read the browser's own address bar (the only way to see which WEBSITE is open, as
+opposed to which app), so it's a deliberate two-step turn-on: a full in-app disclosure screen explains exactly
+what it reads and doesn't, before Android's own Accessibility settings ever open — the app can never grant
+this to itself. The accessibility service's own config file restricts it, at the OS level, to receiving events
+from browser apps only: WhatsApp, banking apps and everything else cannot send it anything, not by policy but
+because Android itself won't deliver those events. Phone-only, like every guard before it. See
+siteguard/SiteGuardLogic.kt, siteguard/SiteGuardAccessibilityService.kt, siteguard/SiteGuardOverlay.kt.
+
+**v2.1.5: Catches a long, unbroken scroll before it eats the day** — Profile → "Long-session nudges," on by
+default: checked every 15 minutes (Android's own minimum for this kind of background work, which happens to
+match exactly what was asked for), it looks at whether the person is, right now, in the middle of an unbroken
+stretch on one distracting app — Instagram, YouTube, Facebook, any browser (reuses AppRules.isDistracting, the
+same definition Detox's clean hours already use). A notification glance or quick app-switch-and-back under 90
+seconds doesn't reset the clock — real sessions have micro-interruptions. Three nudges per continuous session,
+escalating — 1st gentle and reflective, 2nd a direct offer to start a detox, 3rd the last one — then silence for
+the rest of that session rather than repeating forever; tested explicitly for never using shaming language.
+Its own notification channel and its own toggle, independent of the four scheduled daily nudges, so a member can
+turn either off without the other. Phone-only, same as every nudge before it: nothing to sync to the website.
+See nudge/SessionGuard.kt and nudge/SessionGuardWorker.kt.
+
+**v2.1.4: A fourth check-in for hard mornings, plus the occasional surprise** — a new 10 AM check (Nudges.isSlowStart)
+looks at steps so far against a generous floor (not the daily goal — nobody reasonably hits that by mid-morning)
+and, only on a genuinely slow start, sends one supportive nudge ("hard days happen" framing, never shaming
+language — tested for it). Silent on an ordinary morning, same restraint as the rest of the system. Separately,
+a new MotivationWorker fires once a day at a random time (11:00-20:00, picked fresh each day) with a short
+encouraging line from a rotating pool that never repeats itself back-to-back — unlike the four fixed check-ins,
+this one is deliberately unpredictable. Both respect the same rules as the existing nudges: silent during a
+detox, silent without notification permission, share the "Daily nudges" toggle rather than adding a new setting.
+Phone-only, like every nudge before it — nothing to sync to the website, which has its own, separate,
+server-authored push-campaign system for admin-sent messages. See nudge/Nudges.kt and nudge/MotivationWorker.kt.
+
+**v2.0.5: Finished the loading-state audit** — Circles had the same bug as Goals/Diary/Life goals, and a more
+visible version of it: "Your circles" treated `data == null` (not loaded yet — this one loads over the network,
+so it can take a real moment) the same as "genuinely has zero circles," so the "start a circle" prompt could sit
+there wrongly for however long a slow connection took. Fixed with the same Skeleton pattern. Checked Move and the
+other two Circles sections (Global ranking card, your pending requests, Competitions) too: all three already
+handled loading correctly — Move just used plain "Loading…" text where Skeleton is now the house style, so that
+one line was swapped for visual consistency, not because it was wrong.
+
+**v2.0.4: No more flash of the wrong empty state** — Goals, Life goals and Diary's timeline each start with an
+empty list by default, then fill in once SQLite has actually loaded — the problem is that's the exact same shape
+as the real empty-state, so for a frame on every single open (even for someone with years of data saved), the
+"add your first goal" / "your story starts here" card flashed before the real content replaced it. All three now
+track loading separately from empty, and show the existing `Skeleton()` placeholder in between — previously
+only used in one screen in the whole app. Phone-only change, nothing to sync to the website: this is purely how
+the phone looks while its own local data loads.
+
+**v2.0.3: Diary gets the same streak badges as Detox** — a daily-reflection streak (already shown as a number)
+now earns the same 3/7/21/50/100-day badges and one-time confetti celebration as Digital detox's focus streak,
+reusing the same StreakLogic thresholds rather than inventing a second set. The website's Diary page shows the
+same badges now too, with identical wording, so the app and the website never disagree about what counts as a
+badge.
+
 **v2.0.2: Celebration, where it was missing** — the app already had a well-built confetti-and-haptic
 celebration for the daily step goal; it just wasn't used anywhere else. Extended to the two moments that
 arguably deserve it more: finishing a life goal (shows their own "why" read back to them, not just a plain
