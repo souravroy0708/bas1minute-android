@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bas1minute.sync.AppController
 import com.bas1minute.sync.detox.AppRules
 import com.bas1minute.sync.detox.AppTimerLogic
 import com.bas1minute.sync.detox.UsageReader
