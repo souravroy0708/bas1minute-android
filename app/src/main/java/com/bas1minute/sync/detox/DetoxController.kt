@@ -107,7 +107,10 @@ object DetoxController {
         val rules = AppRules(ctx, emptySet(), emptySet())
         val to = minOf(nowMs, dayStartMs + DetoxLogic.DAY)
         val distracting = UsageReader(ctx).intervals(dayStartMs, to, rules::isDistracting)
-        return DetoxLogic.hourCells(dayStartMs, store.dayFirstHour, 24, nowMs, distracting)
+        // The full calendar day (12am-11pm), not just store.dayFirstHour onward — a member specifically
+        // asked to see the overnight hours too, since phone use between 11pm and 6am is exactly what the
+        // UI should be calling out (see HourBox's sleep-window highlighting in DetoxScreen.kt).
+        return DetoxLogic.hourCells(dayStartMs, 0, 24, nowMs, distracting)
     }
 
     /** Clean hours for each of the last [days] days, oldest first (Android keeps about a week of events). */

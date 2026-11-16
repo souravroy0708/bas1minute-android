@@ -75,7 +75,7 @@ private fun Stat(number: String, text: String, source: String) {
 @Composable
 fun IdeaContent() {
     Title("Busy people don’t need an hour.",
-        "Half of Indian adults don’t move enough, and most say time is the reason. So we stopped asking for time.")
+        "Half of Indian adults don’t move enough, and most say time is the reason. So we stopped asking for time — and started building the rest of the day around it too: the focus to protect it, the goals to aim it at, and the people to keep you honest.")
     Stat("49.4%", "of Indian adults didn’t meet WHO activity levels in 2022, up from 22.3% in 2000.", "Lancet Global Health")
     Stat("56.4%", "of Indian adults surveyed named lack of time as their top reason for not exercising.", "Survey of Indian adults, PMC")
     Stat("136M", "Indians have prediabetes, a window where moving more can still change the outcome.", "ICMR-INDIAB")
@@ -95,10 +95,25 @@ fun IdeaContent() {
         ))
         Text("A handful of nudges a day, never during a detox — turn any of them off in Profile.", style = MaterialTheme.typography.bodySmall, color = Muted)
     }
+    AppCard(title = "Then we built the other half: protecting your time") {
+        Points(listOf(
+            "Digital detox" to "Pause social media and browsers for a time you choose — a real pause screen, not just a reminder.",
+            "Schedules" to "Set it once — every night, every weekday — and detox starts and ends itself from then on.",
+            "App Timers & Site Guard" to "A small daily budget per app or per distracting website. Spend it, and just that one thing pauses until tomorrow — everything else keeps working.",
+            "A tap on the shoulder" to "Lost track of time on one app? A gentle nudge at 15, 30 and 45 minutes in a single sitting, never more than that.",
+        ))
+    }
+    AppCard(title = "And something to aim all that time at") {
+        Points(listOf(
+            "Daily goals" to "Steps, sleep, screen time, or a custom habit of your own — a streak worth keeping.",
+            "Life goals" to "Short, mid and long-term, with your own why and a plan for when it gets hard.",
+            "Diary" to "Milestones and how each day actually felt — the story behind the numbers.",
+        ))
+    }
     AppCard(title = "Built to last past week three") {
         Points(listOf(
             "Start tiny" to "One burst a day in week one; the target grows with you.",
-            "Family circles" to "Accountability from people who matter.",
+            "Family circles" to "Accountability from people who matter — plus an all-India ranking and seasonal competitions, if you want more.",
             "Points against your own goals" to "So every age competes fairly.",
             "A minute of calm" to "Mind ka workout counts too.",
         ))
@@ -114,20 +129,25 @@ fun IdeaContent() {
 
 @Composable
 fun DifferentContent() {
-    Title("Built for a day with no free hour.", "Other apps each do one piece well. We put the pieces together for busy Indian families.")
+    Title("Built for a day with no free hour.",
+        "Other apps each do one piece well — a step counter, a focus-mode blocker, a journal. We put all of it in one place for busy Indian families.")
     AppCard(title = "What’s already out there") {
         Points(listOf(
             "Step-to-unlock apps" to "Lock social apps until you walk. We add bursts, daily moments and family circles.",
             "Exercise-to-unlock apps" to "Push-ups before scrolling. We build a whole day of small moments, on Android first.",
             "Government fitness app" to "Free tests and a tracker. We add the daily nudges that turn a test into a habit.",
             "Large fitness platforms" to "Classes, coaching and diet tracking. We’re for people who say they have no time.",
+            "Focus and blocker apps" to "Freedom, Forest, Opal and similar apps block well. We add the same blocking — but it’s the same app that’s already tracking your steps, your goals and your family circle, so focus time isn’t a separate subscription and a separate account to manage.",
         ))
     }
     AppCard(title = "The combination is the point") {
         Points(listOf(
             "One-minute bursts" to "", "Built on moments you already have" to "", "Private family circles" to "",
             "Social media time check" to "See where the hours go, and what they could become.",
+            "Real app and website blocking" to "Digital detox, Schedules, App Timers and Site Guard — not just one.",
+            "Daily goals, life goals and a diary" to "What you’re building toward, and the story of getting there.",
             "India-first, Hindi and English" to "", "Free core, runs on your phone’s own sensors" to "",
+            "One app, one account" to "No separate subscription or sign-in for the focus tools.",
         ))
     }
     AppCard(title = "What we leave out, on purpose") {
@@ -136,6 +156,7 @@ fun DifferentContent() {
             "No body-shaming" to "No before-and-after photos, no guilt trips.",
             "No public leaderboards" to "Only the people you invite see your progress.",
             "No promised outcomes" to "We say “linked to”, never “will add years”.",
+            "No guilt-trip blocking" to "A pause screen and a clear choice when something’s paused — never a shaming message.",
         ))
     }
 }
@@ -147,13 +168,16 @@ fun FreeContent() {
     AppCard(title = "What’s free") {
         Points(listOf(
             "The 7K + 4 ring, bursts and calm" to "", "Steps, screen time and social media time check" to "",
-            "Sleep, water and weight (optional)" to "", "Family and friends circles" to "",
+            "Sleep, water and weight (optional)" to "", "Family and friends circles, ranking and competitions" to "",
+            "Digital detox, Schedules, App Timers and Site Guard" to "",
+            "Daily goals, life goals and your diary" to "",
             "Hindi and English" to "", "Gentle mode and safety features" to "",
         ))
     }
     AppCard(title = "Why we can keep it free") {
         Points(listOf(
             "Your phone does the work" to "Counting happens on sensors your phone already has.",
+            "The focus tools run here too" to "Detox, App Timers and Site Guard work everything out on your own phone — no server cost that grows with every member.",
             "No AI bill" to "Every extra user costs very little to run.",
             "No paid installs" to "We grow through family invites and word of mouth.",
         ))
@@ -170,6 +194,7 @@ fun FreeContent() {
         Points(listOf(
             "The core stays free." to "", "We don’t sell your data." to "Sponsors and employers only ever see totals.",
             "Your camera stays yours." to "", "Safety is never a paid extra." to "",
+            "The focus tools stay free too." to "Detox, Schedules, App Timers and Site Guard are not held back for a future paid tier.",
         ))
     }
 }

@@ -100,6 +100,28 @@ photo) plus a one-a-day reflection — how hard you worked toward your goals and
 on two 1-5 scales, with a note. "On this day" resurfaces a milestone from a past year automatically. A reflection
 streak, and an honest effort-vs-satisfaction read-out over time. All phone only, never synced, even with sharing on.
 
+**v2.3.5: The Today hour grid now shows the whole day, and flags overnight phone use in red** — two fixes
+from a member screenshot. First, "Used" was a light coral that read as too close to "Clean" green at a glance;
+it's now the same strong red (Danger) the rest of the app already uses for warnings, with white text for
+contrast — matching what was asked for directly. Second, the grid only ever showed 6am–11pm; the underlying
+hour-cell logic already supported a full 24-hour day (it just wasn't being asked for one), so this was a
+one-line fix at the call site, not a rewrite — it now shows all 24 hours, midnight to 11pm, so the early-morning
+hours aren't invisible. New: any hour between 11pm and 6am that shows as "Used" gets an extra gold border on
+top of the same red fill — the one span of the day the app explicitly recommends no phone use at all, now
+visually called out as more than just an ordinary busy hour, with a line explaining the gold border beneath the
+legend. One new test (hourCells_fromMidnight...) confirms the full-day range and that an overnight use shows up
+correctly; 124 tests total still pass. See detox/DetoxController.kt and ui/DetoxScreen.kt (HourBox, SLEEP_HOURS).
+
+**v2.3.4: Fixed a real layout bug in every full-screen story/dialog** — the Week in Review story (and five
+other full-screen dialogs: celebrations, the walk/run summary, the detox block-choice picker, the share sheet,
+Phone Check) showed a gap at the very top and bottom of the screen where the screen underneath bled through,
+with "Close"/"Next" sometimes appearing to render twice. Root cause: a Compose `Dialog` opens its own separate
+Android window, which does NOT inherit the main Activity's own edge-to-edge configuration — even with
+`usePlatformDefaultWidth = false`. Added one shared `EdgeToEdgeDialogWindow()` call (Components.kt) that every
+affected dialog now calls as its first line, explicitly disabling that window's own auto-fit-to-system-bars
+behavior so it draws truly edge-to-edge like the rest of the app, with its own existing `statusBarsPadding()`/
+`navigationBarsPadding()` modifiers doing all the positioning, as intended. 124 tests unaffected (UI-only fix).
+
 **v2.3.3: Detox stops polling at full speed while the screen is off** — the live block-screen check ran every
 0.6 seconds unconditionally, even with the screen off, when nobody can freshly open a blocked app anyway.
 This mattered little for a quick manual detox, but Schedules (just built) makes long overnight sessions

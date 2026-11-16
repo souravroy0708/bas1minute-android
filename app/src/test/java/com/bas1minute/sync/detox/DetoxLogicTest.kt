@@ -123,4 +123,18 @@ class DetoxLogicTest {
         assertEquals("1 h 30 min", DetoxLogic.formatMinutes(90))
         assertEquals("6 PM", DetoxLogic.hourLabel(18))
     }
+
+    @Test fun hourCells_fromMidnight_coversTheFullDayIncludingOvernightHours() {
+        // DetoxController now calls hourCells(dayStartMs, 0, 24, ...) instead of starting at 6 — a member
+        // specifically asked to see 12am-5am too, not just 6am-11pm (see DetoxScreen.kt's sleep-window highlight).
+        val now = day + 20 * HOUR
+        val usedOvernight = listOf(Interval("com.instagram.android", day + 2 * HOUR + 10 * MINUTE, day + 2 * HOUR + 40 * MINUTE))
+        val cells = DetoxLogic.hourCells(day, 0, 24, now, usedOvernight)
+        assertEquals(24, cells.size)
+        assertEquals(0, cells.first().hour)    // 12am is the first cell now, not 6am
+        assertEquals(23, cells.last().hour)    // 11pm is still the last cell of the same day
+        assertEquals(HourState.USED, cells[2].state)   // 2am, inside the sleep window a member should be asleep in
+        assertEquals("com.instagram.android", cells[2].usedBy)
+        assertEquals(HourState.CLEAN, cells[1].state)  // 1am: no use recorded, still counts as a clean hour
+    }
 }

@@ -519,21 +519,39 @@ private fun TodayCard(usageOk: Boolean, cells: List<HourCell>, day: DaySummary) 
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Legend(CleanGreen, t("Clean")); Legend(Coral, t("Used")); Legend(PaperLine, t("Still to come"))
+            Legend(CleanGreen, t("Clean")); Legend(Danger, t("Used")); Legend(PaperLine, t("Still to come"))
+        }
+        if (cells.any { it.state == HourState.USED && it.hour in SLEEP_HOURS }) {
+            Text(t("Outlined in gold: used between 11pm and 6am — you should be asleep then"),
+                style = MaterialTheme.typography.bodySmall, color = Muted)
         }
     }
 }
 
+/** 11pm through 5am — the window the app recommends no phone use at all. A cell in here that's HourState.USED
+ * gets the same red as any other used hour, plus an extra border, so it reads as more than an ordinary busy
+ * hour: this one is the one the member specifically asked to have called out. */
+private val SLEEP_HOURS = setOf(23, 0, 1, 2, 3, 4, 5)
+
 @Composable
 private fun HourBox(c: HourCell, modifier: Modifier) {
-    val bg = when (c.state) { HourState.CLEAN -> CleanGreen; HourState.USED -> Coral; HourState.IN_PROGRESS -> Color.Transparent; HourState.FUTURE -> PaperLine }
-    val fg = when (c.state) { HourState.CLEAN -> Color.White; HourState.USED -> Ink; else -> Muted }
+    // Clean vs used used to be green vs a light coral — too close in value for some members to tell apart at
+    // a glance. Used is now the same strong red the rest of the app already uses for warnings (Danger), with
+    // white text for contrast against it, rather than a soft color closer to green's own lightness.
+    val bg = when (c.state) { HourState.CLEAN -> CleanGreen; HourState.USED -> Danger; HourState.IN_PROGRESS -> Color.Transparent; HourState.FUTURE -> PaperLine }
+    val fg = when (c.state) { HourState.CLEAN -> Color.White; HourState.USED -> Color.White; else -> Muted }
+    val sleepViolation = c.state == HourState.USED && c.hour in SLEEP_HOURS
     val desc = "${DetoxLogic.hourLabel(c.hour)}: " + when (c.state) {
-        HourState.CLEAN -> "clean"; HourState.USED -> "used"; HourState.IN_PROGRESS -> "in progress"; HourState.FUTURE -> "not yet"
+        HourState.CLEAN -> "clean"; HourState.IN_PROGRESS -> "in progress"; HourState.FUTURE -> "not yet"
+        HourState.USED -> if (sleepViolation) "used — during a recommended no-phone hour" else "used"
     }
     Box(
         modifier.height(40.dp).clip(RoundedCornerShape(10.dp)).background(bg)
-            .then(if (c.state == HourState.IN_PROGRESS) Modifier.border(2.dp, CleanGreen, RoundedCornerShape(10.dp)) else Modifier)
+            .then(when {
+                sleepViolation -> Modifier.border(2.dp, Haldi, RoundedCornerShape(10.dp))
+                c.state == HourState.IN_PROGRESS -> Modifier.border(2.dp, CleanGreen, RoundedCornerShape(10.dp))
+                else -> Modifier
+            })
             .semantics { contentDescription = desc },
         contentAlignment = Alignment.Center,
     ) { Text(DetoxLogic.hourLabel(c.hour).replace(" ", "").lowercase(), color = fg, fontSize = 11.sp, maxLines = 1) }
@@ -672,6 +690,7 @@ private fun DetoxShareSheet(streak: Int, best: Int, total: Int, onDismiss: () ->
     val card = remember(streak) { DetoxShareCard.render(ctx, streak, best, total) }
     val caption = "$streak day${if (streak == 1) "" else "s"} of focus, 3+ hours a day, on Bas 1 Minute 🧠 #Bas1Minute"
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        EdgeToEdgeDialogWindow()
         Column(
             Modifier.fillMaxWidth().padding(12.dp).clip(RoundedCornerShape(28.dp)).background(Paper).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

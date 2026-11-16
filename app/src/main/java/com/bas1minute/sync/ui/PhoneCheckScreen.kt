@@ -488,6 +488,7 @@ private fun AppDetail(a: AppUse, r: Report, onClose: () -> Unit) {
     val battery = r.appBattery.firstOrNull { it.pkg == a.pkg }
     val mine = r.findings.filter { it.pkg == a.pkg }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        EdgeToEdgeDialogWindow()
         Column(
             Modifier.fillMaxWidth().padding(12.dp).clip(RoundedCornerShape(28.dp)).background(Paper)
                 .verticalScroll(rememberScrollState()).padding(18.dp),

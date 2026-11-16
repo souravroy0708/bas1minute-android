@@ -77,6 +77,7 @@ fun ShareSheet(app: AppController, onShareImage: (Bitmap, String) -> Unit) {
     }
 
     Dialog(onDismissRequest = { app.shareKind = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        EdgeToEdgeDialogWindow()
         Column(
             Modifier.fillMaxWidth().padding(16.dp).clip(RoundedCornerShape(28.dp)).background(Paper)
                 .verticalScroll(rememberScrollState()).padding(16.dp),

@@ -62,6 +62,7 @@ private fun ConfettiDialog(onClose: () -> Unit, content: @Composable ColumnScope
         t.animateTo(1f, tween(2800, easing = LinearEasing))
     }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        EdgeToEdgeDialogWindow()
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 pieces.forEach { p ->

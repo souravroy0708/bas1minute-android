@@ -63,6 +63,23 @@ object AppUpdate {
 
     private val mine = BuildConfig.VERSION_CODE
 
+    /** For display in Profile: the version actually installed on this phone. */
+    val myVersionName: String = BuildConfig.VERSION_NAME
+    val myVersionCode: Int = mine
+
+    /**
+     * The version code Google Play itself last reported as available for this phone — null until
+     * PlayUpdater.checkPlay() has actually heard back from Play at least once this run. Distinct from
+     * [status]: that's "what should happen" (current/available/required, combined with the server's own
+     * kill-switch/force-update signals); this is "what Play literally told us", for showing real version
+     * numbers rather than just a status word. A StateFlow, not a plain var, so a screen already open when
+     * Play's answer arrives (checkPlay runs on resume, asynchronously) actually updates instead of being
+     * stuck on "checking…" forever.
+     */
+    val playVersionCode = MutableStateFlow<Int?>(null)
+
+    fun applyPlayVersion(code: Int) { playVersionCode.value = code }
+
     /** From GET info/: {"app": {"latest_version_code", "min_version_code", "message", "store_url"}}. */
     fun applyServer(app: JSONObject?) {
         app ?: return
@@ -115,6 +132,7 @@ class PlayUpdater(private val activity: ComponentActivity) {
     fun checkPlay(busy: () -> Boolean = { false }) = guard {
         manager.appUpdateInfo.addOnSuccessListener { info ->
             val available = info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+            AppUpdate.applyPlayVersion(info.availableVersionCode())
             AppUpdate.applyPlay(when {
                 !available -> AppUpdate.Status.Current
                 // Every release is required; without the policy, Play priority 4-5 (set at upload) still is

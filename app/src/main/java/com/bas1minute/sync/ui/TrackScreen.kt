@@ -913,6 +913,7 @@ private fun RouteShareSheet(app: AppController, r: ActivityRow, points: List<Tra
     val fileName = "bas1minute-${r.type.id}-${Instant.ofEpochMilli(r.startedAt).atZone(ZoneId.systemDefault()).toLocalDate()}.png"
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        EdgeToEdgeDialogWindow()
         Column(
             Modifier.fillMaxWidth().padding(12.dp).clip(RoundedCornerShape(28.dp)).background(Paper)
                 .verticalScroll(rememberScrollState()).padding(16.dp),
@@ -955,6 +956,7 @@ private fun Countdown(onDone: () -> Unit, onCancel: () -> Unit) {
         onDone()
     }
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        EdgeToEdgeDialogWindow()
         Box(Modifier.fillMaxSize().background(Ink.copy(alpha = 0.92f)).clickable(onClick = onCancel), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(if (n > 0) "$n" else "Go!", color = Haldi, style = MaterialTheme.typography.displayLarge.copy(fontSize = 140.sp, lineHeight = 140.sp))

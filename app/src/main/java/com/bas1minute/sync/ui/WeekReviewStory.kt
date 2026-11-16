@@ -77,6 +77,7 @@ fun WeekReviewStory(app: AppController) {
     }
 
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        EdgeToEdgeDialogWindow()
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Ink, Color(0xFF232963))))) {
             HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
                 Column(

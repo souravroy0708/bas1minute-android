@@ -31,6 +31,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,10 +40,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import com.bas1minute.sync.AppController
+import com.bas1minute.sync.AppUpdate
 import com.bas1minute.sync.api.Res
 import org.json.JSONObject
 
@@ -432,6 +435,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             LinkRow("Free for everyone", "Why the core stays free") { app.aboutPage = "free" }
             LinkRow("Privacy", "What the app reads and sends, and your choices") { app.aboutPage = "privacy" }
             LinkRow("Phone-specific help", "Settings for your ${com.bas1minute.sync.PhoneHelp.device().brand}: usage access, battery") { app.aboutPage = "help" }
+            VersionRow(actions)
         }
 
         SectionHeader(t("Danger zone"))
@@ -470,6 +474,36 @@ private fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         Text("›", style = MaterialTheme.typography.headlineMedium, color = Muted)
+    }
+}
+
+/**
+ * This phone's own installed version, and — straight from Google Play's own in-app update check (not a
+ * guess, and not the server's own separate "latest_version_code", which exists mainly as a fallback for
+ * phones that didn't install from Play) — whether Play currently has something newer. playVersionCode is a
+ * StateFlow specifically so this updates live if Play answers while this screen is already open, rather than
+ * being stuck on "checking…" until the member backs out and reopens Profile.
+ */
+@Composable
+private fun VersionRow(actions: PhoneActions) {
+    val playCode by AppUpdate.playVersionCode.collectAsState()
+    val installed = AppUpdate.myVersionCode
+    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(t("App version"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+            Text(
+                "${AppUpdate.myVersionName} (build $installed) · " + when {
+                    !AppUpdate.playInstall -> t("installed outside Google Play — can't check for updates here")
+                    playCode == null -> t("checking Google Play…")
+                    installed >= (playCode ?: installed) -> t("you're on the latest version")
+                    else -> "${t("Google Play has build")} $playCode"
+                },
+                style = MaterialTheme.typography.bodySmall, color = Muted,
+            )
+        }
+        if (AppUpdate.playInstall && playCode != null && installed < (playCode ?: installed)) {
+            SmallPill(t("Update"), actions.onUpdateApp)
+        }
     }
 }
 

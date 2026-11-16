@@ -2,6 +2,10 @@ package com.bas1minute.sync.ui
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,6 +46,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+/**
+ * Call this as the very first line inside every full-screen `Dialog(properties =
+ * DialogProperties(usePlatformDefaultWidth = false)) { ... }` block in the app.
+ *
+ * A Compose `Dialog` opens its own separate Android window — it does NOT inherit the main Activity's own
+ * `enableEdgeToEdge()` call (see MainActivity.kt), even with usePlatformDefaultWidth = false. Without this,
+ * the dialog's window still lets the system auto-fit its content away from the status and navigation bars,
+ * which both reserves space the dialog's own statusBarsPadding()/navigationBarsPadding() modifiers ALSO
+ * reserve (double-padding some content down awkwardly) and, worse, leaves a gap at the very top/bottom of
+ * the screen where the screen underneath shows through, since the dialog's own background never gets
+ * painted into that reserved strip. This disables that auto-fit on the dialog's own window specifically, so
+ * it behaves exactly like the host Activity: truly edge-to-edge, with the dialog's own inset modifiers doing
+ * all of the positioning.
+ */
+@Composable
+fun EdgeToEdgeDialogWindow() {
+    val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+    SideEffect { dialogWindow?.let { WindowCompat.setDecorFitsSystemWindows(it, false) } }
+}
 
 /** Two concentric rings: steps on the outside, screen time on the inside. Animates on change. */
 @Composable
