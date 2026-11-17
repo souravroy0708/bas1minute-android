@@ -61,8 +61,7 @@ class UsageReader(context: Context) {
     /**
      * Total foreground time for one app so far today (local calendar day, midnight to [nowMs]) — straight
      * from Android's own aggregated usage stats, which already handles summing every separate visit itself.
-     * Used for App Timers' daily budget; unlike Site Guard's per-website tracking, there's no need to build
-     * this up one event at a time, since Android already tracks foreground time per APP natively.
+     * Used for App Timers' daily budget — no need to build this up one event at a time.
      */
     fun totalTodayMs(pkg: String, nowMs: Long): Long {
         val dayStart = java.time.LocalDate.now()

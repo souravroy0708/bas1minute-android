@@ -93,7 +93,7 @@ class UsageAlertWorker(context: Context, params: WorkerParameters) : CoroutineWo
             }
             val open = PendingIntent.getActivity(
                 ctx, 7500,
-                Intent(ctx, MainActivity::class.java).putExtra(com.bas1minute.sync.detox.DetoxService.EXTRA_OPEN, "today")
+                Intent(ctx, MainActivity::class.java).putExtra(com.bas1minute.sync.detox.DetoxWatch.EXTRA_OPEN, "today")
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )

@@ -38,9 +38,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * "App Timers": a daily time budget per app — Instagram, TikTok, Facebook, the member's own short list —
- * blocked once it's spent, resetting at midnight. The same promise Site Guard already makes for specific
- * websites, now for the apps themselves, closing the gap where a native app could only ever be nudged
- * (Session Guard) but never actually stopped the way a website already can be.
+ * resetting at midnight. Once spent, a reminder with a one-tap "Close it" (see AppTimerChecker). For a lock
+ * that can't be skipped, the card sends the member to Android's own Digital Wellbeing app timers.
  */
 @Composable
 fun AppTimerCard(app: AppController) {
@@ -64,7 +63,7 @@ fun AppTimerCard(app: AppController) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("A daily time limit, per app", style = MaterialTheme.typography.titleMedium)
-                Text("Once an app's minutes for today are spent, it's paused until tomorrow — no detox session to start.",
+                Text("Once an app's minutes for today are spent, we remind you to close it (checked about every 15 minutes).",
                     style = MaterialTheme.typography.bodySmall, color = Muted)
             }
             Switch(checked = enabled, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
@@ -89,6 +88,13 @@ fun AppTimerCard(app: AppController) {
                 }
             }
             TextButton(onClick = { showPicker = true }) { Text(t("Edit the list"), color = Blue) }
+            Text("Want the app to lock itself when time's up? Set the same limit in Android's Digital Wellbeing — " +
+                "no extra permission for Bas 1 Minute.", style = MaterialTheme.typography.bodySmall, color = Muted)
+            TextButton(onClick = {
+                if (!com.bas1minute.sync.DigitalWellbeing.open(ctx)) {
+                    android.widget.Toast.makeText(ctx, "In Settings, search for \u201cDigital Wellbeing\u201d.", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }) { Text(t("Set a hard limit"), color = Blue) }
         }
     }
 

@@ -327,12 +327,12 @@ class MainActivity : ComponentActivity() {
             app.phoneCheckOpen = true
         }
         // Tapped a detox notification, "End detox early" on the pause screen, or one of the daily nudges
-        when (intent?.getStringExtra(com.bas1minute.sync.detox.DetoxService.EXTRA_OPEN)) {
-            com.bas1minute.sync.detox.DetoxService.OPEN_DETOX -> { app.tab = Tab.Detox; app.phoneCheckOpen = false; app.detoxView = "detox" }
+        when (intent?.getStringExtra(com.bas1minute.sync.detox.DetoxWatch.EXTRA_OPEN)) {
+            com.bas1minute.sync.detox.DetoxWatch.OPEN_DETOX -> { app.tab = Tab.Detox; app.phoneCheckOpen = false; app.detoxView = "detox" }
             "move" -> app.tab = Tab.Move
             "today" -> app.tab = Tab.Today
         }
-        intent?.removeExtra(com.bas1minute.sync.detox.DetoxService.EXTRA_OPEN)
+        intent?.removeExtra(com.bas1minute.sync.detox.DetoxWatch.EXTRA_OPEN)
         val uri = intent?.data ?: return
         // Website sign-in QR: https://<site>/link/CODE/ or bas1minute://link/CODE → approve screen with the code
         val webCode = when (uri.scheme) {

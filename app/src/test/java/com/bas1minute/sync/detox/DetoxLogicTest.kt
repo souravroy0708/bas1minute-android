@@ -76,6 +76,19 @@ class DetoxLogicTest {
         assertEquals(45, done.keptMinutes(s.plannedEndMs))
     }
 
+    @Test fun finish_keptWhenAPausedAppWasOnlyASlip() {
+        // No pause screen any more: a 40-second habit-open of Instagram is a slip, not a broken promise
+        val s = session(14, 120)
+        val slip = listOf(Interval("com.instagram.android", s.startMs + 30 * MINUTE, s.startMs + 30 * MINUTE + 40_000))
+        assertEquals(Outcome.KEPT, DetoxLogic.finish(s, s.plannedEndMs, slip).outcome)
+    }
+
+    @Test fun finish_brokenOncePastTheSlipAllowance() {
+        val s = session(14, 120)
+        val use = listOf(Interval("com.instagram.android", s.startMs + 30 * MINUTE, s.startMs + 30 * MINUTE + DetoxLogic.SLIP_MS))
+        assertEquals(Outcome.BROKEN, DetoxLogic.finish(s, s.plannedEndMs, use).outcome)
+    }
+
     @Test fun finish_ignoresUseOutsideTheSession() {
         val s = session(14, 60)
         val before = listOf(Interval("com.instagram.android", s.startMs - 30 * MINUTE, s.startMs + 2_000))

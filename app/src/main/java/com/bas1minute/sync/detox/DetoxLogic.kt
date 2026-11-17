@@ -6,7 +6,7 @@ package com.bas1minute.sync.detox
  * Two ideas:
  *  1. A detox session is a promise ("no apps except calls and messages for 2 hours"). It is KEPT if the
  *     timer runs out and no blocked app was really used; BROKEN if the user ends it early, revokes a
- *     permission the block needs, or used a blocked app for longer than the block screen's grace period.
+ *     permission detox needs (Usage access), or used a paused app for longer than [SLIP_MS] in one go.
  *  2. A clean hour is a finished clock hour in which no social-media app or browser was used at all,
  *     whether or not a detox session was running. "7 clean hours today" is the daily score.
  */
@@ -87,6 +87,13 @@ object DetoxLogic {
      * is "caught", not "used", both for keeping a promise and for clean hours.
      */
     const val GRACE_MS = 5_000L
+
+    /**
+     * Nothing is covered on screen any more (no "Display over other apps"), so a habit-tap on Instagram can't be
+     * caught in under a second. One unbroken stretch on a paused app shorter than this is a slip, not a broken
+     * promise: we remind, and the promise still stands. Clean hours keep the stricter [GRACE_MS].
+     */
+    const val SLIP_MS = 60_000L
 
     val DURATION_CHOICES_MIN = listOf(5, 30, 60, 120, 180, 240)
     const val MIN_MINUTES = 5
@@ -183,9 +190,9 @@ object DetoxLogic {
 
     fun cleanHours(cells: List<HourCell>): Int = cells.count { it.state == HourState.CLEAN }
 
-    /** First blocked-app interval inside the session that lasted long enough to count as real use. */
+    /** First paused-app interval inside the session that lasted long enough to count as real use (see [SLIP_MS]). */
     fun firstViolation(session: DetoxSession, until: Long, blocked: List<Interval>): Interval? =
-        blocked.filter { it.overlapWith(session.startMs, until) >= GRACE_MS }.minByOrNull { it.start }
+        blocked.filter { it.overlapWith(session.startMs, until) >= SLIP_MS }.minByOrNull { it.start }
 
     /** Final outcome when a session's time is up, checked against what Android actually recorded. */
     fun finish(session: DetoxSession, nowMs: Long, blocked: List<Interval>): DetoxSession {

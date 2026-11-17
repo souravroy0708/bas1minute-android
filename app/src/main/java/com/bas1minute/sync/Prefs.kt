@@ -204,8 +204,8 @@ class Prefs(context: Context) {
         set(v) = p.edit().putInt("last_motivational_index", v).apply()
 
     /**
-     * App Timers: the same daily time budget Site Guard gives a website, but for the app itself (Instagram,
-     * TikTok, Facebook...) — blocked once spent, resetting at midnight. Off by default; no extra permission
+     * App Timers: a daily time budget for one app (Instagram,
+     * TikTok, Facebook...) — a reminder once spent, resetting at midnight. Off by default; no extra permission
      * needed beyond Usage access, already required for Detox and the step/screen-time rings. See
      * detox/AppTimerLogic.kt.
      */
@@ -223,28 +223,14 @@ class Prefs(context: Context) {
         get() = p.getStringSet("app_timer_apps", null)?.toSet() ?: com.bas1minute.sync.detox.AppTimerLogic.DEFAULT_APPS
         set(v) = p.edit().putStringSet("app_timer_apps", v.take(com.bas1minute.sync.detox.AppTimerLogic.MAX_APPS).toSet()).apply()
 
-    /**
-     * Site Guard: blocks specific time-wasting websites (not whole apps) inside any browser, once a small
-     * daily time budget for that one site is spent — resets at midnight. Off until the member turns it on
-     * and grants Accessibility access themselves in system settings; see siteguard/SiteGuardLogic.kt.
-     */
-    var siteGuardEnabled: Boolean
-        get() = p.getBoolean("site_guard_enabled", false)
-        set(v) = p.edit().putBoolean("site_guard_enabled", v).apply()
+    /** How many "time's up" reminders [pkg] has had on [day] ("yyyy-MM-dd") — see AppTimerChecker. */
+    fun appTimerReminders(day: String, pkg: String): Int = p.getInt("at_rem_${day}_$pkg", 0)
 
-    var siteGuardBudgetMinutes: Int
-        get() = p.getInt("site_guard_budget_min", com.bas1minute.sync.siteguard.SiteGuardLogic.DEFAULT_DAILY_BUDGET_MIN)
-        set(v) = p.edit().putInt("site_guard_budget_min", com.bas1minute.sync.siteguard.SiteGuardLogic.clampBudget(v)).apply()
-
-    var siteGuardDomains: Set<String>
-        get() = p.getStringSet("site_guard_domains", null)?.toSet() ?: com.bas1minute.sync.siteguard.SiteGuardLogic.DEFAULT_BLOCKED_DOMAINS
-        set(v) = p.edit().putStringSet("site_guard_domains", v.take(com.bas1minute.sync.siteguard.SiteGuardLogic.MAX_DOMAINS).toSet()).apply()
-
-    /** Milliseconds spent today on one blocked domain — [key] is "yyyy-MM-dd:domain" (see SiteGuardAccessibilityService). */
-    fun siteTimeMs(key: String): Long = p.getLong("sg_time_$key", 0L)
-
-    fun addSiteTime(key: String, deltaMs: Long) {
-        p.edit().putLong("sg_time_$key", siteTimeMs(key) + deltaMs).apply()
+    fun setAppTimerReminders(day: String, pkg: String, n: Int) {
+        val e = p.edit()
+        // Drop yesterday's (and older) counters so this never grows: only today's keys are ever kept.
+        p.all.keys.filter { it.startsWith("at_rem_") && !it.startsWith("at_rem_${day}_") }.forEach { e.remove(it) }
+        e.putInt("at_rem_${day}_$pkg", n).apply()
     }
 
     /** On by default: a tap on the shoulder every 15 minutes of one unbroken stretch on a distracting app. */

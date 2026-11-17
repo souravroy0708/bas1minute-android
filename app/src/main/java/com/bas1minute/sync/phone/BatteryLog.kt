@@ -117,6 +117,10 @@ class BatteryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             com.bas1minute.sync.detox.DetoxStore.get(ctx).active() != null
         } catch (e: Exception) { false }
 
+        if (detoxActive) {
+            // Backup for the detox's own jobs: closes a finished session / re-creates its reminder jobs if needed.
+            try { com.bas1minute.sync.detox.DetoxController.reconcile(ctx) } catch (e: Exception) { }
+        }
         if (!detoxActive) {
             try {
                 detoxActive = com.bas1minute.sync.schedule.ScheduleChecker.check(ctx, now)

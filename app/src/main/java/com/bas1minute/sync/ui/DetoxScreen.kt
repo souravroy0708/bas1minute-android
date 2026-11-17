@@ -54,7 +54,6 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,7 +91,7 @@ import java.util.Locale
 // ---------------------------------------------------------------- state shared by the screen and the card
 
 /** Live detox state for a composable: sessions, permissions and a 1-second clock. */
-private class DetoxUiState(val sessions: List<DetoxSession>, val now: Long, val usageOk: Boolean, val overlayOk: Boolean) {
+private class DetoxUiState(val sessions: List<DetoxSession>, val now: Long, val usageOk: Boolean) {
     val active: DetoxSession? get() = sessions.lastOrNull { it.outcome == Outcome.ACTIVE }
 }
 
@@ -103,7 +102,6 @@ private fun rememberDetoxState(): DetoxUiState {
     var sessions by remember { mutableStateOf(store.sessions()) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var usageOk by remember { mutableStateOf(DetoxController.hasUsageAccess(ctx)) }
-    var overlayOk by remember { mutableStateOf(DetoxController.canDrawOverlays(ctx)) }
     DisposableEffect(store) {
         val l = { sessions = store.sessions() }
         store.addListener(l)
@@ -117,14 +115,13 @@ private fun rememberDetoxState(): DetoxUiState {
             now = System.currentTimeMillis()
             if (n % 2 == 0) {
                 usageOk = DetoxController.hasUsageAccess(ctx)
-                overlayOk = DetoxController.canDrawOverlays(ctx)
             }
             if (n % 5 == 0) withContext(Dispatchers.IO) { DetoxController.reconcile(ctx) }
             n++
             delay(1_000)
         }
     }
-    return DetoxUiState(sessions, now, usageOk, overlayOk)
+    return DetoxUiState(sessions, now, usageOk)
 }
 
 private val CleanGreen = Color(0xFF2E9E5B)
@@ -260,8 +257,9 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (active != null) ActiveCard(active, st.now, streak, store) { DetoxController.endEarly(ctx) }
-            else SetupCard(store, st.usageOk, st.overlayOk, actions, onStart = { m, why ->
-                if (DetoxController.start(ctx, m, why) == null) app.message = "Allow both permissions to start a detox."
+            else SetupCard(store, st.usageOk, actions, onStart = { m, why ->
+                actions.onAskNotifications()   // optional: only for the countdown and reminders; detox works without it
+                if (DetoxController.start(ctx, m, why) == null) app.message = "Allow Usage access to start a detox."
             })
             SchedulesCard(ctx)
             AppTimerCard(app)
@@ -281,12 +279,10 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
 @Composable
 private fun ActiveCard(s: DetoxSession, now: Long, streak: Int, store: DetoxStore, onEndEarly: () -> Unit) {
     var showFlow by remember { mutableStateOf(false) }
-    val failure by com.bas1minute.sync.detox.BlockOverlay.lastFailure.collectAsStateWithLifecycle()
     AppCard(title = t("Detox is on")) {
-        Text("WhatsApp, browsers, social media and every other app are paused. Calls, messages, camera and alarms still work.",
+        Text("The apps you chose are paused by your promise. If one is opened, we'll remind you to close it — " +
+            "a quick slip under a minute doesn't break the promise. Calls, messages, camera and alarms work as usual.",
             style = MaterialTheme.typography.bodyMedium, color = Muted)
-        // Shown the moment the pause screen fails to appear, instead of silently letting the app through.
-        failure?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Danger) }
         // Visible and reachable at all times — the person's own choice, not hidden behind a maze.
         GhostButton(t("End early")) { showFlow = true }
     }
@@ -298,7 +294,7 @@ private fun ActiveCard(s: DetoxSession, now: Long, streak: Int, store: DetoxStor
 }
 
 @Composable
-private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, actions: PhoneActions, onStart: (Int, String) -> Unit) {
+private fun SetupCard(store: DetoxStore, usageOk: Boolean, actions: PhoneActions, onStart: (Int, String) -> Unit) {
     val ctx = LocalContext.current
     var minutes by remember { mutableIntStateOf(store.lastMinutes) }
     var why by remember { mutableStateOf("") }
@@ -309,31 +305,11 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
     val rules = remember(categories, blockedExtra, overrides) { AppRules(ctx, categories, blockedExtra, overrides) }
 
     AppCard(title = t("Start a detox")) {
-        if (!usageOk || !overlayOk) {
-            Text("Two permissions let Bas 1 Minute pause other apps. Both stay on this phone.",
+        if (!usageOk) {
+            Text("One permission lets Bas 1 Minute see which app is open (never what's inside it). It stays on this phone.",
                 style = MaterialTheme.typography.bodySmall, color = Muted)
-            StatusRow(t("Usage access"), "To see which app is open", usageOk,
-                if (usageOk) null else t("Allow")) { actions.onOpenUsageAccess() }
-            StatusRow(t("Display over other apps"), "To show the pause screen", overlayOk,
-                if (overlayOk) null else t("Allow")) {
-                runCatching { ctx.startActivity(DetoxController.overlayIntent(ctx).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            }
-            if (!overlayOk) Text(
-                "If the switch for “Display over other apps” won't turn on: open App info for Bas 1 Minute \u2192 \u22ee (top right) " +
-                    "\u2192 Allow restricted settings, then try again. Android does this for apps installed outside the Play Store.",
-                style = MaterialTheme.typography.bodySmall, color = Muted,
-            )
+            StatusRow(t("Usage access"), "To see which app is open", usageOk, t("Allow")) { actions.onOpenUsageAccess() }
         }
-        if (usageOk && overlayOk) GhostButton(t("Preview the pause screen")) {
-            com.bas1minute.sync.detox.BlockOverlay.show(ctx, ctx.packageName)
-        }
-        Text(
-            "On some phones (OnePlus, Xiaomi, Oppo, Vivo especially) the pause screen can still fail to appear " +
-                "unless battery optimization is off for Bas 1 Minute. If it was previewed above but doesn't show up " +
-                "during a real detox, open App info \u2192 Battery \u2192 Unrestricted (and Autostart, if your phone has it).",
-            style = MaterialTheme.typography.bodySmall, color = Muted,
-        )
-        GhostButton(t("Open battery settings")) { actions.onOpenBatterySettings() }
         Text(t("How long?"), style = MaterialTheme.typography.labelLarge)
         val choices = DetoxLogic.DURATION_CHOICES_MIN
         Segmented(choices.map { DetoxLogic.formatMinutes(it) }, choices.indexOf(minutes)) { minutes = choices[it] }
@@ -377,7 +353,14 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, overlayOk: Boolean, a
                 }
             }
         }
-        BigButton("${t("I promise")}: ${DetoxLogic.formatMinutes(minutes)}", enabled = usageOk && overlayOk) { onStart(minutes, why) }
+        BigButton("${t("I promise")}: ${DetoxLogic.formatMinutes(minutes)}", enabled = usageOk) { onStart(minutes, why) }
+        Text("Want a hard lock that can't be skipped? Android's own Digital Wellbeing can pause apps for you (Focus mode) — " +
+            "it needs no extra permission from Bas 1 Minute.", style = MaterialTheme.typography.bodySmall, color = Muted)
+        GhostButton(t("Open Digital Wellbeing")) {
+            if (!com.bas1minute.sync.DigitalWellbeing.open(ctx)) {
+                android.widget.Toast.makeText(ctx, "In Settings, search for \u201cDigital Wellbeing\u201d.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
     }
     when (choosingFor) {
         "social" -> CategoryReviewDialog(

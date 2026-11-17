@@ -1,16 +1,14 @@
 package com.bas1minute.sync.detox
 
-import android.app.ActivityManager
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import java.util.Calendar
 
-/** Entry points the UI, the service and the boot receiver share. */
+/** Entry points the UI, the detox watcher (DetoxWatch) and the 15-minute tick share. */
 object DetoxController {
 
     fun hasUsageAccess(ctx: Context): Boolean {
@@ -24,24 +22,19 @@ object DetoxController {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    fun canDrawOverlays(ctx: Context): Boolean = Settings.canDrawOverlays(ctx)
-
-    fun isReady(ctx: Context) = hasUsageAccess(ctx) && canDrawOverlays(ctx)
+    /** The only special access detox needs. No "Display over other apps", no Accessibility, no always-on service. */
+    fun isReady(ctx: Context) = hasUsageAccess(ctx)
 
     fun usageAccessIntent(): Intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
 
-    fun overlayIntent(ctx: Context): Intent =
-        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}"))
-
-    /** Starts a promise for [minutes]. Returns null if the permissions the block needs are missing. */
+    /** Starts a promise for [minutes]. Returns null if Usage access is missing. */
     fun start(ctx: Context, minutes: Int, why: String = ""): DetoxSession? {
         if (!isReady(ctx)) return null
         val store = DetoxStore.get(ctx)
         store.lastMinutes = minutes
         if (why.isNotBlank()) store.recentWhys = (listOf(why.trim()) + store.recentWhys).distinct()
-        BlockOverlay.lastFailure.value = null   // clear any stale warning from a previous session or preview
         val s = store.start(System.currentTimeMillis(), minutes, why)
-        startService(ctx)
+        DetoxWatch.begin(ctx, s)
         return s
     }
 
@@ -49,24 +42,23 @@ object DetoxController {
     fun endEarly(ctx: Context) {
         val store = DetoxStore.get(ctx)
         val s = store.active() ?: return
-        BlockOverlay.hide()
         store.update(DetoxLogic.breakNow(s, System.currentTimeMillis(), BreakReason.ENDED_EARLY))
-        ctx.stopService(Intent(ctx, DetoxService::class.java))
+        DetoxWatch.stop(ctx)
     }
 
     /**
-     * Call on app open, on boot and from the service. Closes a session whose time is up (checking real usage,
-     * so force-stopping the app doesn't fake a kept promise), breaks it if permissions were removed, and
-     * restarts the blocking service if Android killed it.
+     * Call on app open and from the shared 15-minute tick. Closes a session whose time is up (checking real
+     * usage, so force-stopping the app doesn't fake a kept promise), breaks it if Usage access was removed, and
+     * otherwise makes sure the reminder jobs exist (e.g. after the phone restarted mid-detox).
      */
     fun reconcile(ctx: Context) {
         val store = DetoxStore.get(ctx)
         val s = store.active() ?: return
         val now = System.currentTimeMillis()
         when {
-            now >= s.plannedEndMs -> finishWithHistory(ctx, s, now)
-            !isReady(ctx) -> store.update(DetoxLogic.breakNow(s, now, BreakReason.PERMISSION_REVOKED))
-            !isServiceRunning(ctx) -> startService(ctx)
+            now >= s.plannedEndMs -> { finishWithHistory(ctx, s, now); DetoxWatch.stop(ctx) }
+            !isReady(ctx) -> { store.update(DetoxLogic.breakNow(s, now, BreakReason.PERMISSION_REVOKED)); DetoxWatch.stop(ctx) }
+            else -> DetoxWatch.ensure(ctx, s)
         }
     }
 
@@ -79,18 +71,6 @@ object DetoxController {
         val done = DetoxLogic.finish(s, now, blocked)
         DetoxStore.get(ctx).update(done)
         return done
-    }
-
-    fun startService(ctx: Context) {
-        val i = Intent(ctx, DetoxService::class.java)
-        runCatching { ctx.startForegroundService(i) }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun isServiceRunning(ctx: Context): Boolean {
-        val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        // getRunningServices still reports the caller's own services.
-        return am.getRunningServices(50).any { it.service.className == DetoxService::class.java.name }
     }
 
     /** Local midnight of the day containing [ms]. */

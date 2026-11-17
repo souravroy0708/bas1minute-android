@@ -24,15 +24,19 @@
     <!-- Map tiles: OpenStreetMap checks the connection before downloading -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-    <!-- Daily screen-time total. Granted by the user in Settings > Usage access. -->
+    <!-- Screen time, clean hours, Digital detox, App Timers and long-session nudges all come from this one
+         switch. Granted by the user in Settings > Usage access. It only tells us WHICH app was open and for how
+         long — never what's inside it. -->
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
-    <!-- Digital detox: shows the pause screen over other apps while a detox the user started is on -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- Digital detox: resumes a running detox after the phone restarts -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Never ask for these. Detox and App Timers remind (notification) and judge the promise from Android's own
+         usage history; a hard lock is handed to Android's Digital Wellbeing (Focus mode / app timers), which needs
+         no permission from us. tools:node="remove" also strips them if a library ever tries to add one. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" tools:node="remove" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" tools:node="remove" />
 
     <!-- Lets the app check whether Health Connect is installed (Android 13 and older) -->
     <queries>
@@ -58,6 +62,9 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.APP_MESSAGING" />
         </intent>
+        <!-- "Set a hard limit": opens Android's own Digital Wellbeing (Google / Samsung) -->
+        <package android:name="com.google.android.apps.wellbeing" />
+        <package android:name="com.samsung.android.forest" />
         <!-- Apps with a launcher icon: to tell social apps apart and show their names (on this phone only) -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -132,43 +139,6 @@
             android:name=".track.TrackingService"
             android:exported="false"
             android:foregroundServiceType="location|health" />
-
-        <!-- Digital detox: runs only while a detox the user started is on; countdown notification always shown -->
-        <service
-            android:name=".detox.DetoxService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="User-started digital detox: pauses other apps for a time the user chooses and shows a countdown notification" />
-        </service>
-
-        <!-- Site Guard: reads only the address bar of the browser apps listed in site_guard_config.xml, to
-             block specific time-wasting websites once their small daily budget is spent. Off until the member
-             turns it on AND grants Accessibility access themselves in system settings — this app can never
-             enable it silently. Never reads page content, and the OS itself prevents it from ever receiving
-             an event from any app not listed in site_guard_config.xml. -->
-        <service
-            android:name=".siteguard.SiteGuardAccessibilityService"
-            android:exported="true"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/site_guard_config" />
-        </service>
-
-        <!-- Digital detox: resume or close a running detox after a restart or app update -->
-        <receiver
-            android:name=".detox.DetoxBootReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-            </intent-filter>
-        </receiver>
 
         <!-- Motivation pushes from the admin (Firebase). Templates are filled on the phone. -->
         <service

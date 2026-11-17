@@ -5,21 +5,27 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The budget math itself is exhaustively tested in SiteGuardLogicTest, since AppTimerLogic deliberately
- * delegates to it rather than duplicating it — these are just sanity checks that the delegation itself works. */
 class AppTimerLogicTest {
-    @Test fun isOverBudget_delegatesCorrectly() {
+    @Test fun isOverBudget_atAndPastTheLimit() {
         assertTrue(AppTimerLogic.isOverBudget(30 * 60_000L, 30))
+        assertTrue(AppTimerLogic.isOverBudget(45 * 60_000L, 30))
         assertFalse(AppTimerLogic.isOverBudget(29 * 60_000L, 30))
     }
 
-    @Test fun remainingLabel_delegatesCorrectly() {
+    @Test fun remainingLabel() {
         assertEquals("30 of 30 min left today", AppTimerLogic.remainingLabel(0L, 30))
         assertEquals("Used up for today", AppTimerLogic.remainingLabel(30 * 60_000L, 30))
     }
 
-    @Test fun clampBudget_delegatesCorrectly() {
+    @Test fun clampBudget() {
         assertEquals(5, AppTimerLogic.clampBudget(1))
         assertEquals(120, AppTimerLogic.clampBudget(999))
+    }
+
+    @Test fun shouldRemind_onlyOverBudget_andCappedPerDay() {
+        assertFalse(AppTimerLogic.shouldRemind(10 * 60_000L, 15, 0))
+        assertTrue(AppTimerLogic.shouldRemind(15 * 60_000L, 15, 0))
+        assertTrue(AppTimerLogic.shouldRemind(40 * 60_000L, 15, 2))
+        assertFalse(AppTimerLogic.shouldRemind(40 * 60_000L, 15, AppTimerLogic.MAX_REMINDERS_PER_APP_PER_DAY))
     }
 }

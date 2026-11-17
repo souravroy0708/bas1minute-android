@@ -97,9 +97,9 @@ fun IdeaContent() {
     }
     AppCard(title = "Then we built the other half: protecting your time") {
         Points(listOf(
-            "Digital detox" to "Pause social media and browsers for a time you choose — a real pause screen, not just a reminder.",
+            "Digital detox" to "Promise a time away from social media and browsers. We remind you if you slip, and keep an honest record.",
             "Schedules" to "Set it once — every night, every weekday — and detox starts and ends itself from then on.",
-            "App Timers & Site Guard" to "A small daily budget per app or per distracting website. Spend it, and just that one thing pauses until tomorrow — everything else keeps working.",
+            "App Timers" to "A small daily budget per app. Spend it and we tell you — or let Android lock it for you, with no extra permission.",
             "A tap on the shoulder" to "Lost track of time on one app? A gentle nudge at 15, 30 and 45 minutes in a single sitting, never more than that.",
         ))
     }
@@ -144,7 +144,7 @@ fun DifferentContent() {
         Points(listOf(
             "One-minute bursts" to "", "Built on moments you already have" to "", "Private family circles" to "",
             "Social media time check" to "See where the hours go, and what they could become.",
-            "Real app and website blocking" to "Digital detox, Schedules, App Timers and Site Guard — not just one.",
+            "Focus tools with almost no permissions" to "Digital detox, Schedules and App Timers need only Usage access — nothing over other apps, nothing running all the time.",
             "Daily goals, life goals and a diary" to "What you’re building toward, and the story of getting there.",
             "India-first, Hindi and English" to "", "Free core, runs on your phone’s own sensors" to "",
             "One app, one account" to "No separate subscription or sign-in for the focus tools.",
@@ -169,7 +169,7 @@ fun FreeContent() {
         Points(listOf(
             "The 7K + 4 ring, bursts and calm" to "", "Steps, screen time and social media time check" to "",
             "Sleep, water and weight (optional)" to "", "Family and friends circles, ranking and competitions" to "",
-            "Digital detox, Schedules, App Timers and Site Guard" to "",
+            "Digital detox, Schedules and App Timers" to "",
             "Daily goals, life goals and your diary" to "",
             "Hindi and English" to "", "Gentle mode and safety features" to "",
         ))
@@ -177,7 +177,7 @@ fun FreeContent() {
     AppCard(title = "Why we can keep it free") {
         Points(listOf(
             "Your phone does the work" to "Counting happens on sensors your phone already has.",
-            "The focus tools run here too" to "Detox, App Timers and Site Guard work everything out on your own phone — no server cost that grows with every member.",
+            "The focus tools run here too" to "Detox and App Timers work everything out on your own phone — no server cost that grows with every member.",
             "No AI bill" to "Every extra user costs very little to run.",
             "No paid installs" to "We grow through family invites and word of mouth.",
         ))
@@ -194,7 +194,7 @@ fun FreeContent() {
         Points(listOf(
             "The core stays free." to "", "We don’t sell your data." to "Sponsors and employers only ever see totals.",
             "Your camera stays yours." to "", "Safety is never a paid extra." to "",
-            "The focus tools stay free too." to "Detox, Schedules, App Timers and Site Guard are not held back for a future paid tier.",
+            "The focus tools stay free too." to "Detox, Schedules and App Timers are not held back for a future paid tier.",
         ))
     }
 }

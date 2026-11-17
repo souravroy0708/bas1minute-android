@@ -23,7 +23,7 @@ import com.bas1minute.sync.Prefs
 import com.bas1minute.sync.R
 import com.bas1minute.sync.Recorder
 import com.bas1minute.sync.detox.DetoxController
-import com.bas1minute.sync.detox.DetoxService
+import com.bas1minute.sync.detox.DetoxWatch
 import com.bas1minute.sync.detox.DetoxStore
 import com.bas1minute.sync.detox.Outcome
 import java.time.LocalDate
@@ -126,7 +126,7 @@ class NudgeWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
             }
             val open = PendingIntent.getActivity(
                 ctx, 7400 + slot.ordinal,
-                Intent(ctx, MainActivity::class.java).putExtra(DetoxService.EXTRA_OPEN, n.target.open)
+                Intent(ctx, MainActivity::class.java).putExtra(DetoxWatch.EXTRA_OPEN, n.target.open)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )

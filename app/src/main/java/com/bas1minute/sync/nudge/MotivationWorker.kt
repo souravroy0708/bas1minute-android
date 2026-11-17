@@ -19,7 +19,7 @@ import androidx.work.WorkerParameters
 import com.bas1minute.sync.MainActivity
 import com.bas1minute.sync.Prefs
 import com.bas1minute.sync.R
-import com.bas1minute.sync.detox.DetoxService
+import com.bas1minute.sync.detox.DetoxWatch
 import com.bas1minute.sync.detox.DetoxStore
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -90,7 +90,7 @@ class MotivationWorker(context: Context, params: WorkerParameters) : CoroutineWo
             }
             val open = PendingIntent.getActivity(
                 ctx, 7450,
-                Intent(ctx, MainActivity::class.java).putExtra(DetoxService.EXTRA_OPEN, n.target.open)
+                Intent(ctx, MainActivity::class.java).putExtra(DetoxWatch.EXTRA_OPEN, n.target.open)
                     .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )

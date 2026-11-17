@@ -347,8 +347,6 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             }
         }
 
-        SiteGuardCard(app)
-
         // One honest number a day: how long yesterday actually went on the phone and social apps
         AppCard(title = t("Daily phone-time reminder")) {
             var on by remember { mutableStateOf(prefs.dailyUsageAlert) }
