@@ -130,6 +130,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                             if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.spinOpen = false }
                             if (item.tab == Tab.Move && app.tab == Tab.Move) app.trackDetailId = null
                             if (item.tab == Tab.Profile) { app.aboutPage = null; app.circlesOpen = false }
+                            app.circlesReturnTab = null
                             if (item.tab == Tab.Detox) app.phoneCheckOpen = false
                             app.tab = item.tab
                         },
@@ -191,11 +192,16 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                 Tab.Profile -> if (part[10] == "true") {
                     // Circles (Bas 1 Minute India, private circles, competitions) lives here now, one tap from Profile
                     val atCircleRoot = app.openCompetitionId == null && !app.globalOpen && !app.findOpen && app.openCircleId == null
-                    if (atCircleRoot) androidx.activity.compose.BackHandler { app.circlesOpen = false }
+                    val closeCircles = {
+                        app.circlesOpen = false
+                        app.circlesReturnTab?.let { app.tab = it }
+                        app.circlesReturnTab = null
+                    }
+                    if (atCircleRoot) androidx.activity.compose.BackHandler { closeCircles() }
                     Column(Modifier.fillMaxSize()) {
                         Row(Modifier.fillMaxWidth().background(Ink).padding(start = 8.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
                             verticalAlignment = Alignment.CenterVertically) {
-                            androidx.compose.material3.IconButton(onClick = { app.circlesOpen = false }) {
+                            androidx.compose.material3.IconButton(onClick = { closeCircles() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                             }
                             Text(t("Circles"), color = Color.White, style = MaterialTheme.typography.titleLarge)

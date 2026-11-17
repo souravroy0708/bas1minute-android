@@ -92,6 +92,8 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var goalsHubView by mutableStateOf("goals")
     /** Circles (Bas 1 Minute India, private circles, competitions) open on top of Profile. */
     var circlesOpen by mutableStateOf(false)
+    /** Where Back from Circles goes: Today when Circles was opened from the home grid, otherwise Profile. */
+    var circlesReturnTab by mutableStateOf<Tab?>(null)
 
     /** True while a manual "Sync now" is in flight, so the Profile button can show a spinner and not double-fire. */
     var journalSyncing by mutableStateOf(false)

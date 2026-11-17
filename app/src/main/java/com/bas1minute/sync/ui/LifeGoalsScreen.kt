@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -283,8 +282,8 @@ private fun LifeGoalDetailScreen(app: AppController, actions: PhoneActions, goal
                 }
                 if (milestones.size < LifeGoalLogic.MAX_MILESTONES) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(newMilestone, { newMilestone = it.take(LifeGoalLogic.MAX_MILESTONE_TITLE) }, singleLine = true,
-                            placeholder = { Text("Add a step") }, modifier = Modifier.weight(1f))
+                        VoiceTextField(newMilestone, { newMilestone = it.take(LifeGoalLogic.MAX_MILESTONE_TITLE) }, singleLine = true,
+                            placeholder = "Add a step", modifier = Modifier.weight(1f))
                         Spacer(Modifier.width(8.dp))
                         SmallPill(t("Add")) {
                             if (newMilestone.isNotBlank()) {
@@ -360,25 +359,25 @@ private fun AddLifeGoalDialog(
                 when (step) {
                     1 -> {
                         Text("What do you want?", style = MaterialTheme.typography.labelLarge)
-                        OutlinedTextField(title, { title = it.take(LifeGoalLogic.MAX_TITLE) }, singleLine = true,
-                            placeholder = { Text("e.g. Run a half marathon") }, modifier = Modifier.fillMaxWidth())
+                        VoiceTextField(title, { title = it.take(LifeGoalLogic.MAX_TITLE) }, singleLine = true,
+                            placeholder = "e.g. Run a half marathon", modifier = Modifier.fillMaxWidth())
                         Text(t("Why does this matter to you?"), style = MaterialTheme.typography.labelLarge)
-                        OutlinedTextField(why, { why = it.take(LifeGoalLogic.MAX_WHY) }, modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("e.g. So I can run alongside my daughter's first 10K") })
+                        VoiceTextField(why, { why = it.take(LifeGoalLogic.MAX_WHY) }, modifier = Modifier.fillMaxWidth(),
+                            placeholder = "e.g. So I can run alongside my daughter's first 10K")
                         Text("You can add a photo of who or what this is for once it's created.", style = MaterialTheme.typography.bodySmall, color = Muted)
                     }
                     2 -> {
                         Text(t("What's the plan?"), style = MaterialTheme.typography.labelLarge)
-                        OutlinedTextField(details, { details = it.take(LifeGoalLogic.MAX_DETAILS) }, modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
-                            placeholder = { Text("What you'll actually do, roughly how") })
+                        VoiceTextField(details, { details = it.take(LifeGoalLogic.MAX_DETAILS) }, modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
+                            placeholder = "What you'll actually do, roughly how")
                     }
                     else -> {
                         Text("What's most likely to get in the way?", style = MaterialTheme.typography.labelLarge)
-                        OutlinedTextField(obstacle, { obstacle = it.take(LifeGoalLogic.MAX_OBSTACLE) }, singleLine = true,
-                            placeholder = { Text("e.g. Getting too tired after work") }, modifier = Modifier.fillMaxWidth())
+                        VoiceTextField(obstacle, { obstacle = it.take(LifeGoalLogic.MAX_OBSTACLE) }, singleLine = true,
+                            placeholder = "e.g. Getting too tired after work", modifier = Modifier.fillMaxWidth())
                         Text("If that happens, what will you do?", style = MaterialTheme.typography.labelLarge)
-                        OutlinedTextField(plan, { plan = it.take(LifeGoalLogic.MAX_PLAN) }, singleLine = true,
-                            placeholder = { Text("e.g. Do a 10-minute version instead of skipping it") }, modifier = Modifier.fillMaxWidth())
+                        VoiceTextField(plan, { plan = it.take(LifeGoalLogic.MAX_PLAN) }, singleLine = true,
+                            placeholder = "e.g. Do a 10-minute version instead of skipping it", modifier = Modifier.fillMaxWidth())
                         Text("Naming this now makes it easier to follow through later.", style = MaterialTheme.typography.bodySmall, color = Muted)
                     }
                 }

@@ -357,6 +357,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // With App lock on, Recents shows a blank card instead of a snapshot of the app (Android 13+)
+        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(!app.prefs.appLock)
         // Required or available update: ask the server (minimum version) and Google Play
         updater.resumeIfNeeded()
         updater.checkPlay(busy = { com.bas1minute.sync.ui.updateMustWait(this) })

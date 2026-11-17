@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
@@ -127,6 +128,7 @@ fun AppCard(title: String? = null, trailing: (@Composable () -> Unit)? = null, c
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .background(CardBg)
+            .border(1.dp, CardLine, RoundedCornerShape(24.dp))
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -223,13 +225,15 @@ fun StatusRow(title: String, subtitle: String, ok: Boolean, action: String? = nu
 @Composable
 fun SmallPill(text: String, onClick: () -> Unit) {
     // 48dp tall touch area (accessibility), pill drawn inside it
-    Box(Modifier.heightIn(min = 48.dp).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
+    Box(Modifier.heightIn(min = 48.dp).tactileClickable(RoundedCornerShape(50), onClick = onClick),
         contentAlignment = Alignment.Center) {
         Text(
             text,
             style = MaterialTheme.typography.labelMedium,
             color = Ink,
-            modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 14.dp, vertical = 9.dp),
+            modifier = Modifier.clip(RoundedCornerShape(50))
+                .background(Brush.verticalGradient(listOf(Haldi, HaldiDeep)))
+                .padding(horizontal = 16.dp, vertical = 9.dp),
         )
     }
 }
@@ -250,9 +254,8 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
                 color = if (i == selected) Color.White else Muted,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
+                    .tactileClickable(RoundedCornerShape(50), role = androidx.compose.ui.semantics.Role.Tab) { onSelect(i) }
                     .background(if (i == selected) Ink else Color.Transparent)
-                    .clickable { onSelect(i) }
                     .padding(horizontal = 12.dp, vertical = 7.dp),
             )
         }
@@ -261,8 +264,9 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
 
 @Composable
 fun BigButton(text: String, enabled: Boolean = true, dark: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     Button(
-        onClick = onClick,
+        onClick = { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); onClick() },
         enabled = enabled,
         shape = RoundedCornerShape(50),
         colors = if (dark) ButtonDefaults.buttonColors(

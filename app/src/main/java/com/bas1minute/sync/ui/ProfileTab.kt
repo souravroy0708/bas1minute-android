@@ -277,6 +277,21 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
             if (prefs.pinHash.isNotBlank()) TextButton(onClick = { changingPin = true }) { Text("Change PIN", color = TextMain, style = MaterialTheme.typography.labelLarge) }
         }
 
+        // Privacy shield: on by default
+        AppCard(title = t("Private screens")) {
+            var shield by remember { mutableStateOf(prefs.privateScreens) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(t("Hide my goals and diary"), style = MaterialTheme.typography.titleMedium)
+                    Text("Goals and Diary can't be screenshotted or screen-recorded, and show blank in Recent apps. " +
+                        "Turn off if you want to screenshot them yourself.",
+                        style = MaterialTheme.typography.bodySmall, color = Muted)
+                }
+                Switch(checked = shield, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                    onCheckedChange = { on -> shield = on; prefs.privateScreens = on })
+            }
+        }
+
         SectionHeader(t("Notifications"))
         // Motivation pushes from the Bas 1 Minute team
         AppCard(title = t("Motivation notifications")) {

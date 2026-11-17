@@ -12,6 +12,9 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+
+/** Numbers that don't jump sideways as they count (steps, minutes, km). */
+private const val TNUM = "tnum"
 import com.bas1minute.sync.R
 
 // Same palette as the website
@@ -22,6 +25,10 @@ val Line = Color(0xFF323A7C)
 val Haldi = Color(0xFFFFC21A)
 val Violet = Color(0xFF8F99FF)
 val Coral = Color(0xFFFF8A65)
+/** Deepest ink: top of the home hero gradient, for depth. */
+val InkDeep = Color(0xFF080A22)
+/** Pressed / gradient end for the haldi buttons. */
+val HaldiDeep = Color(0xFFF5A700)
 val Mint = Color(0xFF5ED6A0)
 val MintDark = Color(0xFF0B7A55)
 /** Dark mode switch, set by Bas1MinuteTheme. Surface colours below read it, so screens adapt automatically. */
@@ -34,6 +41,8 @@ val Muted: Color get() = if (ThemeState.dark) Color(0xFFA9AECB) else Color(0xFF4
 val CardBg: Color get() = if (ThemeState.dark) Color(0xFF161A42) else Color.White
 val TextMain: Color get() = if (ThemeState.dark) Color(0xFFEEF0FF) else Color(0xFF0F1235)
 val MutedOnDark = Color(0xFFBCC1E0)
+/** Hairline around cards: gives white cards an edge on the light grey page without a heavy shadow. */
+val CardLine: Color get() = if (ThemeState.dark) Color(0xFF242A5C) else Color(0xFFE6E8F2)
 val Blue = Color(0xFF3446C8)
 val Danger = Color(0xFFB42318)
 
@@ -49,11 +58,11 @@ val Body = FontFamily(
 val Devanagari = FontFamily(Font(R.font.anek_devanagari, FontWeight.SemiBold))
 
 private val AppTypography = Typography(
-    displayLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 52.sp, lineHeight = 50.sp),
-    displayMedium = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 40.sp, lineHeight = 40.sp),
-    headlineLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 33.sp),
-    headlineMedium = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp, lineHeight = 28.sp),
-    titleLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 24.sp),
+    displayLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 52.sp, lineHeight = 50.sp, fontFeatureSettings = TNUM, letterSpacing = (-0.4).sp),
+    displayMedium = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 40.sp, lineHeight = 40.sp, fontFeatureSettings = TNUM, letterSpacing = (-0.4).sp),
+    headlineLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 33.sp, fontFeatureSettings = TNUM, letterSpacing = (-0.4).sp),
+    headlineMedium = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp, lineHeight = 28.sp, fontFeatureSettings = TNUM, letterSpacing = (-0.4).sp),
+    titleLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 24.sp, fontFeatureSettings = TNUM, letterSpacing = (-0.4).sp),
     titleMedium = TextStyle(fontFamily = Body, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 22.sp),
     bodyLarge = TextStyle(fontFamily = Body, fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 25.sp),
     bodyMedium = TextStyle(fontFamily = Body, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 22.sp),

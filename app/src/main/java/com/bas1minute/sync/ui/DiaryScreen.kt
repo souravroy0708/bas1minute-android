@@ -187,8 +187,8 @@ private fun TodayReflectionCard(app: AppController, store: DiaryStore, today: Lo
         RatingRow(effort, listOf("Barely", "A little", "Some", "A lot", "Gave it everything")) { effort = it }
         Text(t("How satisfied are you with today?"), style = MaterialTheme.typography.labelLarge)
         RatingRow(satisfaction, listOf("Rough day", "Not great", "Okay", "Good", "Great day")) { satisfaction = it }
-        OutlinedTextField(note, { note = it.take(DiaryLogic.MAX_STORY) }, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
-            placeholder = { Text("Anything you want to remember about today") })
+        VoiceTextField(note, { note = it.take(DiaryLogic.MAX_STORY) }, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
+            placeholder = "Anything you want to remember about today")
         BigButton(if (saved) t("Update today's reflection") else t("Save today's reflection"), dark = false) {
             app.launch {
                 withContext(Dispatchers.IO) { store.setTodayReflection(effort, satisfaction, note, today) }
@@ -307,8 +307,8 @@ private fun AddMilestoneDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (step == 1) {
-                    OutlinedTextField(title, { title = it.take(DiaryLogic.MAX_TITLE) }, singleLine = true,
-                        placeholder = { Text("e.g. My daughter was born") }, modifier = Modifier.fillMaxWidth())
+                    VoiceTextField(title, { title = it.take(DiaryLogic.MAX_TITLE) }, singleLine = true,
+                        placeholder = "e.g. My daughter was born", modifier = Modifier.fillMaxWidth())
                     Text(t("What kind of moment is this?"), style = MaterialTheme.typography.labelLarge)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Category.entries.take(5).forEach { c -> CategoryChip(c, c == category) { category = c } }
@@ -325,8 +325,8 @@ private fun AddMilestoneDialog(
                     Text("Not sure of the exact day? An approximate date is fine.", style = MaterialTheme.typography.bodySmall, color = Muted)
                 } else {
                     Text(t("Tell the story"), style = MaterialTheme.typography.labelLarge)
-                    OutlinedTextField(story, { story = it.take(DiaryLogic.MAX_STORY) }, modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
-                        placeholder = { Text("What happened, how it felt, who was there") })
+                    VoiceTextField(story, { story = it.take(DiaryLogic.MAX_STORY) }, modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
+                        placeholder = "What happened, how it felt, who was there")
                     Text("You can add a photo right after saving.", style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
             }

@@ -31,7 +31,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,6 +66,7 @@ import java.time.LocalDate
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 fun GoalsHub(app: AppController, actions: PhoneActions, view: String = app.goalsHubView) {
+    PrivateScreen()   // goals, life goals and diary: no screenshots, blank in Recents (Profile > Privacy)
     Column(Modifier.fillMaxSize().background(Paper)) {
         Row(Modifier.fillMaxWidth().background(Ink).statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically) {
@@ -273,8 +273,8 @@ private fun AddGoalDialog(stepGoal: Int, screenLimitMinutes: Int, onAdd: (GoalKi
                         Text(t("Write my own goal"), color = Blue, style = MaterialTheme.typography.bodyMedium)
                     }
                 } else {
-                    OutlinedTextField(customTitle, { customTitle = it.take(GoalLogic.MAX_TITLE_LEN) }, singleLine = true,
-                        placeholder = { Text("e.g. 30 minutes of guitar practice") }, modifier = Modifier.fillMaxWidth())
+                    VoiceTextField(customTitle, { customTitle = it.take(GoalLogic.MAX_TITLE_LEN) }, singleLine = true,
+                        placeholder = "e.g. 30 minutes of guitar practice", modifier = Modifier.fillMaxWidth())
                     Text("You'll check this off yourself each day it's done.", style = MaterialTheme.typography.bodySmall, color = Muted)
                 }
             }

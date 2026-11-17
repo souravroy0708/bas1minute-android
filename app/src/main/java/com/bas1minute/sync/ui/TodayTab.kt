@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -110,9 +111,9 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Ink, Ink2)))
+                    .background(Brush.verticalGradient(listOf(InkDeep, Ink, Ink2)))
                     .statusBarsPadding()
-                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 44.dp)
+                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 40.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Avatar(app.avatar, name, 48.dp, Modifier.clickable { app.tab = Tab.Profile })
@@ -134,13 +135,25 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     Spacer(Modifier.width(8.dp))
                     SyncChip(state, app.phone.pendingDays + app.waiting, app.offline)
                 }
-                Spacer(Modifier.height(12.dp))
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Spacer(Modifier.height(14.dp))
+                // Compact hero: the ring on the left, the two numbers that matter on the right. Half the height of the
+                // old centred ring, which is what frees the first screen for every feature below.
+                // The one signature moment: a soft haldi glow behind the ring, and the step count rolling up to today's number
+                val shownSteps by androidx.compose.animation.core.animateIntAsState(
+                    targetValue = steps.toInt(), animationSpec = androidx.compose.animation.core.tween(1100), label = "steps",
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  // Glow drawn behind, beyond the ring's own bounds, so it adds no height to the hero
+                  Box(Modifier.drawBehind {
+                      val r = size.minDimension * 0.66f
+                      drawCircle(Brush.radialGradient(listOf(Haldi.copy(alpha = 0.18f), Violet.copy(alpha = 0.06f), Color.Transparent),
+                          center = center, radius = r), radius = r)
+                  }, contentAlignment = Alignment.Center) {
                     DualRing(
                         stepsFraction = steps.toFloat() / state.stepGoal,
                         screenFraction = (screen ?: 0).toFloat() / state.screenLimit,
                         screenOver = screenOver,
-                        modifier = Modifier.size(170.dp)
+                        modifier = Modifier.size(136.dp)
                             .clickable(onClickLabel = "What do the rings mean?") { explainRings = true }
                             .semantics(mergeDescendants = true) {
                                 contentDescription = (if (stepsKnown == null) "Steps not counted yet. " else "${numbers.format(steps)} of ${numbers.format(state.stepGoal)} steps. ") +
@@ -148,29 +161,29 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                             },
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(if (stepsKnown == null) "0" else numbers.format(steps), color = Color.White, style = MaterialTheme.typography.displayMedium)
-                            Text("of ${numbers.format(state.stepGoal)} steps", color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
+                            Text(if (stepsKnown == null) "0" else numbers.format(shownSteps), color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                            Text(t("steps"), color = MutedOnDark, style = MaterialTheme.typography.bodySmall)
                             if (km != null) {
-                                Text(com.bas1minute.sync.Distance.format(km), color = Haldi, style = MaterialTheme.typography.titleLarge,
-                                    modifier = Modifier.padding(top = 4.dp))
+                                Text(com.bas1minute.sync.Distance.format(km), color = Haldi, style = MaterialTheme.typography.titleSmall)
                             }
                         }
                     }
-                }
-                Spacer(Modifier.height(14.dp))
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { RingLegend { explainRings = true } }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    HeaderTile(
-                        "Steps left",
-                        if (stepsKnown == null) "—" else if (stepsLeft == 0L) "Done!" else numbers.format(stepsLeft),
-                        when (app.phone.todaySource) { "health_connect" -> "Health Connect"; "phone_sensor" -> "This phone"; else -> "Allow in Profile" },
-                        Violet, Modifier.weight(1f),
-                    )
-                    HeaderTile(
-                        "Screen time", screen?.let { hm(it) } ?: "—",
-                        when { screen == null -> "Allow in Profile"; screenOver -> "Over ${hm(state.screenLimit)} · social apps"; else -> "Social apps · limit ${hm(state.screenLimit)}" },
-                        if (screenOver) Coral else Haldi, Modifier.weight(1f),
-                    )
+                  }
+                    Spacer(Modifier.width(6.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        HeroStat(
+                            t("Steps left"),
+                            if (stepsKnown == null) "—" else if (stepsLeft == 0L) t("Done!") else numbers.format(stepsLeft),
+                            "${t("of")} ${numbers.format(state.stepGoal)} · " +
+                                when (app.phone.todaySource) { "health_connect" -> "Health Connect"; "phone_sensor" -> t("This phone"); else -> t("Allow in Profile") },
+                            Violet,
+                        ) { app.trackOpen = true }
+                        HeroStat(
+                            t("Screen time"), screen?.let { hm(it) } ?: "—",
+                            when { screen == null -> t("Allow in Profile"); screenOver -> "${t("Over")} ${hm(state.screenLimit)} · ${t("social apps")}"; else -> "${t("Social apps")} · ${t("limit")} ${hm(state.screenLimit)}" },
+                            if (screenOver) Coral else Haldi,
+                        ) { app.tab = Tab.Detox; app.phoneCheckOpen = false; app.detoxView = "insights" }
+                    }
                 }
             }
 
@@ -188,20 +201,16 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                 // 1. Finish setup, just in time (only while something is missing)
                 if (!app.phone.stepsReady || !app.phone.usageAccess) FinishSetupCard(app, phoneActions)
 
-                // Sunday / Monday: the weekly story, until opened
-                if (com.bas1minute.sync.WeekReview.isReviewDay() && app.prefs.reviewSeenWeek != com.bas1minute.sync.WeekReview.weekKey()) {
-                    WeekReviewCard(app)
-                }
+                // 2. Live right now: a detox or a walk in progress sits above everything else
+                val liveTrack by com.bas1minute.sync.track.LiveTrack.state.collectAsState()
+                if (liveTrack.active) TrackTodayCard(app)
+                val detoxOn = remember(app.tab, app.home) { com.bas1minute.sync.detox.DetoxStore.get(app.ctxForPush).active() != null }
+                if (detoxOn) DetoxCard(app)
 
-                // 2. The habit at a glance
-                TwentyOneDays(app, compact = true)
-
-                // 3. What can I do right now?
-                QuickActions(
-                    bursts = bursts, burstGoal = burstGoal, calm = calm,
-                    water = app.phone.today?.row?.waterMl ?: 0,
-                    onBurst = { app.burstOpen = true }, onCalm = { app.calmOpen = true },
-                    onWater = { app.addWater() }, onLog = { app.logOpen = true },
+                // 3. Everything, one tap away: every main feature with one live number each (see HomeHub.kt)
+                FeatureGrid(
+                    app, bursts = bursts, burstGoal = burstGoal, calm = calm,
+                    water = app.phone.today?.row?.waterMl ?: 0, socialMinutes = screen,
                 )
 
                 // Newer version on Google Play (dismiss hides it until the app restarts)
@@ -211,15 +220,10 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     UpdateAvailableBanner(onUpdate = phoneActions.onUpdateApp, onLater = { updateLater = true })
                 }
 
-                // Goals: the thread tying steps, sleep, screen time and detox to what the person actually wants
-                GoalsCard(app)
-                // Diary: today's reflection, and the life story behind the goals
-                DiaryCard(app)
-
-                // GPS walk / run: start one, or see the one in progress
-                TrackTodayCard(app)
-                // Digital detox: the focus half of Bas 1 Minute, one tap from Today
-                DetoxCard(app)
+                // Sunday / Monday: the weekly story, until opened
+                if (com.bas1minute.sync.WeekReview.isReviewDay() && app.prefs.reviewSeenWeek != com.bas1minute.sync.WeekReview.weekKey()) {
+                    WeekReviewCard(app)
+                }
 
                 // 4. One smart card: the most relevant thing today
                 val hasCheers = !server?.cheers.isNullOrEmpty()
@@ -244,6 +248,9 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     screenOver -> Nudge("Social and browsing time is over your limit. Swap 10 minutes of scrolling for a walk?")
                     else -> QuoteCard(onShare = phoneActions.onShareWhatsApp)
                 }
+
+                // 5. The habit at a glance (was above the fold; now below the feature grid)
+                TwentyOneDays(app, compact = true)
 
                 if (app.phone.samsungNeedsSetup && System.currentTimeMillis() - app.prefs.samsungDismissedAt > WEEK_MS) {
                     SamsungHealthCard(

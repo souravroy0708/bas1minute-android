@@ -55,6 +55,8 @@ object Push {
 
     /** Ask Firebase for the token (first run). Does nothing if the app was built without google-services.json. */
     fun refreshToken(context: Context) {
+        // Pushes off: never even ask Firebase for a token (and tell our server to forget any old one)
+        if (!Prefs(context).pushEnabled) { upload(context); return }
         try {
             FirebaseMessaging.getInstance().token.addOnSuccessListener { t ->
                 Prefs(context).pushToken = t

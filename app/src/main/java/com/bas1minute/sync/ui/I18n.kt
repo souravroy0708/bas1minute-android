@@ -107,6 +107,10 @@ object Lang {
         "What should it block?" to "यह क्या रोके?", "Social media & short video" to "सोशल मीडिया और शॉर्ट वीडियो",
         "Web browsers" to "वेब ब्राउज़र", "Review" to "देखें", "Block another app" to "एक और ऐप रोकें",
         "+ Block another app" to "+ एक और ऐप रोकें",
+        "Walk · Run" to "पैदल · दौड़", "Phone check" to "फ़ोन जाँच", "India rank" to "इंडिया रैंक", "This week" to "इस हफ़्ते",
+        "Done today" to "आज हो गया", "Set one" to "एक बनाएँ", "Join one" to "जुड़ें", "See it" to "देखें",
+        "Battery, apps" to "बैटरी, ऐप्स", "On now" to "अभी चालू",
+        "Speak instead of typing" to "टाइप करने के बजाय बोलें", "Speak now" to "अब बोलें",
         // Common
         "Save" to "सेव करें", "Cancel" to "रद्द करें", "Back up now" to "अभी बैकअप लें",
     )

@@ -155,6 +155,11 @@ class Prefs(context: Context) {
 
     fun checkPin(pin: String) = pinHash.isNotBlank() && hashPin(pin) == pinHash
 
+    /** Privacy shield on Goals, Life goals and Diary: no screenshots, blank in Recents. On by default. */
+    var privateScreens: Boolean
+        get() = p.getBoolean("private_screens", true)
+        set(v) = p.edit().putBoolean("private_screens", v).apply()
+
     /** Ask for the PIN when the app opens. Off by default. */
     var appLock: Boolean
         get() = p.getBoolean("app_lock", false)
