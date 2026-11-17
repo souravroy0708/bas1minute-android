@@ -33,6 +33,11 @@ class UsageReader(context: Context) {
      * an advancing cursor permanently loses any event that becomes queryable only after the cursor has already
      * moved past its timestamp, which is exactly the failure mode "nothing ever blocks" on those phones.
      */
+    /**
+     * Lookback for checks that run every few minutes (detox reminders, App Timers, nudges). Someone who has sat
+     * in Instagram for 10 minutes produced no new event in the last 20 seconds, so a short window would miss
+     * them; replaying the last 3 hours finds the latest "opened" with no "closed" after it.
+     */
     fun currentForegroundApp(nowMs: Long, lookbackMs: Long = 20_000L): String? {
         val from = nowMs - lookbackMs
         var fromEvents: String? = null
@@ -72,6 +77,7 @@ class UsageReader(context: Context) {
     }
 
     companion object {
+        const val PERIODIC_LOOKBACK_MS = 3 * 60 * 60 * 1000L
         // ACTIVITY_RESUMED / ACTIVITY_PAUSED (API 29) share values with MOVE_TO_FOREGROUND / BACKGROUND (API 21).
         const val RESUMED = 1
         const val PAUSED = 2

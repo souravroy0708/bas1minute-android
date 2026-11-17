@@ -13,9 +13,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+import com.bas1minute.sync.R
+
 /** Numbers that don't jump sideways as they count (steps, minutes, km). */
 private const val TNUM = "tnum"
-import com.bas1minute.sync.R
 
 // Same palette as the website
 val Ink = Color(0xFF0F1235)

@@ -104,7 +104,7 @@ object DetoxWatch {
             return
         }
 
-        val fg = runCatching { UsageReader(ctx).currentForegroundApp(now) }.getOrNull()
+        val fg = runCatching { UsageReader(ctx).currentForegroundApp(now, UsageReader.PERIODIC_LOOKBACK_MS) }.getOrNull()
         if (fg != null && rules.isBlocked(fg)) {
             store.recordBlockedAttempt(s.id)
             remind(ctx, rules.label(fg))

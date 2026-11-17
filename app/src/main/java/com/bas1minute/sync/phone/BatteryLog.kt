@@ -128,7 +128,7 @@ class BatteryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         }
         if (!detoxActive) {
             val reader = com.bas1minute.sync.detox.UsageReader(ctx)
-            val fg = try { reader.currentForegroundApp(now) } catch (e: Exception) { null }
+            val fg = try { reader.currentForegroundApp(now, com.bas1minute.sync.detox.UsageReader.PERIODIC_LOOKBACK_MS) } catch (e: Exception) { null }
             try { com.bas1minute.sync.nudge.SessionGuardChecker.check(ctx, reader, fg, now) } catch (e: Exception) { }
             try { com.bas1minute.sync.detox.AppTimerChecker.check(ctx, reader, fg, now) } catch (e: Exception) { }
         }
