@@ -30,6 +30,9 @@
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Voice typing in Diary and Goals. Asked only when the member first taps a mic, after an explanation.
+         On only while the Listening window is open; audio is never saved or sent to us. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Never ask for these. Detox and App Timers remind (notification) and judge the promise from Android's own
          usage history; a hard lock is handed to Android's Digital Wellbeing (Focus mode / app timers), which needs
          no permission from us. tools:node="remove" also strips them if a library ever tries to add one. -->
@@ -62,10 +65,16 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.APP_MESSAGING" />
         </intent>
-        <!-- Speak instead of typing (Diary, Goals): Android's own speech screen. No microphone permission for us. -->
+        <!-- Voice typing (Diary, Goals): find the phone's speech service, the system "Speak now" screen as a
+             fallback, and the Google / Speech Services apps so the help sheet can open their settings. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
+        <package android:name="com.google.android.googlequicksearchbox" />
+        <package android:name="com.google.android.tts" />
         <!-- "Set a hard limit": opens Android's own Digital Wellbeing (Google / Samsung) -->
         <package android:name="com.google.android.apps.wellbeing" />
         <package android:name="com.samsung.android.forest" />

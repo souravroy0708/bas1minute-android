@@ -111,6 +111,8 @@ object Lang {
         "Done today" to "आज हो गया", "Set one" to "एक बनाएँ", "Join one" to "जुड़ें", "See it" to "देखें",
         "Battery, apps" to "बैटरी, ऐप्स", "On now" to "अभी चालू",
         "Speak instead of typing" to "टाइप करने के बजाय बोलें", "Speak now" to "अब बोलें",
+        "Listening…" to "सुन रहे हैं…", "Allow microphone" to "माइक की अनुमति दें", "Not now" to "अभी नहीं",
+        "Try again" to "फिर कोशिश करें", "Open settings" to "सेटिंग्स खोलें", "Voice typing (optional)" to "बोलकर लिखें (वैकल्पिक)",
         // Common
         "Save" to "सेव करें", "Cancel" to "रद्द करें", "Back up now" to "अभी बैकअप लें",
     )

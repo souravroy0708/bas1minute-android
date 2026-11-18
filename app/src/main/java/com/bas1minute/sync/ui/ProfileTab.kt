@@ -411,6 +411,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 ok = snap.activityGranted, action = if (snap.activityGranted) null else "Allow", onAction = actions.onAskActivity)
             StatusRow("Screen time and social media", if (snap.usageAccess) "Usage access on" else "Usage access off",
                 ok = snap.usageAccess, action = if (snap.usageAccess) null else "Open", onAction = actions.onOpenUsageAccess)
+            VoicePermissionRow()
             if (!snap.usageAccess && snap.restrictedSettings) {
                 UsageAccessHelp(onOpenUsageAccess = actions.onOpenUsageAccess, onOpenAppInfo = actions.onOpenAppInfo, helpActions = actions.help)
             }
