@@ -331,6 +331,9 @@ class MainActivity : ComponentActivity() {
             app.tab = Tab.Detox
             app.phoneCheckOpen = true
         }
+        // Tapped a first-weeks tip: open that feature
+        AppFeature.of(intent?.getStringExtra(FeatureTips.EXTRA_FEATURE))?.let { app.openFeature(it) }
+        intent?.removeExtra(FeatureTips.EXTRA_FEATURE)
         // Tapped a detox notification, "End detox early" on the pause screen, or one of the daily nudges
         when (intent?.getStringExtra(com.bas1minute.sync.detox.DetoxWatch.EXTRA_OPEN)) {
             com.bas1minute.sync.detox.DetoxWatch.OPEN_DETOX -> { app.tab = Tab.Detox; app.phoneCheckOpen = false; app.detoxView = "detox" }

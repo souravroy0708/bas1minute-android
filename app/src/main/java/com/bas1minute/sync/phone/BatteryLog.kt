@@ -119,6 +119,10 @@ class BatteryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
         // Skipped step counting at setup? A few gentle reminders (see StepsReminder)
         try { com.bas1minute.sync.StepsReminder.check(ctx) } catch (e: Exception) { }
+        // First two weeks: one evening tip a day about a feature not tried yet (see FeatureTips)
+        try { com.bas1minute.sync.FeatureTips.check(ctx) } catch (e: Exception) { }
+        // New step badge earned? One celebration notification (see achieve/AchievementStore)
+        try { com.bas1minute.sync.achieve.AchievementStore.checkNew(ctx) } catch (e: Exception) { }
         if (detoxActive) {
             // Backup for the detox's own jobs: closes a finished session / re-creates its reminder jobs if needed.
             try { com.bas1minute.sync.detox.DetoxController.reconcile(ctx) } catch (e: Exception) { }

@@ -84,6 +84,32 @@ class AppController(private val ctx: android.content.Context, private val scope:
      * Online features (Profile). Off = nothing is ever sent; everything keeps working from the phone's own database.
      * On = a name-only account, a backup of daily totals, Circles, and (only if chosen) the India ranking.
      */
+    /** Opens a main feature from the home grid or a tips notification, and remembers it was used. */
+    fun openFeature(f: AppFeature) {
+        prefs.markFeatureUsed(f.key)
+        usedFeatures = prefs.usedFeatures
+        when (f) {
+            AppFeature.CIRCLES -> {
+                openCircleId = null; openCompetitionId = null; findOpen = false; globalOpen = false; aboutPage = null
+                circlesReturnTab = Tab.Today; tab = Tab.Profile; circlesOpen = true
+            }
+            AppFeature.GOALS -> { tab = Tab.Goals; goalsHubView = "goals" }
+            AppFeature.DIARY -> { tab = Tab.Goals; goalsHubView = "diary" }
+            AppFeature.WALK -> trackOpen = true
+            AppFeature.DETOX -> { tab = Tab.Detox; phoneCheckOpen = false; detoxView = "detox" }
+            AppFeature.SCREEN -> { tab = Tab.Detox; phoneCheckOpen = false; detoxView = "insights" }
+            AppFeature.PHONE -> { tab = Tab.Detox; phoneCheckOpen = true }
+            AppFeature.HISTORY -> { tab = Tab.Today; historyOpen = true }
+            AppFeature.BURST -> { tab = Tab.Today; burstOpen = true }
+            AppFeature.CALM -> { tab = Tab.Today; calmOpen = true }
+            AppFeature.WATER -> addWater()
+            AppFeature.LOG -> { tab = Tab.Today; logOpen = true }
+        }
+    }
+
+    /** Observable copy of prefs.usedFeatures, for the "New" dots on Home. */
+    var usedFeatures by mutableStateOf(prefs.usedFeatures)
+
     /** Observable copy of prefs.cloudEnabled so screens update the moment it changes. */
     var cloudOn by mutableStateOf(prefs.cloudEnabled)
 

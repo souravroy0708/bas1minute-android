@@ -188,6 +188,29 @@ class Prefs(context: Context) {
         get() = p.getInt("backfill_empty", 0)
         set(v) = p.edit().putInt("backfill_empty", v).apply()
 
+    /** Features the member has opened (AppFeature keys): hides "New" dots and skips tips for them. */
+    var usedFeatures: Set<String>
+        get() = p.getStringSet("used_features", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("used_features", v).apply()
+
+    fun markFeatureUsed(key: String) { if (key !in usedFeatures) usedFeatures = usedFeatures + key }
+
+    /** First-week tips already sent (AppFeature keys), and the day of the last one ("2026-11-19"). */
+    var tipsSent: Set<String>
+        get() = p.getStringSet("tips_sent", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("tips_sent", v).apply()
+    var lastTipDay: String
+        get() = p.getString("last_tip_day", "") ?: ""
+        set(v) = p.edit().putString("last_tip_day", v).apply()
+
+    /** Badge ids already announced; and whether the first silent pass has run (see AchievementStore). */
+    var seenBadges: Set<String>
+        get() = p.getStringSet("seen_badges", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("seen_badges", v).apply()
+    var badgesInitialised: Boolean
+        get() = p.getBoolean("badges_init", false)
+        set(v) = p.edit().putBoolean("badges_init", v).apply()
+
     /** "Your steps aren't counting yet" reminders sent, and when (at most 3, a day apart). */
     var stepsReminderCount: Int
         get() = p.getInt("steps_rem_n", 0)

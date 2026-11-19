@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -230,6 +231,9 @@ fun HistoryScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit
                 }
             }
 
+            // Personal records and badges (worked out on the phone from every saved day)
+            BadgesSection(app)
+
             // Where it lives, and how to bring in older steps
             AppCard {
                 Text(footer, style = MaterialTheme.typography.bodySmall, color = Muted)
@@ -310,5 +314,75 @@ private fun HistoryBars(values: List<Double>, goal: Double?, selected: Int?, onS
             drawLine(lineColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(),
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
         }
+    }
+}
+
+
+@Composable
+private fun BadgesSection(app: AppController) {
+    val ctx = LocalContext.current
+    val numbers = remember { NumberFormat.getIntegerInstance(Locale("en", "IN")) }
+    var data by remember { mutableStateOf<Pair<com.bas1minute.sync.achieve.Records, List<com.bas1minute.sync.achieve.Badge>>?>(null) }
+    var open by remember { mutableStateOf<com.bas1minute.sync.achieve.Badge?>(null) }
+    LaunchedEffect(Unit) {
+        data = withContext(Dispatchers.IO) {
+            val days = com.bas1minute.sync.achieve.AchievementStore.stepDays(ctx)
+            val goal = app.prefs.stepGoal
+            com.bas1minute.sync.achieve.Achievements.records(days, goal, LocalDate.now()) to
+                com.bas1minute.sync.achieve.Achievements.badges(days, goal)
+        }
+    }
+    val d = data ?: return
+    val (r, badges) = d
+    val fmt = DateTimeFormatter.ofPattern("d MMM yyyy")
+    AppCard(title = t("Personal records")) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HistoryStat(t("Best day"), r.bestDay?.let { numbers.format(it.steps) } ?: "—", Modifier.weight(1f), r.bestDay?.date?.format(fmt))
+            HistoryStat(t("Best week"), if (r.bestWeekSteps > 0) numbers.format(r.bestWeekSteps) else "—", Modifier.weight(1f),
+                r.bestWeekStart?.let { "Week of " + it.format(fmt) })
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HistoryStat(t("Current streak"), "${r.currentStreak} ${if (r.currentStreak == 1) "day" else "days"}", Modifier.weight(1f), "Longest: ${r.longestStreak}")
+            HistoryStat(t("All-time steps"), numbers.format(r.lifetimeSteps), Modifier.weight(1f), "${r.goalDays} goal days")
+        }
+    }
+    val earned = badges.count { it.earnedOn != null }
+    AppCard(title = "${t("Badges")} · $earned/${badges.size}") {
+        badges.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { b ->
+                    val on = b.earnedOn != null
+                    Column(
+                        Modifier.weight(1f).tactileClickable(RoundedCornerShape(16.dp), onClickLabel = b.title) { open = b }
+                            .background(if (on) androidx.compose.ui.graphics.Color(0xFFFFF3C8) else Paper)
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(b.emoji, style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.alpha(if (on) 1f else 0.3f))
+                        Text(b.title, style = MaterialTheme.typography.labelSmall, color = if (on) Ink else Muted, maxLines = 2,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        if (!on) androidx.compose.material3.LinearProgressIndicator(
+                            progress = { b.progress }, color = Haldi, trackColor = CardLine,
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, start = 6.dp, end = 6.dp).height(3.dp),
+                        )
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+    open?.let { b ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { open = null },
+            icon = { Text(b.emoji, style = MaterialTheme.typography.displayMedium) },
+            title = { Text(b.title) },
+            text = {
+                Text(b.earnedOn?.let { "${b.detail}. Earned on ${it.format(fmt)}." }
+                    ?: "${b.detail}. You’re ${(b.progress * 100).toInt()}% of the way there.")
+            },
+            confirmButton = { TextButton(onClick = { open = null }) { Text(t("Close"), color = Ink) } },
+        )
     }
 }

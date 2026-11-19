@@ -1,6 +1,9 @@
 package com.bas1minute.sync.ui
 
 import androidx.compose.foundation.background
+import com.bas1minute.sync.AppFeature
+import androidx.compose.ui.composed
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -76,7 +79,7 @@ import java.time.LocalDate
  */
 
 /** Live one-liners for the tiles that need a disk read (goals, diary, detox). Reloaded whenever Today shows. */
-private data class HubStatus(val goalsMet: Int = 0, val goalsTotal: Int = 0, val diaryDone: Boolean = false, val detoxLeftMs: Long? = null)
+private data class HubStatus(val goalsMet: Int = 0, val goalsTotal: Int = 0, val diaryDone: Boolean = false, val detoxLeftMs: Long? = null, val badges: Int = 0)
 
 @Composable
 private fun rememberHubStatus(app: AppController): HubStatus {
@@ -95,102 +98,191 @@ private fun rememberHubStatus(app: AppController): HubStatus {
             }.getOrDefault(0 to 0)
             val diary = runCatching { DiaryStore(ctx).reflectionOn(today) != null }.getOrDefault(false)
             val detox = runCatching { DetoxStore.get(ctx).active()?.remainingMs(System.currentTimeMillis()) }.getOrNull()
-            HubStatus(goals.first, goals.second, diary, detox)
+            val badges = runCatching { com.bas1minute.sync.achieve.AchievementStore.badges(ctx).count { it.earnedOn != null } }.getOrDefault(0)
+            HubStatus(goals.first, goals.second, diary, detox, badges)
         }
     }
     return status
 }
 
-private class Feature(
-    val icon: ImageVector, val label: String, val status: String, val tint: Color,
-    val badge: Int = 0, val highlight: Boolean = false, val onClick: () -> Unit,
+private class Tile(
+    val f: AppFeature, val icon: ImageVector, val status: String, val tint: Color,
+    val badge: Int = 0, val highlight: Boolean = false,
 )
 
+/**
+ * Home grid, by importance:
+ *  1. Circles and Goals — two big cards with a line saying what they're for (people stay for these two);
+ *  2. eight everyday features, four to a row;
+ *  3. Water and Log — the quickest, least important — as two slim buttons at the end.
+ * Each tile shows one live number. A small "New" dot marks features not tried yet (first two weeks), and a
+ * long-press on any tile explains it — so nobody has to guess where things are.
+ */
 @Composable
 fun FeatureGrid(app: AppController, bursts: Int, burstGoal: Int, calm: Int, water: Int, socialMinutes: Int?) {
+    val ctx = LocalContext.current
     val s = rememberHubStatus(app)
     val live by LiveTrack.state.collectAsState()
     val cheers = app.today?.cheers?.size ?: 0
     val circles = app.circles?.circles?.size ?: app.today?.circleCount ?: 0
+    val firstWeeks = remember {
+        val installed = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).firstInstallTime }.getOrDefault(0L)
+        System.currentTimeMillis() - installed < 14L * 24 * 3600_000L
+    }
+    // Anything already set up counts as "used", even if it wasn't opened from here
+    LaunchedEffect(circles, s.goalsTotal, s.diaryDone) {
+        if (circles > 0) app.prefs.markFeatureUsed(AppFeature.CIRCLES.key)
+        if (s.goalsTotal > 0) app.prefs.markFeatureUsed(AppFeature.GOALS.key)
+        if (s.diaryDone) app.prefs.markFeatureUsed(AppFeature.DIARY.key)
+        app.usedFeatures = app.prefs.usedFeatures
+    }
+    var explain by remember { mutableStateOf<Tile?>(null) }
+    fun isNew(f: AppFeature) = firstWeeks && f.key !in app.usedFeatures
 
-    val features = listOf(
-        // Row 1 — do it now (the four that were already here)
-        Feature(Icons.Filled.Bolt, t("Burst"), "$bursts/$burstGoal", Haldi) { app.burstOpen = true },
-        Feature(Icons.Filled.SelfImprovement, t("Calm"), "$calm min", Color(0xFFFFE7DF)) { app.calmOpen = true },
-        Feature(Icons.Filled.WaterDrop, t("Water"), if (water >= 1000) "%.1f L".format(water / 1000.0) else "$water ml · +1", Color(0xFFDDF0FD)) { app.addWater() },
-        Feature(Icons.Filled.EditNote, t("Log"), t("a day"), Color(0xFFE9ECFF)) { app.logOpen = true },
-        // Row 2 — building something
-        Feature(Icons.Filled.Flag, t("Goals"), if (s.goalsTotal == 0) t("Set one") else "${s.goalsMet}/${s.goalsTotal} ${t("today")}", Color(0xFFFFF3C8)) {
-            app.tab = Tab.Goals; app.goalsHubView = "goals"
-        },
-        Feature(Icons.Filled.AutoStories, t("Diary"), if (s.diaryDone) t("Done today") else t("Reflect"), Color(0xFFE9D9FF), highlight = !s.diaryDone) {
-            app.tab = Tab.Goals; app.goalsHubView = "diary"
-        },
-        Feature(Icons.Filled.DirectionsRun, t("Walk · Run"), if (live.active) t("On now") else t("Start"), Color(0xFFDFF5EA), highlight = live.active) {
-            app.trackOpen = true
-        },
-        Feature(Icons.Filled.Groups, t("Circles"), when { !app.cloudOn -> t("Optional"); cheers > 0 -> "$cheers ${t("new")}"; circles > 0 -> "$circles ${t("circles")}"; else -> t("Join one") },
-            Color(0xFFFFE3EC), badge = cheers) { openCircles(app, ranking = false) },
-        // Row 3 — focus and the wider picture
-        Feature(Icons.Filled.HourglassBottom, t("Detox"), s.detoxLeftMs?.let { "${DetoxLogic.formatDuration(it)} ${t("left")}" } ?: t("Start"),
-            Color(0xFFE9ECFF), highlight = s.detoxLeftMs != null) {
-            app.tab = Tab.Detox; app.phoneCheckOpen = false; app.detoxView = "detox"
-        },
-        Feature(Icons.Filled.Insights, t("Screen time"), socialMinutes?.let { "${hm(it)} ${t("social")}" } ?: t("See it"), Color(0xFFFFF3C8)) {
-            app.tab = Tab.Detox; app.phoneCheckOpen = false; app.detoxView = "insights"
-        },
-        Feature(Icons.Filled.PhoneAndroid, t("Phone check"), t("Battery, apps"), Color(0xFFDDF0FD)) {
-            app.tab = Tab.Detox; app.phoneCheckOpen = true
-        },
-        Feature(Icons.Filled.Leaderboard, t("History"), t("All time"), Color(0xFFDFF5EA)) { app.historyOpen = true },
+    val circlesTile = Tile(AppFeature.CIRCLES, Icons.Filled.Groups,
+        when { !app.cloudOn -> t("Turn on to join"); cheers > 0 -> "$cheers ${t("new cheers")}"; circles > 0 -> "$circles ${t("circles")}"; else -> t("Start one with family") },
+        Color(0xFFFFE3EC), badge = cheers)
+    val goalsTile = Tile(AppFeature.GOALS, Icons.Filled.Flag,
+        if (s.goalsTotal == 0) t("Set your first goal") else "${s.goalsMet} of ${s.goalsTotal} ${t("met today")}", Color(0xFFFFF3C8))
+    val everyday = listOf(
+        Tile(AppFeature.WALK, Icons.Filled.DirectionsRun, if (live.active) t("On now") else t("Start"), Color(0xFFDFF5EA), highlight = live.active),
+        Tile(AppFeature.DETOX, Icons.Filled.HourglassBottom, s.detoxLeftMs?.let { "${DetoxLogic.formatDuration(it)} ${t("left")}" } ?: t("Start"),
+            Color(0xFFE9ECFF), highlight = s.detoxLeftMs != null),
+        Tile(AppFeature.DIARY, Icons.Filled.AutoStories, if (s.diaryDone) t("Done today") else t("Reflect"), Color(0xFFE9D9FF)),
+        Tile(AppFeature.BURST, Icons.Filled.Bolt, "$bursts/$burstGoal", Haldi),
+        Tile(AppFeature.SCREEN, Icons.Filled.Insights, socialMinutes?.let { "${hm(it)} ${t("social")}" } ?: t("See it"), Color(0xFFFFF3C8)),
+        Tile(AppFeature.HISTORY, Icons.Filled.Leaderboard, if (s.badges > 0) "${s.badges} ${t("badges")}" else t("All time"), Color(0xFFDFF5EA)),
+        Tile(AppFeature.CALM, Icons.Filled.SelfImprovement, "$calm min", Color(0xFFFFE7DF)),
+        Tile(AppFeature.PHONE, Icons.Filled.PhoneAndroid, t("Battery, apps"), Color(0xFFDDF0FD)),
     )
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        features.chunked(4).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { FeatureTile(it, Modifier.weight(1f)) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOf(circlesTile, goalsTile).forEach { tile ->
+                PrimaryCard(tile, isNew(tile.f), Modifier.weight(1f), onLong = { explain = tile }) { app.openFeature(tile.f) }
             }
         }
+        everyday.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { tile -> FeatureTile(tile, isNew(tile.f), Modifier.weight(1f), onLong = { explain = tile }) { app.openFeature(tile.f) } }
+            }
+        }
+        // Quickest, least important: one tap each
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickButton(Icons.Filled.WaterDrop, "${t("Water")} · " + (if (water >= 1000) "%.1f L".format(water / 1000.0) else "$water ml"), "+1",
+                Modifier.weight(1f)) { app.openFeature(AppFeature.WATER) }
+            QuickButton(Icons.Filled.EditNote, t("Log your day"), null, Modifier.weight(1f)) { app.openFeature(AppFeature.LOG) }
+        }
+        if (firstWeeks) Text(t("New here? Press and hold any tile to see what it does."),
+            style = MaterialTheme.typography.bodySmall, color = Muted, modifier = Modifier.padding(horizontal = 4.dp))
+    }
+
+    explain?.let { tile ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { explain = null },
+            icon = {
+                Box(Modifier.size(48.dp).clip(CircleShape).background(tile.tint), contentAlignment = Alignment.Center) {
+                    Icon(tile.icon, contentDescription = null, tint = Ink)
+                }
+            },
+            title = { Text(t(tile.f.title)) },
+            text = { Text(tile.f.what, style = MaterialTheme.typography.bodyLarge) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { explain = null; app.openFeature(tile.f) }) { Text(t("Open"), color = Ink) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { explain = null }) { Text(t("Close"), color = Muted) } },
+        )
     }
 }
 
-/** Circles lives under Profile; opened from Today, Back returns to Today (see MainShell). */
-private fun openCircles(app: AppController, ranking: Boolean) {
-    app.openCircleId = null; app.openCompetitionId = null; app.findOpen = false
-    app.globalOpen = ranking
-    app.aboutPage = null
-    app.circlesReturnTab = Tab.Today
-    app.tab = Tab.Profile
-    app.circlesOpen = true
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun Modifier.tileClick(label: String, onLong: () -> Unit, onClick: () -> Unit): Modifier = composed {
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    this.clip(RoundedCornerShape(22.dp)).combinedClickable(
+        role = Role.Button, onClickLabel = label, onLongClickLabel = t("What is this?"),
+        onLongClick = { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); onLong() },
+        onClick = { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); onClick() },
+    )
 }
 
 @Composable
-private fun FeatureTile(f: Feature, modifier: Modifier) {
-    Column(
-        modifier.heightIn(min = 92.dp)
-            .tactileClickable(RoundedCornerShape(20.dp), onClickLabel = f.label, onClick = f.onClick)
-            .background(CardBg)
-            .border(if (f.highlight) 2.dp else 1.dp, if (f.highlight) Haldi else CardLine, RoundedCornerShape(20.dp))
-            .semantics(mergeDescendants = true) { contentDescription = "${f.label}, ${f.status}" }
-            .padding(vertical = 10.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Box {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(f.tint), contentAlignment = Alignment.Center) {
-                Icon(f.icon, contentDescription = null, tint = Ink, modifier = Modifier.size(22.dp))
-            }
-            if (f.badge > 0) {
-                Box(Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-2).dp).size(18.dp).clip(CircleShape).background(Coral),
-                    contentAlignment = Alignment.Center) {
-                    Text(if (f.badge > 9) "9+" else "${f.badge}", color = Color.White, style = MaterialTheme.typography.labelSmall)
+private fun NewDot(modifier: Modifier) {
+    Text(t("New"), color = Ink, style = MaterialTheme.typography.labelSmall,
+        modifier = modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 6.dp, vertical = 1.dp))
+}
+
+/** Big card for the two most important features: icon, name, live status and what it's for. */
+@Composable
+private fun PrimaryCard(tile: Tile, isNew: Boolean, modifier: Modifier, onLong: () -> Unit, onClick: () -> Unit) {
+    Box(modifier) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(min = 148.dp)
+                .tileClick(tile.f.title, onLong, onClick)
+                .background(CardBg)
+                .border(1.dp, CardLine, RoundedCornerShape(22.dp))
+                .semantics(mergeDescendants = true) { contentDescription = "${tile.f.title}, ${tile.status}" }
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box {
+                Box(Modifier.size(44.dp).clip(CircleShape).background(tile.tint), contentAlignment = Alignment.Center) {
+                    Icon(tile.icon, contentDescription = null, tint = Ink, modifier = Modifier.size(24.dp))
                 }
+                if (tile.badge > 0) CountBadge(tile.badge, Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-2).dp))
             }
+            Text(t(tile.f.title), style = MaterialTheme.typography.titleLarge, color = TextMain, maxLines = 1)
+            Text(tile.status, style = MaterialTheme.typography.labelLarge, color = Blue, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(tile.f.what, style = MaterialTheme.typography.bodySmall, color = Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Text(f.label, style = MaterialTheme.typography.labelLarge, color = TextMain, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center)
-        Text(f.status, style = MaterialTheme.typography.bodySmall, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center)
+        if (isNew) NewDot(Modifier.align(Alignment.TopEnd).padding(10.dp))
+    }
+}
+
+@Composable
+private fun FeatureTile(tile: Tile, isNew: Boolean, modifier: Modifier, onLong: () -> Unit, onClick: () -> Unit) {
+    Box(modifier) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(min = 96.dp)
+                .tileClick(tile.f.title, onLong, onClick)
+                .background(CardBg)
+                .border(if (tile.highlight) 2.dp else 1.dp, if (tile.highlight) Haldi else CardLine, RoundedCornerShape(22.dp))
+                .semantics(mergeDescendants = true) { contentDescription = "${tile.f.title}, ${tile.status}" }
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Box(Modifier.size(40.dp).clip(CircleShape).background(tile.tint), contentAlignment = Alignment.Center) {
+                Icon(tile.icon, contentDescription = null, tint = Ink, modifier = Modifier.size(22.dp))
+            }
+            // Smaller label so "Screen time" and "Phone check" fit on one line
+            Text(t(tile.f.title), style = MaterialTheme.typography.labelMedium, color = TextMain, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+            Text(tile.status, style = MaterialTheme.typography.bodySmall, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center)
+        }
+        if (isNew) Box(Modifier.align(Alignment.TopEnd).padding(8.dp).size(9.dp).clip(CircleShape).background(Haldi))
+    }
+}
+
+@Composable
+private fun CountBadge(n: Int, modifier: Modifier) {
+    Box(modifier.size(18.dp).clip(CircleShape).background(Coral), contentAlignment = Alignment.Center) {
+        Text(if (n > 9) "9+" else "$n", color = Color.White, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/** Slim one-tap button for Water and Log. */
+@Composable
+private fun QuickButton(icon: ImageVector, label: String, trailing: String?, modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.heightIn(min = 52.dp).tactileClickable(RoundedCornerShape(50), onClickLabel = label, onClick = onClick)
+            .background(CardBg).border(1.dp, CardLine, RoundedCornerShape(50)).padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = Blue, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = TextMain, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f))
+        if (trailing != null) Text(trailing, style = MaterialTheme.typography.labelLarge, color = Ink,
+            modifier = Modifier.clip(RoundedCornerShape(50)).background(Haldi).padding(horizontal = 8.dp, vertical = 2.dp))
     }
 }
 
