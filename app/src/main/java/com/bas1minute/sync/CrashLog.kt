@@ -16,6 +16,9 @@ import java.io.StringWriter
 object CrashLog {
     private const val FILE = "last_crash.txt"
 
+    /** Where the person was (screen + open sheet), so a report explains itself even if they write nothing. */
+    @Volatile var where: String = "start"
+
     fun install(context: Context) {
         val appCtx = context.applicationContext
         val previous = Thread.getDefaultUncaughtExceptionHandler()
@@ -27,6 +30,7 @@ object CrashLog {
                     appendLine("Bas 1 Minute ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
                     appendLine("${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
                     appendLine("Thread: ${thread.name}")
+                    appendLine("Screen: $where")
                     appendLine()
                     append(sw.toString().take(12_000))
                 })

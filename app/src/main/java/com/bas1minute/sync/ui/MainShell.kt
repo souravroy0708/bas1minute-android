@@ -152,6 +152,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         WeekReviewStory(app)
         // Fade-through between tabs and their full screens (burst, calm, log, circle)
         val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}:${app.detoxView}:${app.goalsHubView}:${app.circlesOpen}:${app.historyOpen}"
+        androidx.compose.runtime.SideEffect { com.bas1minute.sync.CrashLog.where = screen }
         androidx.compose.animation.AnimatedContent(
             targetState = screen,
             transitionSpec = {

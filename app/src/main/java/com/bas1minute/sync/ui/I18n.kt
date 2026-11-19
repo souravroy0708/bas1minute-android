@@ -124,6 +124,8 @@ object Lang {
         "Your history" to "आपका इतिहास", "History" to "इतिहास", "All time" to "अब तक", "All your history" to "आपका पूरा इतिहास",
         "Online features" to "ऑनलाइन सुविधाएँ", "Optional" to "वैकल्पिक", "Turn on" to "चालू करें", "Total" to "कुल",
         "Daily average" to "रोज़ का औसत", "Best day" to "सबसे अच्छा दिन", "Goal days" to "लक्ष्य वाले दिन",
+        "Voice typing setup" to "बोलकर लिखने की सेटिंग", "Check everything" to "सब जाँचें", "Test it" to "आज़माएँ",
+        "Start test" to "टेस्ट शुरू करें", "Set up" to "सेट करें", "Check" to "जाँचें",
         "Listening…" to "सुन रहे हैं…", "Allow microphone" to "माइक की अनुमति दें", "Not now" to "अभी नहीं",
         "Try again" to "फिर कोशिश करें", "Open settings" to "सेटिंग्स खोलें", "Voice typing (optional)" to "बोलकर लिखें (वैकल्पिक)",
         // Common

@@ -16,3 +16,8 @@
     public static int d(...);
     public static int i(...);
 }
+
+# Keep real class and method names in crash reports. R8 still removes unused code and optimises, so the APK stays
+# small, but a stack trace says "VoiceSetupDialog" instead of "o2.s.c0". The app is open about its code anyway;
+# readable crashes matter more for a two-person team than a little extra obfuscation.
+-dontobfuscate
