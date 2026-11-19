@@ -8,6 +8,9 @@
   opt out with one switch there or in Profile. "Start counting" on Home + up to 3 reminders if steps are skipped.
 - **History**: every day kept forever on the phone (compact), any week / month / year / all time / custom range,
   personal records (best day, best week, streaks, all-time steps) and 12 step badges with a "New badge" notification.
+- **Suggested goal** (History): ~10% above your last 4 weeks' average, one tap to use it.
+- **Export my data** (History): every saved day as a CSV, shared only where the member chooses.
+- **Water reminders**: at most 3 a day (11:00, 14:00, 17:00), only when behind; part of "Nudges and reminders".
 - **First two weeks**: one evening tip a day about a feature not yet used (max 10, stops after 14 days).
 - **Detox**: normal mode needs only Usage access; optional **Strict mode** brings back the countdown pause screen.
 - **Voice typing** in Diary and Goals, with guided fixes when the phone's speech service is off.
@@ -42,6 +45,8 @@
 - [ ] Detox Strict: allow overlay → open Instagram → countdown screen within ~1 s; screen off/on still blocks.
 - [ ] Voice typing: allow mic → speak in Diary; deny with "Don't ask again" → settings guide appears.
 - [ ] Diary screenshot is blocked (Private screens on); App lock → blank card in Recents.
+- [ ] History → Export my data opens the share sheet with a CSV that opens in Google Sheets.
+- [ ] Suggested goal appears after 14+ days of data; "Use" updates the ring.
 - [ ] Airplane mode: Home, History, Goals, Diary, Detox all work; no error banners.
 - [ ] Light and dark theme; Hindi; large font size.
 

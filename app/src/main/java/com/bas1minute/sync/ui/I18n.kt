@@ -115,6 +115,7 @@ object Lang {
         "Start counting" to "गिनती शुरू करें",
         "Personal records" to "निजी रिकॉर्ड", "Best week" to "सबसे अच्छा हफ़्ता", "Current streak" to "मौजूदा सिलसिला",
         "All-time steps" to "अब तक के कदम", "Badges" to "बैज",
+        "Use" to "लागू करें", "Export my data (CSV)" to "मेरा डेटा निकालें (CSV)", "badges" to "बैज",
         "New" to "नया", "Open" to "खोलें", "What is this?" to "यह क्या है?", "Log your day" to "आज का हाल लिखें",
         "Set your first goal" to "पहला लक्ष्य बनाएँ", "Start one with family" to "परिवार के साथ शुरू करें", "met today" to "आज पूरे",
         "New here? Press and hold any tile to see what it does." to "नए हैं? किसी भी टाइल को दबाकर रखें, पता चलेगा वह क्या करती है।",

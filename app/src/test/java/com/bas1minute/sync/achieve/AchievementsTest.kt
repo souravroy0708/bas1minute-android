@@ -44,4 +44,12 @@ class AchievementsTest {
         val r = Achievements.records(days(8000, 8000, 1000), 7000, d0.plusDays(2))
         assertEquals(2, r.currentStreak)
     }
+
+    @Test fun suggestedGoal_tenPercentAboveRecentAverage() {
+        val today = LocalDate.of(2026, 12, 1)
+        val days = (1..28).map { StepDay(today.minusDays(it.toLong()), 8000) }
+        assertEquals(8500, Achievements.suggestedGoal(days, 7000, today))
+        assertNull(Achievements.suggestedGoal(days, 8500, today))          // already there
+        assertNull(Achievements.suggestedGoal(days.take(10), 7000, today))  // not enough data
+    }
 }

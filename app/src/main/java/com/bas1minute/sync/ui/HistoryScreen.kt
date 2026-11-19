@@ -239,6 +239,12 @@ fun HistoryScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit
                 Text(footer, style = MaterialTheme.typography.bodySmall, color = Muted)
                 Text("Kept forever on this phone, in a compact form. Works offline; nothing here is sent unless you turn on Online features.",
                     style = MaterialTheme.typography.bodySmall, color = Muted)
+                GhostButton(t("Export my data (CSV)")) {
+                    runCatching { ctx.startActivity(com.bas1minute.sync.DataExport.shareIntent(ctx)) }
+                        .onFailure { app.message = "Couldn’t create the file. Try again." }
+                }
+                Text("A spreadsheet of every saved day. It goes only where you send it.",
+                    style = MaterialTheme.typography.bodySmall, color = Muted)
                 if (!historyGranted) {
                     GhostButton(t("Import older steps from Health Connect")) { actions.onAskHealthHistory() }
                     Text("Brings in steps saved before you installed Bas 1 Minute, a month at a time in the background.",
@@ -323,11 +329,13 @@ private fun BadgesSection(app: AppController) {
     val ctx = LocalContext.current
     val numbers = remember { NumberFormat.getIntegerInstance(Locale("en", "IN")) }
     var data by remember { mutableStateOf<Pair<com.bas1minute.sync.achieve.Records, List<com.bas1minute.sync.achieve.Badge>>?>(null) }
+    var suggested by remember { mutableStateOf<Int?>(null) }
     var open by remember { mutableStateOf<com.bas1minute.sync.achieve.Badge?>(null) }
     LaunchedEffect(Unit) {
         data = withContext(Dispatchers.IO) {
             val days = com.bas1minute.sync.achieve.AchievementStore.stepDays(ctx)
             val goal = app.prefs.stepGoal
+            suggested = com.bas1minute.sync.achieve.Achievements.suggestedGoal(days, goal, LocalDate.now())
             com.bas1minute.sync.achieve.Achievements.records(days, goal, LocalDate.now()) to
                 com.bas1minute.sync.achieve.Achievements.badges(days, goal)
         }
@@ -344,6 +352,19 @@ private fun BadgesSection(app: AppController) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             HistoryStat(t("Current streak"), "${r.currentStreak} ${if (r.currentStreak == 1) "day" else "days"}", Modifier.weight(1f), "Longest: ${r.longestStreak}")
             HistoryStat(t("All-time steps"), numbers.format(r.lifetimeSteps), Modifier.weight(1f), "${r.goalDays} goal days")
+        }
+        // Adaptive goal, like premium trackers: based on the last 4 weeks
+        suggested?.let { g ->
+            val up = g > app.prefs.stepGoal
+            Text((if (up) "You’ve been beating your goal. " else "Your goal may be too high for now. ") +
+                "Based on your last 4 weeks, try ${numbers.format(g)} steps a day.",
+                style = MaterialTheme.typography.bodyMedium, color = TextMain)
+            GhostButton("${t("Use")} ${numbers.format(g)}") {
+                app.prefs.stepGoal = g
+                app.home = app.homeState()
+                app.updateGoals(org.json.JSONObject().put("step_goal", g))
+                suggested = null
+            }
         }
     }
     val earned = badges.count { it.earnedOn != null }

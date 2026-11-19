@@ -203,6 +203,14 @@ class Prefs(context: Context) {
         get() = p.getString("last_tip_day", "") ?: ""
         set(v) = p.edit().putString("last_tip_day", v).apply()
 
+    /** Water reminders (on by default, part of "Nudges and reminders"); and the last slot sent ("2026-11-19:14"). */
+    var waterReminders: Boolean
+        get() = p.getBoolean("water_reminders", true)
+        set(v) = p.edit().putBoolean("water_reminders", v).apply()
+    var lastWaterReminder: String
+        get() = p.getString("last_water_rem", "") ?: ""
+        set(v) = p.edit().putString("last_water_rem", v).apply()
+
     /** Badge ids already announced; and whether the first silent pass has run (see AchievementStore). */
     var seenBadges: Set<String>
         get() = p.getStringSet("seen_badges", emptySet())?.toSet() ?: emptySet()

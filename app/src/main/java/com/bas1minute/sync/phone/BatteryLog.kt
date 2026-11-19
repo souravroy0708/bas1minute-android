@@ -123,6 +123,7 @@ class BatteryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         try { com.bas1minute.sync.FeatureTips.check(ctx) } catch (e: Exception) { }
         // New step badge earned? One celebration notification (see achieve/AchievementStore)
         try { com.bas1minute.sync.achieve.AchievementStore.checkNew(ctx) } catch (e: Exception) { }
+        try { com.bas1minute.sync.WaterReminder.check(ctx) } catch (e: Exception) { }
         if (detoxActive) {
             // Backup for the detox's own jobs: closes a finished session / re-creates its reminder jobs if needed.
             try { com.bas1minute.sync.detox.DetoxController.reconcile(ctx) } catch (e: Exception) { }

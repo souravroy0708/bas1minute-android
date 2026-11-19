@@ -99,4 +99,16 @@ object Achievements {
         while ((byDate[day]?.steps ?: 0) >= goal) { current++; day = day.minusDays(1) }
         return Records(bestDay, bestWeek?.key, bestWeek?.value ?: 0L, longest, current, sorted.sumOf { it.steps }, sorted.count { it.steps >= goal })
     }
+
+    /**
+     * Suggested daily goal, like Google Fit's: about 10% above the last 4 weeks' average, rounded to 500, between
+     * 3,000 and 20,000. Null until there are 14 days of data, or when it would barely differ from today's goal.
+     */
+    fun suggestedGoal(days: List<StepDay>, goal: Int, today: LocalDate): Int? {
+        val recent = days.filter { it.steps > 0 && !it.date.isAfter(today.minusDays(1)) && it.date.isAfter(today.minusDays(29)) }
+        if (recent.size < 14) return null
+        val avg = recent.sumOf { it.steps } / recent.size
+        val target = (((avg * 1.1) / 500).toLong() * 500).toInt().coerceIn(3_000, 20_000)
+        return if (kotlin.math.abs(target - goal) < 500) null else target
+    }
 }
