@@ -69,6 +69,8 @@ data class PhoneActions(
     val onPickGoalPhoto: (Long) -> Unit = {},
     /** Opens the photo picker for the diary entry with this id (see diary/DiaryPhoto.kt). */
     val onPickDiaryPhoto: (Long) -> Unit = {},
+    /** Optional Health Connect permission to import steps from before the app was installed. */
+    val onAskHealthHistory: () -> Unit = {},
 )
 
 @Composable
@@ -193,7 +195,10 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
         }
 
         SectionHeader(t("Privacy and security"))
-        // Privacy: sharing is on for new members (it puts them in the global ranking); off any time here
+        // Offline-first: one switch decides whether anything ever leaves the phone
+        OnlineFeaturesCard(app)
+
+        if (app.cloudOn) {
         AppCard(title = t("Your data")) {
             Text("Everything is stored on this phone. No phone number, email or password. We don’t sell your data.",
                 style = MaterialTheme.typography.bodyMedium, color = Muted)
@@ -259,6 +264,7 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
                 app.openWebSignIn()
             }
         }
+        }   // cloudEnabled
 
         // App lock with the PIN set at install
         AppCard(title = t("App lock")) {
@@ -540,5 +546,51 @@ private fun ChoiceRow(options: List<Pair<String, String>>, selected: String, onS
                         .padding(horizontal = 16.dp, vertical = 10.dp))
             }
         }
+    }
+}
+
+
+/** The master switch for everything that needs the internet. Off by default; nothing is sent while it's off. */
+@Composable
+private fun OnlineFeaturesCard(app: AppController) {
+    val on = app.cloudOn
+    var asking by remember { mutableStateOf(false) }
+    AppCard(title = t("Online features")) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (on) "On" else "Off — this phone only", style = MaterialTheme.typography.titleMedium)
+                Text(if (on) "Backup, Circles, the India ranking and the website are on. Your history also stays on this phone."
+                    else "Everything works without internet and nothing is sent anywhere. Turn on for backup, Circles and the India ranking.",
+                    style = MaterialTheme.typography.bodySmall, color = Muted)
+            }
+            Switch(checked = on, enabled = !app.busy, colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi),
+                onCheckedChange = { want -> if (want) asking = true else app.setCloud(false) })
+        }
+    }
+    if (asking) {
+        var rank by remember { mutableStateOf(false) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { asking = false },
+            title = { Text(t("Turn on online features?")) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("• A name-only account (no phone number, email or password).\n" +
+                        "• Your daily steps and screen-time totals are backed up. Never app names, location, diary or goals.\n" +
+                        "• Circles with family and friends.\n" +
+                        "• Turn off any time; your phone keeps everything either way.",
+                        style = MaterialTheme.typography.bodyMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Also show me in the India ranking", style = MaterialTheme.typography.titleSmall)
+                            Text("Optional. Just your name and daily steps.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                        }
+                        Switch(checked = rank, onCheckedChange = { rank = it },
+                            colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi))
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { asking = false; app.setCloud(true, joinRanking = rank) }) { Text(t("Turn on"), color = Ink) } },
+            dismissButton = { TextButton(onClick = { asking = false }) { Text(t("Cancel"), color = Muted) } },
+        )
     }
 }

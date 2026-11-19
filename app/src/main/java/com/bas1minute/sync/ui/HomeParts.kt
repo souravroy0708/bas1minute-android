@@ -37,6 +37,13 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import com.bas1minute.sync.AppController
 
+/** The right "count my steps" ask for this phone: Health Connect, else the phone's own sensor, else install. */
+fun askForSteps(snap: com.bas1minute.sync.Snapshot, actions: PhoneActions) = when {
+    snap.hcStatus == HealthConnectClient.SDK_AVAILABLE -> actions.onAskHealthConnect()
+    snap.recordingAvailable -> actions.onAskActivity()
+    else -> actions.onInstallHealthConnect()
+}
+
 /** Just-in-time setup on Home: only the steps still missing, with one-tap fixes. Disappears when done. */
 @Composable
 fun FinishSetupCard(app: AppController, actions: PhoneActions) {

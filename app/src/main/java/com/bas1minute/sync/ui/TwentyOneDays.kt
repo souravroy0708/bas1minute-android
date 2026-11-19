@@ -124,8 +124,8 @@ fun TwentyOneDays(app: AppController, compact: Boolean = false) {
                 Stat21(t("Goal days"), "$goalDays/21", Modifier.weight(1f))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(t("Show chart and details"), style = MaterialTheme.typography.labelLarge, color = Blue,
-                    modifier = Modifier.weight(1f).clickable { expanded = true }.padding(vertical = 6.dp))
+                Text(t("All your history"), style = MaterialTheme.typography.labelLarge, color = Blue,
+                    modifier = Modifier.weight(1f).clickable { app.historyOpen = true }.padding(vertical = 6.dp))
                 SmallPill(if (streak > 0) "Share" else "Share") { app.shareKind = "streak" }
             }
             return@AppCard

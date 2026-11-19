@@ -7,7 +7,7 @@ import java.time.LocalDate
 
 /** Copies everything the phone knows about recent days into the local database. Works offline. */
 object Recorder {
-    /** 10 days covers the Recording API's memory and Android's usage history. Older days are already saved. */
+    /** 10 days covers the Recording API's memory and Android's usage history. Older days are already saved (forever). */
     suspend fun captureRecent(context: Context, days: Int = 10) {
         val steps = StepsReader(context)
         val usage = ScreenTimeReader(context)
@@ -34,7 +34,19 @@ object Recorder {
                 u?.let { db.saveApps(day, it.socialApps) }
             }
         }
-        withContext(Dispatchers.IO) { db.prune(today) }
+        // History is kept forever; only fast-growing detail is made compact (see LocalDb.compact). At most daily,
+        // and a VACUUM to give the space back at most monthly.
+        withContext(Dispatchers.IO) {
+            val prefs = Prefs(context)
+            val now = System.currentTimeMillis()
+            if (now - prefs.lastCompactAt > 24 * 3600_000L) {
+                val freed = runCatching { db.compact(today) }.getOrDefault(false)
+                val monthAgo = now - 30L * 24 * 3600_000L
+                if (freed || prefs.lastCompactAt < monthAgo) db.vacuum()
+                prefs.lastCompactAt = now
+            }
+        }
+        runCatching { HistoryImport.step(context) }   // older steps from Health Connect, a month at a time
         runCatching { StepsWidget.refresh(context) }   // keep the home-screen widget current
     }
 }

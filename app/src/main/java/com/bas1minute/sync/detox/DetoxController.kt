@@ -27,6 +27,12 @@ object DetoxController {
 
     fun usageAccessIntent(): Intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
 
+    /** Strict mode only: the pause screen needs "Display over other apps". */
+    fun canDrawOverlays(ctx: Context): Boolean = Settings.canDrawOverlays(ctx)
+
+    fun overlayIntent(ctx: Context): Intent =
+        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${ctx.packageName}"))
+
     /** Starts a promise for [minutes]. Returns null if Usage access is missing. */
     fun start(ctx: Context, minutes: Int, why: String = ""): DetoxSession? {
         if (!isReady(ctx)) return null

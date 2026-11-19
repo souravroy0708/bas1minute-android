@@ -210,6 +210,7 @@ class Repo(context: Context) {
     private suspend fun write(path: String, body: JSONObject, queueable: Boolean): Res<JSONObject> {
         val r = api.post(path, body)
         return when {
+            r.code == null && !prefs.cloudEnabled -> Res.Fail("Online features are off. Turn them on in Profile to use this.")
             r.code == null && queueable -> {
                 withContext(Dispatchers.IO) { db.enqueue(path, body.toString()) }
                 Res.Queued()

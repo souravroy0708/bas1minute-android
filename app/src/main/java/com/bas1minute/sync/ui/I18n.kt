@@ -111,6 +111,13 @@ object Lang {
         "Done today" to "आज हो गया", "Set one" to "एक बनाएँ", "Join one" to "जुड़ें", "See it" to "देखें",
         "Battery, apps" to "बैटरी, ऐप्स", "On now" to "अभी चालू",
         "Speak instead of typing" to "टाइप करने के बजाय बोलें", "Speak now" to "अब बोलें",
+        "Steps aren’t counting yet" to "कदम अभी गिने नहीं जा रहे", "One tap and your phone or watch counts them for you." to "एक टैप, और फ़ोन या घड़ी खुद गिनेगी।",
+        "Start counting" to "गिनती शुरू करें",
+        "Strict mode" to "सख़्त मोड", "Display over other apps" to "दूसरे ऐप्स के ऊपर दिखाएँ", "Preview the pause screen" to "रोक स्क्रीन देखें",
+        "Open App info" to "ऐप जानकारी खोलें",
+        "Your history" to "आपका इतिहास", "History" to "इतिहास", "All time" to "अब तक", "All your history" to "आपका पूरा इतिहास",
+        "Online features" to "ऑनलाइन सुविधाएँ", "Optional" to "वैकल्पिक", "Turn on" to "चालू करें", "Total" to "कुल",
+        "Daily average" to "रोज़ का औसत", "Best day" to "सबसे अच्छा दिन", "Goal days" to "लक्ष्य वाले दिन",
         "Listening…" to "सुन रहे हैं…", "Allow microphone" to "माइक की अनुमति दें", "Not now" to "अभी नहीं",
         "Try again" to "फिर कोशिश करें", "Open settings" to "सेटिंग्स खोलें", "Voice typing (optional)" to "बोलकर लिखें (वैकल्पिक)",
         // Common

@@ -51,10 +51,15 @@ data class DayRow(
  * display; they reach the website through the action outbox.
  */
 class LocalDb private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 11) {
+    SQLiteOpenHelper(context.applicationContext, "bas1minute.db", null, 12) {
 
     companion object {
-        private const val KEEP_DAYS = 400L
+        /** Per-app daily minutes are kept this long, then rolled up into one row per app per month (forever). */
+        private const val APP_DAILY_DAYS = 120L
+        /** GPS routes older than this are thinned (shape kept, ~80–90% fewer points). Totals are untouched. */
+        private const val ROUTE_FULL_DAYS = 60L
+        /** Allowed history metrics (column names), so nothing user-controlled ever reaches SQL. */
+        val HISTORY_METRICS = setOf("steps", "social_minutes", "screen_minutes", "sleep_minutes")
         private val PHONE = setOf("health_connect", "phone_sensor", "phone_estimate", "usage_stats")
         private const val COLS = "date, steps, steps_source, screen_minutes, social_minutes, sleep_minutes, sleep_source, " +
             "first_use, last_use, water_ml, water_source, weight_kg, weight_source, dirty, updated_at, bursts, calm_minutes, mood"
@@ -90,6 +95,7 @@ class LocalDb private constructor(context: Context) :
         createV9(db)
         createV10(db)
         createV11(db)
+        createV12(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -104,6 +110,7 @@ class LocalDb private constructor(context: Context) :
         if (oldVersion < 9) createV9(db)
         if (oldVersion < 10) createV10(db)
         if (oldVersion < 11) createV11(db)
+        if (oldVersion < 12) createV12(db)
     }
 
     private fun createV2(db: SQLiteDatabase) {
@@ -262,6 +269,13 @@ class LocalDb private constructor(context: Context) :
             }
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS ${t}_uuid ON $t(uuid)")
         }
+    }
+
+    /** v12: everything kept forever, compactly. Monthly per-app roll-up; a flag for routes already thinned. */
+    private fun createV12(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS app_usage_month (month TEXT NOT NULL, app TEXT NOT NULL, minutes INTEGER NOT NULL, " +
+            "PRIMARY KEY (month, app)) WITHOUT ROWID")
+        db.execSQL("ALTER TABLE activities ADD COLUMN compacted INTEGER NOT NULL DEFAULT 0")
     }
 
     // ---------- days ----------
@@ -429,11 +443,108 @@ class LocalDb private constructor(context: Context) :
         writableDatabase.execSQL("UPDATE days SET dirty = 0 WHERE dirty = 1 AND date < ?", arrayOf(before.toString()))
     }
 
-    fun prune(today: LocalDate) {
-        val cutoff = today.minusDays(KEEP_DAYS).toString()
-        writableDatabase.execSQL("DELETE FROM days WHERE date < ?", arrayOf(cutoff))
-        writableDatabase.execSQL("DELETE FROM app_usage WHERE date < ?", arrayOf(cutoff))
+    /**
+     * Keeps the database small without ever losing history. Days are NEVER deleted (one ~100-byte row per day,
+     * about 40 KB a year). What grows fast is made compact instead:
+     *  - per-app minutes older than [APP_DAILY_DAYS] become one row per app per month;
+     *  - GPS routes older than [ROUTE_FULL_DAYS] are thinned with Douglas–Peucker (same shape on the map; the
+     *    activity's distance, time and pace are stored separately and don't change).
+     * Returns true if anything was removed, so the caller can VACUUM now and then.
+     */
+    fun compact(today: LocalDate): Boolean {
+        val db = writableDatabase
+        var changed = false
+        val appCutoff = today.minusDays(APP_DAILY_DAYS).toString()
+        db.beginTransaction()
+        try {
+            db.rawQuery("SELECT substr(date, 1, 7), app, SUM(minutes) FROM app_usage WHERE date < ? GROUP BY substr(date, 1, 7), app",
+                arrayOf(appCutoff)).use { c ->
+                while (c.moveToNext()) {
+                    db.execSQL("INSERT OR IGNORE INTO app_usage_month (month, app, minutes) VALUES (?, ?, 0)", arrayOf(c.getString(0), c.getString(1)))
+                    db.execSQL("UPDATE app_usage_month SET minutes = minutes + ? WHERE month = ? AND app = ?",
+                        arrayOf(c.getLong(2), c.getString(0), c.getString(1)))
+                    changed = true
+                }
+            }
+            db.execSQL("DELETE FROM app_usage WHERE date < ?", arrayOf(appCutoff))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+
+        val routeCutoff = java.time.ZonedDateTime.of(today.minusDays(ROUTE_FULL_DAYS).atStartOfDay(), java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        val old = db.rawQuery("SELECT id FROM activities WHERE compacted = 0 AND ended_at IS NOT NULL AND ended_at < ?",
+            arrayOf(routeCutoff.toString())).use { c -> buildList { while (c.moveToNext()) add(c.getLong(0)) } }
+        for (id in old) { if (thinRoute(id)) changed = true }
+        return changed
     }
+
+    /** Thins one route, segment by segment, keeping each segment's first and last point. */
+    private fun thinRoute(id: Long): Boolean {
+        val db = writableDatabase
+        data class P(val seq: Int, val lat: Double, val lng: Double, val seg: Int)
+        val pts = db.rawQuery("SELECT seq, lat, lng, seg FROM activity_points WHERE activity_id = ? ORDER BY seq", arrayOf(id.toString())).use { c ->
+            buildList { while (c.moveToNext()) add(P(c.getInt(0), c.getDouble(1), c.getDouble(2), c.getInt(3))) }
+        }
+        val drop = ArrayList<Int>()
+        for ((_, segPts) in pts.groupBy { it.seg }) {
+            val keep = RouteThinning.keep(segPts.map { it.lat }, segPts.map { it.lng }, toleranceM = 4.0)
+            segPts.forEachIndexed { i, p -> if (!keep[i]) drop += p.seq }
+        }
+        db.beginTransaction()
+        try {
+            drop.chunked(400).forEach { chunk ->
+                db.execSQL("DELETE FROM activity_points WHERE activity_id = $id AND seq IN (${chunk.joinToString(",")})")
+            }
+            db.execSQL("UPDATE activities SET compacted = 1 WHERE id = ?", arrayOf(id))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        return drop.isNotEmpty()
+    }
+
+    /** Reclaims freed space. Run rarely (it rewrites the file); see Recorder. */
+    fun vacuum() { runCatching { writableDatabase.execSQL("VACUUM") } }
+
+    /** Size of the database file on the phone, in bytes. */
+    fun sizeBytes(): Long = readableDatabase.rawQuery("PRAGMA page_count", null).use { a -> if (a.moveToFirst()) a.getLong(0) else 0L } *
+        readableDatabase.rawQuery("PRAGMA page_size", null).use { b -> if (b.moveToFirst()) b.getLong(0) else 0L }
+
+    // ---------- all-time history ----------
+
+    enum class Bucket { DAY, WEEK, MONTH, YEAR }
+
+    /** One bar in the history chart. [total] is the sum over the bucket; [days] how many days had a value. */
+    data class HistoryPoint(val start: LocalDate, val total: Long, val days: Int, val best: Long, val goalDays: Int)
+
+    /** Sum / count / best / goal-days per day, week (Mon–Sun), month or year — one fast SQL query. */
+    fun history(metric: String, from: LocalDate, to: LocalDate, bucket: Bucket, goal: Long): List<HistoryPoint> {
+        require(metric in HISTORY_METRICS)
+        val b = when (bucket) {
+            Bucket.DAY -> "date"
+            Bucket.WEEK -> "date(date, '-' || ((CAST(strftime('%w', date) AS INTEGER) + 6) % 7) || ' days')"
+            Bucket.MONTH -> "substr(date, 1, 7) || '-01'"
+            Bucket.YEAR -> "substr(date, 1, 4) || '-01-01'"
+        }
+        val sql = "SELECT $b AS b, SUM($metric), COUNT($metric), MAX($metric), SUM(CASE WHEN $metric >= ? THEN 1 ELSE 0 END) " +
+            "FROM days WHERE date BETWEEN ? AND ? AND $metric IS NOT NULL GROUP BY b ORDER BY b"
+        return readableDatabase.rawQuery(sql, arrayOf(goal.toString(), from.toString(), to.toString())).use { c ->
+            buildList {
+                while (c.moveToNext()) add(HistoryPoint(LocalDate.parse(c.getString(0)), c.getLong(1), c.getInt(2), c.getLong(3), c.getInt(4)))
+            }
+        }
+    }
+
+    /** The single best day in a range, for "Best day". */
+    fun bestDay(metric: String, from: LocalDate, to: LocalDate): Pair<LocalDate, Long>? {
+        require(metric in HISTORY_METRICS)
+        return readableDatabase.rawQuery("SELECT date, $metric FROM days WHERE date BETWEEN ? AND ? AND $metric IS NOT NULL ORDER BY $metric DESC LIMIT 1",
+            arrayOf(from.toString(), to.toString())).use { c -> if (c.moveToFirst()) LocalDate.parse(c.getString(0)) to c.getLong(1) else null }
+    }
+
+    /** The first day this phone has any steps for (start of "All time"). */
+    fun firstStepsDay(): LocalDate? = readableDatabase.rawQuery("SELECT MIN(date) FROM days WHERE steps IS NOT NULL", null)
+        .use { c -> if (c.moveToFirst() && !c.isNull(0)) LocalDate.parse(c.getString(0)) else null }
+
+    fun stepsDayCount(): Int = count("SELECT COUNT(*) FROM days WHERE steps IS NOT NULL")
 
     // ---------- per-app social breakdown (this phone only) ----------
 

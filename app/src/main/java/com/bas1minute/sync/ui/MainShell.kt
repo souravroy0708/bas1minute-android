@@ -127,7 +127,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                     NavigationBarItem(
                         selected = app.tab == item.tab,
                         onClick = {
-                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.spinOpen = false }
+                            if (item.tab == Tab.Today) { app.logOpen = false; app.burstOpen = false; app.calmOpen = false; app.spinOpen = false; app.historyOpen = false }
                             if (item.tab == Tab.Move && app.tab == Tab.Move) app.trackDetailId = null
                             if (item.tab == Tab.Profile) { app.aboutPage = null; app.circlesOpen = false }
                             app.circlesReturnTab = null
@@ -151,7 +151,7 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         ShareSheet(app, actions.onShareImage)
         WeekReviewStory(app)
         // Fade-through between tabs and their full screens (burst, calm, log, circle)
-        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}:${app.detoxView}:${app.goalsHubView}:${app.circlesOpen}"
+        val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}:${app.detoxView}:${app.goalsHubView}:${app.circlesOpen}:${app.historyOpen}"
         androidx.compose.animation.AnimatedContent(
             targetState = screen,
             transitionSpec = {
@@ -167,6 +167,10 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         Box(Modifier.fillMaxSize()) {
             when (shownTab) {
                 Tab.Today -> when {
+                    part[11] == "true" -> {
+                        androidx.activity.compose.BackHandler { app.historyOpen = false }
+                        HistoryScreen(app, actions, onClose = { app.historyOpen = false })
+                    }
                     part[6] == "true" -> {
                         androidx.activity.compose.BackHandler { app.spinOpen = false }
                         WheelScreen(app, onClose = { app.spinOpen = false })
@@ -206,7 +210,10 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
                             }
                             Text(t("Circles"), color = Color.White, style = MaterialTheme.typography.titleLarge)
                         }
-                        Box(Modifier.weight(1f)) { CirclesTab(app, onShare, actions.onShareWhatsApp) }
+                        Box(Modifier.weight(1f)) {
+                            if (app.cloudOn) CirclesTab(app, onShare, actions.onShareWhatsApp)
+                            else OnlineNeeded(app, "Circles and the India ranking", "Walk with family and friends, cheer each other on, and see where you stand across India.")
+                        }
                     }
                 } else app.aboutPage?.let { page ->
                     androidx.activity.compose.BackHandler { app.aboutPage = null }

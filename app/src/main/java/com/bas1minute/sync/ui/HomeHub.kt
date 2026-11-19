@@ -129,7 +129,7 @@ fun FeatureGrid(app: AppController, bursts: Int, burstGoal: Int, calm: Int, wate
         Feature(Icons.Filled.DirectionsRun, t("Walk · Run"), if (live.active) t("On now") else t("Start"), Color(0xFFDFF5EA), highlight = live.active) {
             app.trackOpen = true
         },
-        Feature(Icons.Filled.Groups, t("Circles"), when { cheers > 0 -> "$cheers ${t("new")}"; circles > 0 -> "$circles ${t("circles")}"; else -> t("Join one") },
+        Feature(Icons.Filled.Groups, t("Circles"), when { !app.cloudOn -> t("Optional"); cheers > 0 -> "$cheers ${t("new")}"; circles > 0 -> "$circles ${t("circles")}"; else -> t("Join one") },
             Color(0xFFFFE3EC), badge = cheers) { openCircles(app, ranking = false) },
         // Row 3 — focus and the wider picture
         Feature(Icons.Filled.HourglassBottom, t("Detox"), s.detoxLeftMs?.let { "${DetoxLogic.formatDuration(it)} ${t("left")}" } ?: t("Start"),
@@ -142,7 +142,7 @@ fun FeatureGrid(app: AppController, bursts: Int, burstGoal: Int, calm: Int, wate
         Feature(Icons.Filled.PhoneAndroid, t("Phone check"), t("Battery, apps"), Color(0xFFDDF0FD)) {
             app.tab = Tab.Detox; app.phoneCheckOpen = true
         },
-        Feature(Icons.Filled.Leaderboard, t("India rank"), t("This week"), Color(0xFFDFF5EA)) { openCircles(app, ranking = true) },
+        Feature(Icons.Filled.Leaderboard, t("History"), t("All time"), Color(0xFFDFF5EA)) { app.historyOpen = true },
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -206,5 +206,23 @@ fun HeroStat(label: String, value: String, hint: String, dot: Color, onClick: ()
         }
         Text(value, color = Color.White, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 1.dp))
         Text(hint, color = MutedOnDark, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+
+/** Shown instead of a feature that needs the internet while Online features are off. */
+@Composable
+fun OnlineNeeded(app: AppController, what: String, why: String) {
+    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(what, style = MaterialTheme.typography.headlineMedium, color = TextMain)
+        Text(why, style = MaterialTheme.typography.bodyLarge, color = Muted)
+        Text("This part needs Online features, which are off: right now nothing leaves your phone, and everything else " +
+            "works without internet. Turning them on makes a name-only account and backs up your daily totals — never " +
+            "app names, location, diary or goals. You can turn them off again any time.",
+            style = MaterialTheme.typography.bodyMedium, color = Muted)
+        BigButton(t("Turn on in Profile")) {
+            app.circlesOpen = false; app.circlesReturnTab = null
+            app.tab = Tab.Profile
+        }
     }
 }

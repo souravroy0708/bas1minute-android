@@ -80,6 +80,39 @@ class AppController(private val ctx: android.content.Context, private val scope:
         if (r is com.bas1minute.sync.api.Res.Ok) myRequests = r.value
     }
 
+    /**
+     * Online features (Profile). Off = nothing is ever sent; everything keeps working from the phone's own database.
+     * On = a name-only account, a backup of daily totals, Circles, and (only if chosen) the India ranking.
+     */
+    /** Observable copy of prefs.cloudEnabled so screens update the moment it changes. */
+    var cloudOn by mutableStateOf(prefs.cloudEnabled)
+
+    fun setCloud(on: Boolean, joinRanking: Boolean = false) {
+        cloudOn = on
+        if (!on) {
+            prefs.cloudEnabled = false
+            message = "Online features off. Everything keeps working on this phone, and nothing is sent."
+            return
+        }
+        prefs.cloudEnabled = true
+        prefs.shareActivity = true
+        prefs.globalVisible = joinRanking
+        launch {
+            busy = true
+            val ok = repo.ensureAccount()
+            busy = false
+            if (!ok) {
+                message = "Online features are on. We’ll connect and back up as soon as you’re online."
+                return@launch
+            }
+            if (joinRanking) setGlobalVisible(true)
+            LocalDb.get(ctx).clearAccountData()   // mark every saved day to be backed up
+            message = "Online features on. Your daily totals are being backed up."
+            refresh(); fullSync()
+            com.bas1minute.sync.Push.refreshToken(ctx)
+        }
+    }
+
     fun setGlobalVisible(on: Boolean) = launch {
         val r = community.setGlobalVisible(on)
         if (r is com.bas1minute.sync.api.Res.Ok) prefs.globalVisible = on
@@ -92,6 +125,8 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var goalsHubView by mutableStateOf("goals")
     /** Circles (Bas 1 Minute India, private circles, competitions) open on top of Profile. */
     var circlesOpen by mutableStateOf(false)
+    /** "Your history": every recorded day, any period (opened from Today). */
+    var historyOpen by mutableStateOf(false)
     /** Where Back from Circles goes: Today when Circles was opened from the home grid, otherwise Profile. */
     var circlesReturnTab by mutableStateOf<Tab?>(null)
 
@@ -315,14 +350,17 @@ class AppController(private val ctx: android.content.Context, private val scope:
         prefs.firstName = name.trim().split(" ").first()
         if (pin != null && pin.length == 4) prefs.pinHash = prefs.hashPin(pin)
         prefs.setupDone = true
-        // Everyone starts in the Bas 1 Minute India ranking (told on the name screen); Profile or Circles opts out
+        // Everyone starts in: backup, Circles and the Bas 1 Minute India ranking (shown on the name screen and again,
+        // with switches, on the last onboarding page). Opting out is one switch, there or in Profile.
+        prefs.cloudEnabled = true; cloudOn = true
         prefs.shareActivity = true
         prefs.globalVisible = true
         prefs.globalInviteShown = true
         setupDone = true
-        // Permissions are asked just in time from Home ("Finish setting up"), not as a separate step.
-        prefs.onboardingDone = true
-        permissionsDone = true
+        // A short guided setup right after the tour: steps, screen time, notifications, then what's on by default.
+        // (Users missed the just-in-time card on Home, so steps were never counted.) Home still nudges if skipped.
+        prefs.onboardingDone = false
+        permissionsDone = false
         unlocked = true
         tourOpen = !prefs.tourDone
         launch { repo.ensureAccount(); refresh() }
@@ -342,9 +380,24 @@ class AppController(private val ctx: android.content.Context, private val scope:
         message = "New PIN set."
     }
 
-    fun finishPermissions() {
+    /** Last onboarding page: everything was on; apply whatever the member switched off. */
+    fun finishPermissions(c: com.bas1minute.sync.ui.OnboardingChoices = com.bas1minute.sync.ui.OnboardingChoices()) {
+        prefs.dailyNudges = c.nudges
+        prefs.longSessionNudges = c.nudges
+        prefs.dailyUsageAlert = c.nudges
+        prefs.appTimerEnabled = c.nudges
+        prefs.pushEnabled = c.teamMessages
         prefs.onboardingDone = true
         permissionsDone = true
+        if (c.online) {
+            prefs.cloudEnabled = true; cloudOn = true
+            prefs.shareActivity = true
+            launch {
+                repo.ensureAccount()                              // joined the ranking at signup (share_activity)
+                if (!c.ranking) setGlobalVisible(false)           // ...unless they switched it off here
+                refresh()
+            }
+        } else setCloud(false)
         sync()
     }
 

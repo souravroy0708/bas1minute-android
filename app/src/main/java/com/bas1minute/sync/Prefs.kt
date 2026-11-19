@@ -169,8 +169,40 @@ class Prefs(context: Context) {
      * When on, only daily steps and screen time are sent (global ranking, challenges, circles, backup).
      * Set on at setup for new members (they're told on the name screen); stored off for older installs until they join.
      */
+    /**
+     * Online features master switch: backup, Circles, Bas 1 Minute India ranking, website, pushes from the team.
+     * ON by default (shown, with its own switch, on the last onboarding page); everything still works offline, and
+     * turning it off in Profile means nothing at all leaves the phone.
+     */
+    var cloudEnabled: Boolean
+        get() = p.getBoolean("cloud_enabled", true)
+        set(v) = p.edit().putBoolean("cloud_enabled", v).apply()
+
+    /** Health Connect history import: the oldest day already checked, so each run continues further back. */
+    var backfillOldest: String
+        get() = p.getString("backfill_oldest", "") ?: ""
+        set(v) = p.edit().putString("backfill_oldest", v).apply()
+
+    /** Consecutive empty days found while importing history; the import stops once this is large. */
+    var backfillEmptyRun: Int
+        get() = p.getInt("backfill_empty", 0)
+        set(v) = p.edit().putInt("backfill_empty", v).apply()
+
+    /** "Your steps aren't counting yet" reminders sent, and when (at most 3, a day apart). */
+    var stepsReminderCount: Int
+        get() = p.getInt("steps_rem_n", 0)
+        set(v) = p.edit().putInt("steps_rem_n", v).apply()
+    var stepsReminderAt: Long
+        get() = p.getLong("steps_rem_at", 0L)
+        set(v) = p.edit().putLong("steps_rem_at", v).apply()
+
+    /** Last time the local database was compacted and VACUUMed (epoch ms). */
+    var lastCompactAt: Long
+        get() = p.getLong("last_compact", 0L)
+        set(v) = p.edit().putLong("last_compact", v).apply()
+
     var shareActivity: Boolean
-        get() = p.getBoolean("share_activity", false)
+        get() = p.getBoolean("share_activity", true)
         set(v) = p.edit().putBoolean("share_activity", v).apply()
 
     /** Invite code from a link tapped before setup was finished. */
@@ -215,7 +247,7 @@ class Prefs(context: Context) {
      * detox/AppTimerLogic.kt.
      */
     var appTimerEnabled: Boolean
-        get() = p.getBoolean("app_timer_enabled", false)
+        get() = p.getBoolean("app_timer_enabled", true)   // on by default: reminders only, opt out any time
         set(v) = p.edit().putBoolean("app_timer_enabled", v).apply()
 
     var appTimerBudgetMinutes: Int
@@ -258,9 +290,9 @@ class Prefs(context: Context) {
         get() = p.getBoolean("global_invite_shown", false)
         set(v) = p.edit().putBoolean("global_invite_shown", v).apply()
 
-    /** One daily notification with yesterday's total screen and social-media time. Off by default. */
+    /** One daily notification with yesterday's total screen and social-media time. On by default (opt out in Profile). */
     var dailyUsageAlert: Boolean
-        get() = p.getBoolean("daily_usage_alert", false)
+        get() = p.getBoolean("daily_usage_alert", true)
         set(v) = p.edit().putBoolean("daily_usage_alert", v).apply()
 
     /** "2026-11-13": the last usage-alert day sent, so it's never sent twice. */

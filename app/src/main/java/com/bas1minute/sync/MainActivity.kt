@@ -256,6 +256,10 @@ class MainActivity : ComponentActivity() {
             },
             onOpenSamsungHealth = { if (!SamsungHealth.open(this)) app.message = "Couldn’t open Samsung Health. Open it from your home screen." },
             onAskHealthConnect = { healthConnectPermissions.launch(StepsReader.HC_PERMISSIONS) },
+            onAskHealthHistory = {
+                HistoryImport.continueFurther(this)
+                healthConnectPermissions.launch(setOf(StepsReader.READ_HISTORY))
+            },
             onInstallHealthConnect = { openHealthConnectInStore() },
             onAskActivity = { askActivityPermission() },
             onOpenUsageAccess = { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
@@ -287,7 +291,7 @@ class MainActivity : ComponentActivity() {
                     !app.setupDone -> SetupScreen(app)
                     !app.unlocked -> LockScreen(app)
                     app.tourOpen -> com.bas1minute.sync.ui.TourScreen(onFinish = { app.finishTour() })
-                    false -> PermissionsScreen(
+                    !app.permissionsDone -> PermissionsScreen(
                         snapshot = app.phone,
                         actions = OnboardingActions(
                             help = help,
@@ -297,7 +301,8 @@ class MainActivity : ComponentActivity() {
                             onInstallHealthConnect = phone.onInstallHealthConnect,
                             onAskActivity = phone.onAskActivity,
                             onOpenUsageAccess = phone.onOpenUsageAccess,
-                            onFinish = { app.finishPermissions() },
+                            onAskNotifications = { askNotifications() },
+                            onFinish = { app.finishPermissions(it) },
                         ),
                     )
                     else -> MainShell(app, phone, onShare = { share(it) }, onCall = { call(it) })

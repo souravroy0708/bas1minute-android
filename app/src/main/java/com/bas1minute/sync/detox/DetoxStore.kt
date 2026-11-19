@@ -79,6 +79,14 @@ class DetoxStore private constructor(context: Context) {
 
     /** Which built-in categories are blocked. Both on by default: this is what "just block social media and
      * browsers" means on a fresh install. Stored as the literal strings "social" / "browsers". */
+    /**
+     * Strict mode: paused apps are covered by the countdown pause screen (needs "Display over other apps").
+     * Off by default — the normal detox needs only Usage access. Remembered for the next detox.
+     */
+    var strictMode: Boolean
+        get() = prefs.getBoolean("strict_mode", false)
+        set(v) = prefs.edit().putBoolean("strict_mode", v).apply()
+
     var blockCategories: Set<String>
         get() = prefs.getStringSet(KEY_CATEGORIES, null)?.toSet() ?: setOf("social", "browsers")
         set(v) { prefs.edit().putStringSet(KEY_CATEGORIES, v.toSet()).apply(); changed() }

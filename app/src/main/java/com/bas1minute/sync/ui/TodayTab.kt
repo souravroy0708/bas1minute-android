@@ -132,8 +132,11 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                         androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.IosShare, contentDescription = "Share my day",
                             tint = Color.White, modifier = Modifier.size(20.dp))
                     }
-                    Spacer(Modifier.width(8.dp))
-                    SyncChip(state, app.phone.pendingDays + app.waiting, app.offline)
+                    // Offline-first: no "to send" / "Offline" chip while Online features are off — nothing is meant to be sent
+                    if (app.cloudOn) {
+                        Spacer(Modifier.width(8.dp))
+                        SyncChip(state, app.phone.pendingDays + app.waiting, app.offline)
+                    }
                 }
                 Spacer(Modifier.height(14.dp))
                 // Compact hero: the ring on the left, the two numbers that matter on the right. Half the height of the
@@ -171,13 +174,21 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                   }
                     Spacer(Modifier.width(6.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                      if (app.phone.loaded && !app.phone.stepsReady) {
+                        // The most visible spot on the first screen: steps aren't counting, so say so and fix it in one tap
+                        Text(t("Steps aren’t counting yet"), color = Color.White, style = MaterialTheme.typography.titleMedium)
+                        Text(t("One tap and your phone or watch counts them for you."), color = MutedOnDark,
+                            style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(4.dp))
+                        SmallPill(t("Start counting")) { askForSteps(app.phone, phoneActions) }
+                      } else
                         HeroStat(
                             t("Steps left"),
                             if (stepsKnown == null) "—" else if (stepsLeft == 0L) t("Done!") else numbers.format(stepsLeft),
                             "${t("of")} ${numbers.format(state.stepGoal)} · " +
                                 when (app.phone.todaySource) { "health_connect" -> "Health Connect"; "phone_sensor" -> t("This phone"); else -> t("Allow in Profile") },
                             Violet,
-                        ) { app.trackOpen = true }
+                        ) { app.historyOpen = true }   // all your steps, any period
                         HeroStat(
                             t("Screen time"), screen?.let { hm(it) } ?: "—",
                             when { screen == null -> t("Allow in Profile"); screenOver -> "${t("Over")} ${hm(state.screenLimit)} · ${t("social apps")}"; else -> "${t("Social apps")} · ${t("limit")} ${hm(state.screenLimit)}" },
@@ -196,7 +207,7 @@ fun TodayTab(app: AppController, onCall: (String) -> Unit, phoneActions: PhoneAc
                     .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (app.offline) OfflineBanner(app.waiting)
+                if (app.offline && app.cloudOn) OfflineBanner(app.waiting)
 
                 // 1. Finish setup, just in time (only while something is missing)
                 if (!app.phone.stepsReady || !app.phone.usageAccess) FinishSetupCard(app, phoneActions)

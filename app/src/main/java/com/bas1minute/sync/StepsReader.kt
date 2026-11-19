@@ -42,6 +42,19 @@ class StepsReader(private val context: Context) {
         val READ_STEPS: String = HealthPermission.getReadPermission(StepsRecord::class)
         // Optional extras: allowed one by one on Health Connect's screen
         val HC_PERMISSIONS: Set<String> = setOf(READ_STEPS, READ_IN_BACKGROUND) + HealthExtras.PERMISSIONS
+        /**
+         * Optional, asked only from Profile › "Import older steps": lets us read steps saved before Bas 1 Minute was
+         * installed (without it Health Connect only shares the last 30 days before the first permission).
+         * A plain string so Health Connect versions without it simply don't grant it.
+         */
+        const val READ_HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY"
+    }
+
+    suspend fun historyGranted(): Boolean {
+        if (healthConnectStatus() != HealthConnectClient.SDK_AVAILABLE) return false
+        return try {
+            HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions().contains(READ_HISTORY)
+        } catch (e: Exception) { false }
     }
 
     fun healthConnectStatus(): Int = HealthConnectClient.getSdkStatus(context)

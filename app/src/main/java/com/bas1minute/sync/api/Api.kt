@@ -41,6 +41,9 @@ class Api(context: Context) {
         java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     private suspend fun request(method: String, path: String, body: JSONObject?): ApiReply = withContext(Dispatchers.IO) {
+        // Offline-first: with online features off (the default), not a single request leaves the phone.
+        // Callers already treat code == null as "couldn't reach the website", so every screen keeps working.
+        if (!prefs.cloudEnabled) return@withContext ApiReply(null, null)
         try {
             val url = URL("${prefs.serverUrl}/api/v1/$path")
             val bytes = (body ?: JSONObject()).toString().toByteArray(Charsets.UTF_8)

@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.health.READ_HYDRATION" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
+    <!-- Optional (Profile › Import older steps): read steps saved in Health Connect before this app was installed -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
     <!-- Steps from the phone sensor via the Recording API (fallback) -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <!-- GPS walk / run: precise location while recording (foreground service; no background location) -->
@@ -33,11 +35,15 @@
     <!-- Voice typing in Diary and Goals. Asked only when the member first taps a mic, after an explanation.
          On only while the Listening window is open; audio is never saved or sent to us. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Digital detox STRICT MODE only (opt-in on the Detox screen): the countdown pause screen over a paused app,
+         and the light foreground service that runs only while a strict detox is on. Asked only if the member
+         turns Strict mode on; the normal detox never uses them. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Never ask for these. Detox and App Timers remind (notification) and judge the promise from Android's own
          usage history; a hard lock is handed to Android's Digital Wellbeing (Focus mode / app timers), which needs
-         no permission from us. tools:node="remove" also strips them if a library ever tries to add one. -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" tools:node="remove" />
+         no permission from us; Strict mode (above) is the only exception, and only if chosen. tools:node="remove"
+         also strips these if a library ever tries to add one. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" tools:node="remove" />
 
@@ -154,6 +160,16 @@
             android:name=".track.TrackingService"
             android:exported="false"
             android:foregroundServiceType="location|health" />
+
+        <!-- Digital detox Strict mode: runs only while a strict detox the member started is on; countdown always shown -->
+        <service
+            android:name=".detox.StrictGuardService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-started digital detox in Strict mode: covers apps the user chose to pause with a countdown screen until the time they chose" />
+        </service>
 
         <!-- Privacy: Firebase only for pushes, and only once the member allows them. No token is created at app
              start (auto-init off), and no analytics or advertising ID collection, even if a library adds it later. -->

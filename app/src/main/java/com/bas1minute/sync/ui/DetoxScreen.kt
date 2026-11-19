@@ -46,6 +46,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -279,10 +282,15 @@ fun DetoxScreen(app: AppController, actions: PhoneActions, onClose: (() -> Unit)
 @Composable
 private fun ActiveCard(s: DetoxSession, now: Long, streak: Int, store: DetoxStore, onEndEarly: () -> Unit) {
     var showFlow by remember { mutableStateOf(false) }
+    val failure by com.bas1minute.sync.detox.BlockOverlay.lastFailure.collectAsState()
     AppCard(title = t("Detox is on")) {
-        Text("The apps you chose are paused by your promise. If one is opened, we'll remind you to close it — " +
-            "a quick slip under a minute doesn't break the promise. Calls, messages, camera and alarms work as usual.",
+        Text(if (store.strictMode) "Strict mode: the apps you chose are locked behind the countdown screen until time is up. " +
+                "Calls, messages, camera and alarms work as usual."
+            else "The apps you chose are paused by your promise. If one is opened, we'll remind you to close it — " +
+                "a quick slip under a minute doesn't break the promise. Calls, messages, camera and alarms work as usual.",
             style = MaterialTheme.typography.bodyMedium, color = Muted)
+        // Strict mode: say so the moment the pause screen couldn't appear, instead of silently letting the app through
+        if (store.strictMode) failure?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Danger) }
         // Visible and reachable at all times — the person's own choice, not hidden behind a maze.
         GhostButton(t("End early")) { showFlow = true }
     }
@@ -353,9 +361,17 @@ private fun SetupCard(store: DetoxStore, usageOk: Boolean, actions: PhoneActions
                 }
             }
         }
-        BigButton("${t("I promise")}: ${DetoxLogic.formatMinutes(minutes)}", enabled = usageOk) { onStart(minutes, why) }
-        Text("Want a hard lock that can't be skipped? Android's own Digital Wellbeing can pause apps for you (Focus mode) — " +
-            "it needs no extra permission from Bas 1 Minute.", style = MaterialTheme.typography.bodySmall, color = Muted)
+        var strict by remember { mutableStateOf(store.strictMode) }
+        var overlayOk by remember { mutableStateOf(com.bas1minute.sync.detox.DetoxController.canDrawOverlays(ctx)) }
+        LaunchedEffect(strict) {   // re-check after coming back from Settings
+            while (strict) { overlayOk = com.bas1minute.sync.detox.DetoxController.canDrawOverlays(ctx); delay(1_500) }
+        }
+        StrictModeCard(strict, overlayOk, actions, onChange = { strict = it; store.strictMode = it })
+        BigButton("${t("I promise")}: ${DetoxLogic.formatMinutes(minutes)}", enabled = usageOk && (!strict || overlayOk)) { onStart(minutes, why) }
+        if (strict && !overlayOk) Text("Allow “Display over other apps” above to start a strict detox, or turn Strict mode off.",
+            style = MaterialTheme.typography.bodySmall, color = Muted)
+        Text("Prefer Android's own lock? Digital Wellbeing's Focus mode pauses apps too, with no extra permission for Bas 1 Minute.",
+            style = MaterialTheme.typography.bodySmall, color = Muted)
         GhostButton(t("Open Digital Wellbeing")) {
             if (!com.bas1minute.sync.DigitalWellbeing.open(ctx)) {
                 android.widget.Toast.makeText(ctx, "In Settings, search for \u201cDigital Wellbeing\u201d.", android.widget.Toast.LENGTH_LONG).show()
@@ -693,6 +709,49 @@ private fun DetoxShareSheet(streak: Int, best: Int, total: Int, onDismiss: () ->
                 }
             }
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t("Close"), color = Muted) }
+        }
+    }
+}
+
+
+/**
+ * Strict mode: the countdown pause screen over paused apps. Opt-in, because it needs "Display over other apps" and a
+ * small notification running during the detox. Remembered for the next detox.
+ */
+@Composable
+private fun StrictModeCard(strict: Boolean, overlayOk: Boolean, actions: PhoneActions, onChange: (Boolean) -> Unit) {
+    val ctx = LocalContext.current
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(if (strict) Color(0xFFFFF8DD) else CardBg)
+            .border(1.dp, if (strict) Haldi else CardLine, RoundedCornerShape(20.dp)).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(t("Strict mode"), style = MaterialTheme.typography.titleMedium, color = Ink)
+                Text("Opening a paused app shows a countdown screen instead — you can’t use it until time’s up.",
+                    style = MaterialTheme.typography.bodySmall, color = Muted)
+            }
+            Switch(checked = strict, onCheckedChange = onChange,
+                colors = SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi))
+        }
+        if (strict) {
+            StatusRow(t("Display over other apps"), if (overlayOk) "Allowed — the pause screen can appear" else "Needed to show the pause screen",
+                overlayOk, if (overlayOk) null else t("Allow")) {
+                runCatching { ctx.startActivity(com.bas1minute.sync.detox.DetoxController.overlayIntent(ctx)) }
+            }
+            if (!overlayOk) {
+                Text("Switch won’t turn on? Android blocks it for apps not installed from Play Store: open App info › ⋮ › " +
+                    "Allow restricted settings, then try again.", style = MaterialTheme.typography.bodySmall, color = Muted)
+                TextButton(onClick = actions.onOpenAppInfo) { Text(t("Open App info"), color = Blue) }
+            } else {
+                TextButton(onClick = { com.bas1minute.sync.detox.BlockOverlay.show(ctx, ctx.packageName) }) {
+                    Text(t("Preview the pause screen"), color = Blue)
+                }
+            }
+            Text("While a strict detox runs, a small notification shows the countdown. It checks only while your screen is on, " +
+                "and stops by itself when the time is up. Nothing about which apps you open leaves this phone.",
+                style = MaterialTheme.typography.bodySmall, color = Muted)
         }
     }
 }

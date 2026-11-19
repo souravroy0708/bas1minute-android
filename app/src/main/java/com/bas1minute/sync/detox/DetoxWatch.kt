@@ -57,7 +57,7 @@ object DetoxWatch {
     private const val CH_ONGOING = "detox_running"
     private const val CH_RESULT = "detox_result"
     private const val CH_REMIND = "detox_remind"
-    private const val NOTIF_ONGOING = 7300
+    const val NOTIF_ONGOING = 7300
     private const val NOTIF_REMIND = 7301
     private const val NOTIF_RESULT = 7302
 
@@ -69,16 +69,19 @@ object DetoxWatch {
         showOngoing(ctx, s)
         scheduleTick(ctx, ExistingWorkPolicy.REPLACE)
         scheduleEnd(ctx, s)
+        StrictGuardService.startIfStrict(ctx)   // Strict mode only: the pause screen
     }
 
     /** Makes sure the jobs exist for the running session — safe to call on every app open and every 15-min tick. */
     fun ensure(ctx: Context, s: DetoxSession) {
-        showOngoing(ctx, s)
+        if (!StrictGuardService.running) showOngoing(ctx, s)
         scheduleTick(ctx, ExistingWorkPolicy.KEEP)
         scheduleEnd(ctx, s)
+        if (!StrictGuardService.running) StrictGuardService.startIfStrict(ctx)
     }
 
     fun stop(ctx: Context) {
+        StrictGuardService.stop(ctx)
         val wm = WorkManager.getInstance(ctx)
         wm.cancelUniqueWork(WORK_TICK)
         wm.cancelUniqueWork(WORK_END)
@@ -105,7 +108,8 @@ object DetoxWatch {
         }
 
         val fg = runCatching { UsageReader(ctx).currentForegroundApp(now, UsageReader.PERIODIC_LOOKBACK_MS) }.getOrNull()
-        if (fg != null && rules.isBlocked(fg)) {
+        if (!StrictGuardService.running) StrictGuardService.startIfStrict(ctx)   // e.g. Android stopped it
+        if (fg != null && rules.isBlocked(fg) && !StrictGuardService.running) {
             store.recordBlockedAttempt(s.id)
             remind(ctx, rules.label(fg))
         } else {
@@ -161,6 +165,22 @@ object DetoxWatch {
         Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
+
+    /** The one countdown notification; also used by StrictGuardService as its foreground notification. */
+    fun ongoingNotification(ctx: Context, s: DetoxSession, strict: Boolean): android.app.Notification {
+        channels(ctx)
+        val endsAt = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.plannedEndMs))
+        return NotificationCompat.Builder(ctx, CH_ONGOING)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Digital detox on until $endsAt")
+            .setContentText(if (strict) "Strict mode: paused apps are locked. Calls and messages still work."
+                else "Calls and messages are fine. We'll remind you if a paused app is opened.")
+            .setWhen(s.plannedEndMs).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true)
+            .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(openDetox(ctx, 7303))
+            .build()
+    }
 
     private fun showOngoing(ctx: Context, s: DetoxSession) {
         if (!canNotify(ctx)) return

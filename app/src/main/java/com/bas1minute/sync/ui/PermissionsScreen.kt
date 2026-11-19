@@ -54,10 +54,23 @@ data class OnboardingActions(
     val onInstallHealthConnect: () -> Unit,
     val onAskActivity: () -> Unit,
     val onOpenUsageAccess: () -> Unit,
-    val onFinish: () -> Unit,
+    val onAskNotifications: () -> Unit = {},
+    val onFinish: (OnboardingChoices) -> Unit,
 )
 
-/** After login: two short permission steps (steps, screen time). Both can be skipped. */
+/** What's on after setup. Everything starts ON; the last page shows each with its own switch to opt out. */
+data class OnboardingChoices(
+    val nudges: Boolean = true,
+    val teamMessages: Boolean = true,
+    val online: Boolean = true,
+    val ranking: Boolean = true,
+)
+
+/**
+ * Right after the tour: steps, screen time, notifications, then "what's on". Each permission page can be skipped,
+ * but the main button always asks first, and Home keeps a big "Start counting my steps" button (plus up to three
+ * reminders) until steps are counting — many people missed the old just-in-time card.
+ */
 @Composable
 fun PermissionsScreen(snapshot: Snapshot, actions: OnboardingActions) {
     var page by rememberSaveable { mutableIntStateOf(1) }
@@ -69,12 +82,12 @@ fun PermissionsScreen(snapshot: Snapshot, actions: OnboardingActions) {
             .navigationBarsPadding()
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (page == 2) TextButton(onClick = { page = 1 }) { Text("← Back", color = Muted, style = MaterialTheme.typography.labelLarge) }
+            if (page > 1) TextButton(onClick = { page-- }) { Text("← Back", color = Muted, style = MaterialTheme.typography.labelLarge) }
             Spacer(Modifier.weight(1f))
-            Text("Step $page of 2", color = Muted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(16.dp))
+            Text("Step $page of 4", color = Muted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(16.dp))
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            (1..2).forEach { i ->
+            (1..4).forEach { i ->
                 Box(Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(50)).background(if (i <= page) Ink else PaperLine))
             }
         }
@@ -88,7 +101,12 @@ fun PermissionsScreen(snapshot: Snapshot, actions: OnboardingActions) {
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (p == 1) StepsPage(snapshot, actions) { page = 2 } else ScreenPage(snapshot, actions)
+                when (p) {
+                    1 -> StepsPage(snapshot, actions) { page = 2 }
+                    2 -> ScreenPage(snapshot, actions) { page = 3 }
+                    3 -> NotificationsPage(actions) { page = 4 }
+                    else -> DefaultsPage(actions)
+                }
             }
         }
     }
@@ -128,11 +146,24 @@ private fun StepsPage(snapshot: Snapshot, actions: OnboardingActions, onNext: ()
             onOpenSamsungHealth = actions.onOpenSamsungHealth,
         )
     }
-    BigButton(if (snapshot.stepsReady) "Continue" else "Continue without steps", onClick = onNext)
+    if (snapshot.stepsReady) BigButton("Continue", onClick = onNext)
+    else {
+        // The main button ASKS (most people tap the big button and never read the rows above)
+        BigButton("Count my steps") {
+            when {
+                snapshot.hcStatus == HealthConnectClient.SDK_AVAILABLE -> actions.onAskHealthConnect()
+                snapshot.recordingAvailable -> actions.onAskActivity()
+                else -> actions.onInstallHealthConnect()
+            }
+        }
+        TextButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+            Text("Skip — I’ll do it later", color = Muted, style = MaterialTheme.typography.labelLarge)
+        }
+    }
 }
 
 @Composable
-private fun ScreenPage(snapshot: Snapshot, actions: OnboardingActions) {
+private fun ScreenPage(snapshot: Snapshot, actions: OnboardingActions, onNext: () -> Unit) {
     Badge("📱", Color(0xFFFFE7DF))
     Text("See your screen time", style = MaterialTheme.typography.headlineLarge)
     Text(
@@ -149,7 +180,7 @@ private fun ScreenPage(snapshot: Snapshot, actions: OnboardingActions) {
     if (!snapshot.usageAccess && snapshot.restrictedSettings) {
         UsageAccessHelp(onOpenUsageAccess = actions.onOpenUsageAccess, onOpenAppInfo = actions.onOpenAppInfo, helpActions = actions.help)
     }
-    BigButton(if (snapshot.usageAccess) "Finish setup" else "Finish without screen time", onClick = actions.onFinish)
+    BigButton(if (snapshot.usageAccess) "Continue" else "Continue without screen time", onClick = onNext)
 }
 
 @Composable
@@ -160,5 +191,66 @@ private fun HowToLine(n: Int, text: String) {
         }
         Spacer(Modifier.size(12.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+
+@Composable
+private fun NotificationsPage(actions: OnboardingActions, onNext: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var allowed by remember { mutableStateOf(androidx.core.app.NotificationManagerCompat.from(ctx).areNotificationsEnabled()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) { allowed = androidx.core.app.NotificationManagerCompat.from(ctx).areNotificationsEnabled(); kotlinx.coroutines.delay(1_000) }
+    }
+    Badge("🔔", Color(0xFFFFF3C8))
+    Text("Stay on track", style = MaterialTheme.typography.headlineLarge)
+    Text("A nudge when you’ve been sitting too long, your detox countdown, cheers from your circle, and a quick " +
+        "morning and evening check-in. Made on your phone from your own numbers.",
+        style = MaterialTheme.typography.bodyLarge, color = Muted)
+    AppCard {
+        StatusRow("Notifications", if (allowed) "Allowed" else "Needed for nudges and reminders",
+            ok = allowed, action = if (allowed) null else "Allow", onAction = actions.onAskNotifications)
+    }
+    if (allowed) BigButton("Continue", onClick = onNext)
+    else {
+        BigButton("Allow notifications") { actions.onAskNotifications() }
+        TextButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+            Text("Skip", color = Muted, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/** Everything ON, each with its own switch — opting out is one tap, and nothing is hidden. */
+@Composable
+private fun DefaultsPage(actions: OnboardingActions) {
+    var nudges by remember { mutableStateOf(true) }
+    var team by remember { mutableStateOf(true) }
+    var online by remember { mutableStateOf(true) }
+    var ranking by remember { mutableStateOf(true) }
+    Badge("✅", Color(0xFFE3F7EE))
+    Text("You’re all set", style = MaterialTheme.typography.headlineLarge)
+    Text("Here’s what’s on. Switch off anything you don’t want — you can change all of it later in Profile.",
+        style = MaterialTheme.typography.bodyLarge, color = Muted)
+    AppCard {
+        DefaultRow("Nudges and reminders", "Sitting-too-long nudges, morning and evening check-ins, daily screen-time summary, app time limits", nudges) { nudges = it }
+        DefaultRow("Messages from the Bas 1 Minute team", "Challenges and the occasional motivation", team) { team = it }
+        DefaultRow("Backup and Circles", "Backs up your daily step and screen-time totals, and lets you walk with family and friends", online) {
+            online = it; if (!it) ranking = false
+        }
+        DefaultRow("Bas 1 Minute India ranking", "Your name and daily steps on the all-India board and monthly challenges", ranking, enabled = online) { ranking = it }
+    }
+    Text("Never shared: app names, location, diary, goals or detox details.", style = MaterialTheme.typography.bodySmall, color = Muted)
+    BigButton("Start") { actions.onFinish(OnboardingChoices(nudges, team, online, ranking)) }
+}
+
+@Composable
+private fun DefaultRow(title: String, subtitle: String, on: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = if (enabled) TextMain else Muted)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Muted)
+        }
+        androidx.compose.material3.Switch(checked = on && enabled, enabled = enabled, onCheckedChange = onChange,
+            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Ink, checkedThumbColor = Haldi))
     }
 }

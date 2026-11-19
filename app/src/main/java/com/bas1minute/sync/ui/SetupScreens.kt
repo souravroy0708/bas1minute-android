@@ -120,9 +120,10 @@ fun NameAndPin(title: String, onBack: (() -> Unit)?, askName: Boolean, askPin: B
             Text("Just a name. No phone number, no email, no password.",
                 style = MaterialTheme.typography.bodyLarge, color = Muted)
             AppField(t("Your name"), name, { name = it.take(40) }, null, placeholder = "Sourav")
-            // Joining is the default; saying so here is what makes it fair
-            Text("You’ll be in Bas 1 Minute India, our all-India step ranking, and its monthly challenges. Only your " +
-                "daily step and screen-time totals are shared for it, never app names or location. Leave any time in Circles.",
+            // Joining is the default; saying so here (and again with switches at the end of setup) is what makes it fair
+            Text("You’ll be in Bas 1 Minute India, our all-India step ranking, and Circles with friends. Only your daily " +
+                "step and screen-time totals are shared for it — never app names, location, diary or goals. You can switch " +
+                "any of it off at the end of setup or in Profile.",
                 style = MaterialTheme.typography.bodySmall, color = Muted)
         }
         if (askPin) {
