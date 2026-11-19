@@ -9,7 +9,7 @@ plugins {
 val releaseKeystore: String? = System.getenv("B1M_KEYSTORE_PATH")
 // Every Play release needs a higher versionCode: the GitHub build number. Bump APP_VERSION for big releases.
 val buildNumber: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-val appVersion = "3.0"
+val appVersion = "3.1"
 
 // Push notifications need app/google-services.json (from Firebase). Without it the app builds without pushes.
 if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
