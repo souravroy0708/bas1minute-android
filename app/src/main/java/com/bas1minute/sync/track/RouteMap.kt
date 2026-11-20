@@ -158,7 +158,9 @@ private class MapState {
     fun setLines(map: MapView, segments: List<List<LatLng>>) {
         val sizes = segments.map { it.size }
         if (sizes == drawnSizes) return
-        while (lines.size < segments.size) {
+        // Two polylines per segment (glow + line). This used to compare against segments.size, so as soon as a walk
+        // had a 2nd segment (after a pause, or when GPS dropped and came back) lines[2] didn't exist → crash.
+        while (lines.size < segments.size * 2) {
             val glow = Polyline(map).apply {
                 setInfoWindow(null)
                 outlinePaint.apply { color = 0x553446C8; strokeWidth = 22f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND; isAntiAlias = true }
