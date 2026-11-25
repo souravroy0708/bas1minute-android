@@ -283,7 +283,7 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
         }
 
         if (d.feed.isNotEmpty()) {
-            AppCard(title = "Today in ${d.name}") {
+            AppCard(title = "Yesterday in ${d.name}") {
                 d.feed.forEach { f ->
                     Row { Text("${f.from} ${if (f.kind == "cheer") "cheered" else "nudged"} ${f.to}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                         Text(f.at, style = MaterialTheme.typography.bodySmall, color = Muted) }
@@ -343,7 +343,7 @@ private fun BoardLine(row: BoardRow, onCheer: (String) -> Unit) {
                     row.screenToday?.let { add("${hm(it)} screen") }
                 }
                 if (row.shares) {
-                    Text("Today: " + extras.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = Muted)
+                    Text("Yesterday: " + extras.joinToString(", "), style = MaterialTheme.typography.bodySmall, color = Muted)
                     Box(Modifier.fillMaxWidth().padding(top = 4.dp).height(6.dp).clip(RoundedCornerShape(50)).background(Paper)) {
                         Box(Modifier.fillMaxWidth(row.todayPct.coerceIn(0, 100) / 100f).height(6.dp).clip(RoundedCornerShape(50)).background(Blue))
                     }

@@ -25,6 +25,8 @@ enum class AppFeature(val key: String, val title: String, val what: String, val 
         "Feeling stressed? 🧘", "Five slow breaths can change your mood. Try Calm for just one minute."),
     PHONE("phone", "Phone check", "Battery health, storage and apps that drain your phone.",
         "Is your phone healthy? 🔋", "Phone check looks at battery, storage and apps that drain your phone."),
+    EXPORT("export", "Export my data", "All your data for any dates — send it to Claude or ChatGPT for a deeper look, or open it as a spreadsheet.",
+        "Ask AI about your habits 🤖", "Export your steps, screen time and sleep, and ask Claude or ChatGPT what patterns it sees."),
     WATER("water", "Water", "Tap to add a glass (250 ml) whenever you drink water.", "", ""),
     LOG("log", "Log", "Note your mood, sleep or weight for the day.", "", "");
 

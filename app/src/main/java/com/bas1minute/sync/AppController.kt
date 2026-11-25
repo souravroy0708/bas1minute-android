@@ -102,6 +102,7 @@ class AppController(private val ctx: android.content.Context, private val scope:
             AppFeature.HISTORY -> { tab = Tab.Today; historyOpen = true }
             AppFeature.BURST -> { tab = Tab.Today; burstOpen = true }
             AppFeature.CALM -> { tab = Tab.Today; calmOpen = true }
+            AppFeature.EXPORT -> exportOpen = true
             AppFeature.WATER -> addWater()
             AppFeature.LOG -> { tab = Tab.Today; logOpen = true }
         }
@@ -151,6 +152,8 @@ class AppController(private val ctx: android.content.Context, private val scope:
     var goalsHubView by mutableStateOf("goals")
     /** Circles (Bas 1 Minute India, private circles, competitions) open on top of Profile. */
     var circlesOpen by mutableStateOf(false)
+    /** "Export my data" sheet (History, Profile, tips). Shown by MainShell over any screen. */
+    var exportOpen by mutableStateOf(false)
     /** "Your history": every recorded day, any period (opened from Today). */
     var historyOpen by mutableStateOf(false)
     /** Where Back from Circles goes: Today when Circles was opened from the home grid, otherwise Profile. */

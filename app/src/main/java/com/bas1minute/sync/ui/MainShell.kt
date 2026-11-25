@@ -152,6 +152,8 @@ fun MainShell(app: AppController, actions: PhoneActions, onShare: (String) -> Un
         WeekReviewStory(app)
         // Fade-through between tabs and their full screens (burst, calm, log, circle)
         val screen = "${app.tab}:${app.burstOpen}:${app.calmOpen}:${app.logOpen}:${app.openCircleId}:${app.aboutPage}:${app.spinOpen}:${app.phoneCheckOpen}:${app.detoxView}:${app.goalsHubView}:${app.circlesOpen}:${app.historyOpen}"
+        // Export my data: a sheet over any screen (it's a Dialog, so it never sits inside another dialog's content)
+        if (app.exportOpen) ExportDataDialog(app, onClose = { app.exportOpen = false })
         // Set while composing (not after), so a crash during this very frame still reports the right screen
         com.bas1minute.sync.CrashLog.where = screen
         androidx.compose.animation.AnimatedContent(

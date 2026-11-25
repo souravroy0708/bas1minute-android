@@ -195,6 +195,13 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
         }
 
         SectionHeader(t("Privacy and security"))
+        // Your data is yours: everything, any dates, for AI tools or spreadsheets
+        AppCard(title = t("Export my data")) {
+            Text("Steps, screen time by app, sleep, walks, detox and goals — for any dates. Send it to Claude, ChatGPT or " +
+                "Gemini to ask about your habits, or open it in a spreadsheet.", style = MaterialTheme.typography.bodySmall, color = Muted)
+            BigButton(t("Export my data")) { app.exportOpen = true }
+        }
+
         // Offline-first: one switch decides whether anything ever leaves the phone
         OnlineFeaturesCard(app)
 
@@ -450,12 +457,25 @@ fun ProfileTab(app: AppController, actions: PhoneActions) {
         SectionHeader(t("About"))
         // About (native pages, no web links)
         AppCard(title = "About Bas 1 Minute") {
+            LinkRow("Who we are", "Two people in Hyderabad, and how to reach us") { app.aboutPage = "who" }
             LinkRow("Our idea", "Why 7,000 steps and four one-minute bursts") { app.aboutPage = "idea" }
             LinkRow("How we’re different", "What other apps do, and the gap we fill") { app.aboutPage = "different" }
             LinkRow("Free for everyone", "Why the core stays free") { app.aboutPage = "free" }
             LinkRow("Privacy", "What the app reads and sends, and your choices") { app.aboutPage = "privacy" }
             LinkRow("Phone-specific help", "Settings for your ${com.bas1minute.sync.PhoneHelp.device().brand}: usage access, battery") { app.aboutPage = "help" }
             VersionRow(actions)
+        }
+
+        // On the web, sharing and feedback
+        AppCard(title = t("Website and feedback")) {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            LinkRow("Our website", "bas1minute.pythonanywhere.com") { com.bas1minute.sync.Links.open(ctx, com.bas1minute.sync.Links.WEBSITE) }
+            LinkRow("Website (backup)", "If the main site is down: souravroy0708.github.io") { com.bas1minute.sync.Links.open(ctx, com.bas1minute.sync.Links.WEBSITE_BACKUP) }
+            LinkRow("Rate us on Google Play", "A quick rating helps other families find us") { com.bas1minute.sync.Links.rate(ctx) }
+            LinkRow("Share the app", "Invite family and friends to walk with you") { com.bas1minute.sync.Links.shareApp(ctx) }
+            LinkRow("Send feedback or report a problem", "Goes to Sourav by email — a person reads every one") {
+                com.bas1minute.sync.Links.email(ctx, subject = "Bas 1 Minute ${com.bas1minute.sync.BuildConfig.VERSION_NAME} feedback")
+            }
         }
 
         SectionHeader(t("Danger zone"))

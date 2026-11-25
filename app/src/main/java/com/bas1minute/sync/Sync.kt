@@ -9,9 +9,13 @@ import java.time.LocalDate
 
 /**
  * Offline-first sync:
- *  1. Save the latest phone readings into the local database (works with no internet).
- *  2. Send every day still waiting (the outbox), oldest first, up to what the website accepts.
- *  3. Clear only the days the website confirmed. Anything else waits for the next sync.
+ *  1. Save the latest phone readings into the local database (works with no internet) — every time.
+ *  2. Once a day, after 1 AM, send the FINISHED days still waiting (yesterday, plus any missed ones).
+ *     Today is never sent: it's still changing. Circles therefore show numbers up to yesterday — a deliberate
+ *     trade: one small upload per member per day keeps the free server fast as members grow, and the website
+ *     keeps a single row per member (see the server's MemberStats).
+ *  3. Clear only the days the website confirmed. Anything else waits for the next day's upload.
+ * Cheers and other actions (the outbox) still go straight away.
  */
 object Sync {
     data class Outcome(val ok: Boolean, val message: String, val retry: Boolean = false)
@@ -35,6 +39,9 @@ object Sync {
         repo.flushOutbox()
 
         val today = LocalDate.now()
+        // One upload a day, after 1 AM, with yesterday (and any earlier finished day) — never today
+        if (prefs.lastDailyUpload == today.toString()) return remember(prefs, Outcome(true, "Up to date. Circles update once a day, after 1 AM."))
+        if (java.time.LocalTime.now().hour < 1) return remember(prefs, Outcome(true, "Saved on your phone. Shares after 1 AM."))
         val oldest = today.minusDays(MAX_AGE_DAYS)
         withContext(Dispatchers.IO) { db.expire(oldest) }
 
@@ -74,6 +81,7 @@ object Sync {
             }
         }
 
+        prefs.lastDailyUpload = today.toString()
         val message = when {
             sentDays == 0 -> "Up to date."
             skipped > 0 -> "Synced $sentDays day${if (sentDays == 1) "" else "s"}. $skipped item${if (skipped == 1) " was" else "s were"} skipped by the server."

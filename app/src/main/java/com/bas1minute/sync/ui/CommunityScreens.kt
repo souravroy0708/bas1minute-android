@@ -136,7 +136,8 @@ fun GlobalBoardScreen(app: AppController, onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium, color = MutedOnDark)
             // Today, this week, this month, or since the start: everyone is in all four
             val periods = listOf("today", "week", "month", "all")
-            Segmented(listOf("Today", "Week", "Month", "All time"), periods.indexOf(app.globalPeriod).coerceAtLeast(0)) { app.globalPeriod = periods[it] }
+            // Circles update once a day after 1 AM, so the first tab is yesterday (the API keeps the name "today")
+            Segmented(listOf("Yesterday", "Week", "Month", "All time"), periods.indexOf(app.globalPeriod).coerceAtLeast(0)) { app.globalPeriod = periods[it] }
             b?.let { MyRankBanner(app, it) { confirmShare = true } }
         }
 

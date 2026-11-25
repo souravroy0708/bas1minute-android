@@ -239,11 +239,8 @@ fun HistoryScreen(app: AppController, actions: PhoneActions, onClose: () -> Unit
                 Text(footer, style = MaterialTheme.typography.bodySmall, color = Muted)
                 Text("Kept forever on this phone, in a compact form. Works offline; nothing here is sent unless you turn on Online features.",
                     style = MaterialTheme.typography.bodySmall, color = Muted)
-                GhostButton(t("Export my data (CSV)")) {
-                    runCatching { ctx.startActivity(com.bas1minute.sync.DataExport.shareIntent(ctx)) }
-                        .onFailure { app.message = "Couldn’t create the file. Try again." }
-                }
-                Text("A spreadsheet of every saved day. It goes only where you send it.",
+                BigButton(t("Export my data")) { app.exportOpen = true }
+                Text("Pick any dates and send it to Claude or ChatGPT for a deeper look, or open it as a spreadsheet. It goes only where you send it.",
                     style = MaterialTheme.typography.bodySmall, color = Muted)
                 if (!historyGranted) {
                     GhostButton(t("Import older steps from Health Connect")) { actions.onAskHealthHistory() }

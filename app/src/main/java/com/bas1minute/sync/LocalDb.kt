@@ -417,11 +417,13 @@ class LocalDb private constructor(context: Context) :
         readableDatabase.rawQuery("SELECT $COLS FROM days WHERE date BETWEEN ? AND ? ORDER BY date", arrayOf(from.toString(), to.toString()))
             .use { c -> generateSequence<DayRow> { if (c.moveToNext()) row(c) else null }.toList() }
 
-    fun pending(since: LocalDate, limit: Int): List<DayRow> =
-        readableDatabase.rawQuery("SELECT $COLS FROM days WHERE dirty = 1 AND date >= ? ORDER BY date LIMIT $limit", arrayOf(since.toString()))
+    /** Finished days waiting to be shared ([before] = today: today is still changing, so it waits until tomorrow). */
+    fun pending(since: LocalDate, limit: Int, before: LocalDate = LocalDate.now()): List<DayRow> =
+        readableDatabase.rawQuery("SELECT $COLS FROM days WHERE dirty = 1 AND date >= ? AND date < ? ORDER BY date LIMIT $limit",
+            arrayOf(since.toString(), before.toString()))
             .use { c -> generateSequence<DayRow> { if (c.moveToNext()) row(c) else null }.toList() }
 
-    fun pendingCount(): Int = count("SELECT COUNT(*) FROM days WHERE dirty = 1")
+    fun pendingCount(): Int = count("SELECT COUNT(*) FROM days WHERE dirty = 1 AND date < '${LocalDate.now()}'")
     fun savedDayCount(): Int = count("SELECT COUNT(*) FROM days")
 
     /** Clears only days that haven't changed since they were read for sending. */

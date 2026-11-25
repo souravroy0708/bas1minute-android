@@ -37,6 +37,7 @@ fun AboutScreen(page: String, onBack: () -> Unit) {
             "idea" -> IdeaContent()
             "different" -> DifferentContent()
             "free" -> FreeContent()
+            "who" -> WhoWeAreContent()
             else -> PrivacyContent()
         }
         Spacer(Modifier.padding(8.dp))
@@ -202,50 +203,71 @@ fun FreeContent() {
 /** Also shown by PrivacyActivity (Health Connect’s “privacy policy” link). */
 @Composable
 fun PrivacyContent() {
-    Title("Your data stays with you", "No phone number, email or password. Just your name. We don’t sell your data.")
-    AppCard(title = "Stored only on this phone") {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Title("Your data stays with you", "No phone number, email or password — just a first name. No ads, no analytics, and we never sell data.")
+    AppCard(title = "Kept only on this phone") {
         Points(listOf(
-            "Everything you see in the app" to "Steps, distance, screen time, sleep, water, weight, mood, bursts, calm and your 21 days are saved in this phone’s own storage.",
-            "App names" to "Screen time is worked out on the phone. Which apps you used never leaves it.",
-            "Your PIN" to "Saved on the phone in scrambled form. It’s a simple lock, not account security.",
-            "Profile photo and bio" to "Kept in the app’s private storage on this phone. Never uploaded.",
-            "The website" to "You sign in by approving a code in this app (no password). It shows only what this phone shares: steps, screen time and circles.",
-            "Phone check" to "Battery level history, which apps used battery, data and background time, and their permissions are worked out and kept on this phone only.",
-            "Digital detox" to "While a detox you started is on, the app checks which app is open and shows a pause screen over the ones you've chosen to block (social media and browsers by default, adjustable before you start). Your promises and clean hours are worked out and kept on this phone, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default — which copies this session history to the website so you can see it from a browser.",
-            "Schedules" to "Recurring windows (set in Detox) that start and end a detox on their own, at times you choose, blocking the same apps you've already set up to block in Detox — nothing new to set up twice. Checked every 15 minutes while the phone is on; never touches a detox you started by hand.",
-            "App Timers" to "Off until you turn it on in Detox. A small daily time limit per app, on the short list you choose — once an app's minutes for today are spent, it's paused until tomorrow, using the same Usage access already needed for clean hours and detox. Checked every 15 minutes, so blocking can lag a few minutes behind the exact limit; worked out and kept on this phone only.",
-            "Goals" to "The goals you set, your daily check-offs, and whether you met them are worked out from this phone's own data and kept here, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default.",
-            "Life goals" to "Your short, mid and long-term goals — the plan, why it matters, any obstacle and plan for it, milestones, and any photo you add — are kept only on this phone, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default. On, they're copied to the website, where only you can see them.",
-            "Diary" to "Your life's milestones, your daily effort and satisfaction reflections, your notes, and any photo you add are kept only on this phone, even when sharing is on, unless you turn on \"Sync my goals, diary and detox to the website\" in Profile — off by default. On, they're copied to the website, where only you can see them.",
-            "Long-session nudges" to "Turn this on in Profile and the app checks, every 15 minutes, whether you're in the middle of a long unbroken stretch on one social app or browser, using the same Usage access already needed for clean hours and detox. Worked out and sent from this phone only — nothing about which apps you use is ever sent to us.",
-            "Block distracting websites" to "Off until you turn it on in Profile, where you're shown exactly what this needs before Android's own Accessibility settings ever open — you grant it yourself; this app can never enable it for itself. It reads only the address shown in your browser's address bar, never page content, and only in the browser apps named in the app — every other app, including WhatsApp and banking apps, is invisible to it at the Android level, not just by our choice. The time you spend on each site on your list is worked out and kept on this phone only.",
-            "Walks and runs (GPS)" to "Location is used only while you record, with a notification showing. Routes are saved on this phone and never sent. Map pictures are downloaded from OpenStreetMap; your position isn’t.",
-            "Walks and runs without GPS" to "With “Map with GPS” off, no location is used: km, time and pace come from your phone’s step counter, kept on this phone only.",
+            "Your whole history" to "Steps, distance, screen time, sleep, water, weight, mood, bursts, calm, badges and records — saved in this phone’s own storage, for as long as you keep the app.",
+            "Which apps you use" to "Screen time per app is worked out on the phone and never leaves it.",
+            "Goals, life goals and diary" to "Stay on this phone, and are shielded from screenshots and Recent apps. Sync to the website only if you turn that on in Profile.",
+            "Walks and runs" to "Location is used only while you record, with a notification showing. Routes stay on this phone.",
+            "Digital detox" to "Uses Usage access to see which app is open. Strict mode (optional) also uses “Display over other apps” to show the countdown screen, only during a strict detox.",
+            "Voice typing" to "Optional. The microphone is on only while the Listening window is open; your phone’s speech service turns it into text. Audio is never saved or sent to us.",
+            "No backups we didn’t ask for" to "Android’s Google Drive backup and phone-to-phone copy are switched off for this app.",
         ))
     }
-    AppCard(title = "What you share, and how to stop") {
+    AppCard(title = "What’s shared, and how to stop") {
         Points(listOf(
-            "On when you join" to "New members are in Bas 1 Minute India (the all-India ranking) from the start; the first screen says so. Stop any time: Circles → Bas 1 Minute India, or Profile → Your data.",
-            "Exactly two numbers" to "Your daily steps and daily screen time. Nothing else, ever.",
-            "Why share" to "Your circles can rank you, and you get a backup if you change phones.",
-            "Stop anytime" to "Turn it off, and delete what you shared, in one tap.",
+            "On from the start" to "Your first name, daily step total and daily social-media minutes — for Circles, the all-India ranking and monthly challenges, and as a backup. The setup screen says so, with switches.",
+            "Never shared" to "App names, location, sleep, water, weight, diary, goals or detox details (unless you turn on goals/diary sync).",
+            "Stop any time" to "Profile › Your data, or switch Online features off — then nothing leaves this phone. You can also delete what was shared.",
+            "Your own export" to "“Export my data” makes a file on your phone for any dates. It goes only where you send it, such as Claude or ChatGPT.",
         ))
     }
-    AppCard(title = t("Circles")) {
+    GhostButton("Read the full privacy policy") { com.bas1minute.sync.Links.open(ctx, com.bas1minute.sync.Links.PRIVACY) }
+}
+
+/** The two makers, how we work, and how to reach us — same as the website's "Who we are". */
+@Composable
+fun WhoWeAreContent() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Title("Two people in Hyderabad, building one app",
+        "Bas 1 Minute isn’t a company with a marketing team. It’s the two of us, building the app we wanted for our own families.")
+    Maker("SR", Haldi, "Sourav Roy", "tosourav6@gmail.com", null) { com.bas1minute.sync.Links.email(ctx, "tosourav6@gmail.com") }
+    Maker("DS", Violet, "Dyutik Chaudhary Suryadevara", "dyutikchaudhary@gmail.com", "tech.dyutik.com" to "https://tech.dyutik.com") {
+        com.bas1minute.sync.Links.email(ctx, "dyutikchaudhary@gmail.com")
+    }
+    AppCard(title = "How we work") {
         Points(listOf(
-            "Your name only" to "Circles need a name so friends know who you are. No other details are stored.",
-            "Private members" to "If you don’t share, you can still join and see members who do. You show as Private.",
-            "Cheers" to "Shabash and Chalo messages are stored so the other person can see them.",
+            "We build every part" to "The Android app, the server behind circles and competitions, and the website are designed, written and tested by the two of us.",
+            "We answer the email" to "Write to either of us. A person reads it, not a bot, and account deletion requests are done within 7 days.",
+            "We keep it small on purpose" to "No ads and no paid installs. Keeping costs low is how the app stays free for everyone.",
+            "We keep your data on your phone" to "Your history lives on your phone. Only your name, daily steps and social-media minutes are shared, for circles — and you can switch that off.",
         ))
     }
-    AppCard(title = "Your choices") {
-        Points(listOf(
-            "Delete everything" to "Profile → Delete everything removes your data from this phone and your circle account from the server.",
-            "Turn access off" to "In Android Settings or Health Connect, any time.",
-        ))
-    }
-    AppCard(title = "Contact") {
-        Text("Questions about your data: ${BuildConfig.SUPPORT_EMAIL}", style = MaterialTheme.typography.bodyMedium)
-        Text("Bas 1 Minute supports everyday activity and isn’t medical advice.", style = MaterialTheme.typography.bodySmall, color = Muted)
+    BigButton("Visit our website") { com.bas1minute.sync.Links.open(ctx, com.bas1minute.sync.Links.WEBSITE) }
+    GhostButton("Tell a friend about Bas 1 Minute") { com.bas1minute.sync.Links.shareApp(ctx) }
+}
+
+@Composable
+private fun Maker(initials: String, tone: Color, name: String, email: String, site: Pair<String, String>?, onEmail: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardBg).padding(16.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        androidx.compose.foundation.layout.Box(Modifier.padding(end = 14.dp).clip(RoundedCornerShape(50)).background(tone)
+            .padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Text(initials, style = MaterialTheme.typography.titleMedium, color = Ink)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.titleMedium, color = TextMain)
+            TextButton(onClick = onEmail, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                Text(email, color = Blue, style = MaterialTheme.typography.bodyMedium)
+            }
+            site?.let { (label, url) ->
+                TextButton(onClick = { com.bas1minute.sync.Links.open(ctx, url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Text(label, color = Blue, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
     }
 }

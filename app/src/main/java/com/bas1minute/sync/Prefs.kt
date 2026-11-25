@@ -211,6 +211,11 @@ class Prefs(context: Context) {
         get() = p.getString("last_water_rem", "") ?: ""
         set(v) = p.edit().putString("last_water_rem", v).apply()
 
+    /** The day ("2026-11-24") finished days were last shared — circles get ONE upload a day, after 1 AM. */
+    var lastDailyUpload: String
+        get() = p.getString("last_daily_upload", "") ?: ""
+        set(v) = p.edit().putString("last_daily_upload", v).apply()
+
     /** Badge ids already announced; and whether the first silent pass has run (see AchievementStore). */
     var seenBadges: Set<String>
         get() = p.getStringSet("seen_badges", emptySet())?.toSet() ?: emptySet()
