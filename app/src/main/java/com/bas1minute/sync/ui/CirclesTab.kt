@@ -278,12 +278,13 @@ private fun CircleScreen(app: AppController, onShare: (String) -> Unit, onShareW
         // Leaderboard
         AppCard(title = "This week") {
             Podium(d.board)
-            Text("${d.pointsPerDay} point a day at each person’s own step goal.", style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text("${d.pointsPerDay} point a day at each person’s own step goal. Steps update once a day, after 1 AM, " +
+                "so you see everyone up to yesterday.", style = MaterialTheme.typography.bodySmall, color = Muted)
             d.board.forEach { row -> BoardLine(row, onCheer = { kind -> app.cheer(row.userId, kind) }) }
         }
 
         if (d.feed.isNotEmpty()) {
-            AppCard(title = "Yesterday in ${d.name}") {
+            AppCard(title = "Today in ${d.name}") {
                 d.feed.forEach { f ->
                     Row { Text("${f.from} ${if (f.kind == "cheer") "cheered" else "nudged"} ${f.to}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                         Text(f.at, style = MaterialTheme.typography.bodySmall, color = Muted) }

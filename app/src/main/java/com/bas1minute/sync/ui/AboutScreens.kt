@@ -234,7 +234,7 @@ fun WhoWeAreContent() {
     Title("Two people in Hyderabad, building one app",
         "Bas 1 Minute isn’t a company with a marketing team. It’s the two of us, building the app we wanted for our own families.")
     Maker("SR", Haldi, "Sourav Roy", "tosourav6@gmail.com", null) { com.bas1minute.sync.Links.email(ctx, "tosourav6@gmail.com") }
-    Maker("DS", Violet, "Dyutik Chaudhary Suryadevara", "dyutikchaudhary@gmail.com", "tech.dyutik.com" to "https://tech.dyutik.com") {
+    Maker("DS", Violet, "Dyutik Chaudhary Suryadevara", "dyutikchaudhary@gmail.com", null) {
         com.bas1minute.sync.Links.email(ctx, "dyutikchaudhary@gmail.com")
     }
     AppCard(title = "How we work") {
